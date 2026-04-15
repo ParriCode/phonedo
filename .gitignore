@@ -6,3 +6,5 @@ coverage/
 .run/
 *.log
 .DS_Store
+.venv
+__pycache__/
