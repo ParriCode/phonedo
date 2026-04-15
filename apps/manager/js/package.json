@@ -1,0 +1,15 @@
+{
+  "name": "@phonendo/manager",
+  "version": "0.1.0",
+  "private": true,
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@phonendo/http": "file:../../../libs/js",
+    "dotenv": "^17.4.2",
+    "uuid": "^13",
+    "path":"^0.12.7"
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "name": "storage",
+  "version": "0.1.0",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@phonendo/http": "file:../../../libs/js",
+    "path":"^0.12.7",
+    "dotenv": "^17.4.2",
+    "level": "10.0.0"
+  }
+}
