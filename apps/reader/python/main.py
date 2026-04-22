@@ -1,13 +1,190 @@
+"""
+author: Jose Luis Parrilla Fuentes jlpf0006@red.ujaen.es
+
+file: reader.py
+
+reader has de responsabily of catch sensors información and send them to the manager , also if a sensor is not register, this can check and notg register twice
+"""
 import os
 import time
 import asyncio
 import threading
 from pathlib import Path
 
+
+from abc import ABC , abstractmethod
 import requests
 from flask import Flask, request
 from dotenv import load_dotenv
 from bleak import BleakScanner, BleakClient
+from enum import Enum 
+
+from uuid import uuid4
+
+from dataclasses import dataclass , field 
+
+
+from rdflib import Graph, Literal, Namespace, RDF, URIRef
+from rdflib.namespace import XSD
+
+from datetime import datetime , timezone
+
+from typing import Optional , List
+class Sensor(Enum):
+    EXAMPLE = "example"
+
+
+class ObservableProperty(Enum):
+    HEART_RATE = "HeartRate"
+    TEMPERATURE = "Temperature"
+    SPO2 = "SpO2"
+
+
+
+SOSA = Namespace("http://www.w3.org/ns/sosa/")
+TIME = Namespace("http://www.w3.org/2006/time#")
+EX = Namespace("https://example.org/phonendo#")
+
+@dataclass
+class Observation:
+    """
+    Representa una sosa:Observation.
+    """
+    observable_property: ObservableProperty
+    platafform: Optional[str] 
+    simple_result: int | float | str
+    feature_of_interest: str
+    phenomenon_time: Optional[datetime] = None
+    procedure: Optional[str] = None
+    observation_id: str = field(default_factory=lambda: f"obs_{uuid4().hex}")
+
+    def to_graph(self, graph: Graph, sensor_uri: URIRef) -> URIRef:
+        obs_uri = EX[self.observation_id]
+        graph.add((obs_uri, RDF.type, SOSA.Observation))
+        graph.add((obs_uri, SOSA.madeBySensor, sensor_uri))
+        graph.add((obs_uri, SOSA.observedProperty, EX[self.observable_property.value]))
+        graph.add((obs_uri, SOSA.hasFeatureOfInterest, EX[self.feature_of_interest]))
+
+        # hasSimpleResult
+        if isinstance(self.simple_result, int):
+            result_literal = Literal(self.simple_result, datatype=XSD.integer)
+        elif isinstance(self.simple_result, float):
+            result_literal = Literal(self.simple_result, datatype=XSD.decimal)
+        else:
+            result_literal = Literal(self.simple_result)
+
+        graph.add((obs_uri, SOSA.hasSimpleResult, result_literal))
+
+        # resultTime
+        graph.add((
+            obs_uri,
+            SOSA.resultTime,
+            #tipo de dato xsd::dateTime
+        ))
+
+        # phenomenonTime opcional
+        if self.phenomenon_time is not None:
+            graph.add((
+                obs_uri,
+                SOSA.phenomenonTime,
+                Literal(self.phenomenon_time.isoformat(), datatype=XSD.dateTime)
+            ))
+
+        # usedProcedure opcional
+        if self.procedure:
+            graph.add((obs_uri, SOSA.usedProcedure, EX[self.procedure]))
+
+        return obs_uri
+
+class SensorBase(ABC):
+    """
+    Clase base abstracta para cualquier sensor modelado con SOSA.
+    """
+
+    def __init__(
+        self,
+        sensor_id: str,
+        observable_property: ObservableProperty,
+        feature_of_interest: str,
+        platform: Optional[str] = None,
+    ) -> None:
+        self.sensor_id = sensor_id
+        self.observable_property = observable_property
+        self.feature_of_interest = feature_of_interest
+        self.platform = platform
+        self.observations: List[Observation] = []
+
+    def add_observation(
+        self,
+        simple_result: int | float | str,
+        result_time: Optional[datetime] = None,
+        phenomenon_time: Optional[datetime] = None,
+        procedure: Optional[str] = None,
+    ) -> Observation:
+        """
+        Añade una medición nueva al sensor.
+        """
+        if result_time is None:
+            result_time = datetime.now(timezone.utc)
+
+        obs = Observation(
+            observable_property=self.observable_property,
+            simple_result=simple_result,
+            result_time=result_time,
+            phenomenon_time=phenomenon_time,
+            feature_of_interest=self.feature_of_interest,
+            procedure=procedure,
+        )
+        self.observations.append(obs)
+        return obs
+
+    def to_graph(self) -> Graph:
+        """
+        Convierte el sensor y todas sus observaciones a un grafo RDF.
+        """
+        graph = Graph()
+        graph.bind("sosa", SOSA)
+        graph.bind("time", TIME)
+        graph.bind("ex", EX)
+
+        sensor_uri = EX[self.sensor_id]
+
+        # El sensor
+        graph.add((sensor_uri, RDF.type, SOSA.Sensor))
+        graph.add((sensor_uri, SOSA.observes, EX[self.observable_property.value]))
+
+        # ObservableProperty
+        graph.add((EX[self.observable_property.value], RDF.type, SOSA.ObservableProperty))
+
+        # FeatureOfInterest
+        graph.add((EX[self.feature_of_interest], RDF.type, SOSA.FeatureOfInterest))
+
+        # Platform opcional
+        if self.platform:
+            platform_uri = EX[self.platform]
+            graph.add((platform_uri, RDF.type, SOSA.Platform))
+            graph.add((platform_uri, SOSA.hosts, sensor_uri))
+
+        # Observaciones
+        for observation in self.observations:
+            observation.to_graph(graph, sensor_uri)
+
+        return graph
+
+    def to_ttl(self) -> str:
+        """
+        Devuelve el Turtle listo para enviar por HTTP.
+        """
+        return self.to_graph().serialize(format="turtle")
+
+    @abstractmethod
+    def sensor_kind(self) -> str:
+        """
+        Método abstracto para que cada sensor concreto se describa.
+        """
+        raise NotImplementedError
+
+
 
 # Cargar config.env
 load_dotenv(Path(__file__).resolve().parent.parent / "config.env")
