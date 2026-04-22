@@ -113,7 +113,8 @@ function signDataSource(message) {
 
     const hash = createHash('sha256').update(message.value.device + 'Phonendo').digest('hex');
 
-    const bytes = toBytes(hash);
+    message.value.dataSourceHash = hash;
+    message.value.dataSourceSignDatetime = new Date().getTime();
 
     return message;
 }
