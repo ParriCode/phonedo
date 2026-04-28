@@ -1,0 +1,196 @@
+@startuml
+skinparam classAttributeIconSize 0
+skinparam packageStyle rectangle
+title Phonendo Reader - Class Diagram
+
+package "reader" {
+  class "Reader-Core" as ReaderCore {
+    - devices: Map<String, Device>
+    - serializer: SosaTTLSerializer
+    - managerClient: ManagerClient
+    - config: ReaderConfig
+    
+    + registerDevice(device: Device): void
+    + addDevice(device: Device): void
+    + removeDevice(deviceId: String): void
+    + getDevice(deviceId: String): Device
+    + ingestRawMeasurement(deviceId: String, sensorId: String, rawValue: Object, phenomenonTime: DateTime): Observation
+    + sendObservation(obs: Observation, device: Device): void
+  }
+
+  class "Reader-Service" as ReaderService {
+  }
+
+  class ReaderConfig {
+    + enableBluetooth: bool
+    + enableHttp: bool
+    + enableLocal: bool
+    + managerUrl: String
+    + managerToken: String
+  }
+}
+
+package "domain" {
+
+  class Device {
+    + deviceId: String
+    + deviceType: String
+    + serialNumber: String
+    + macAddress: String
+    + platform: String
+    - sensors: Map<String, SensorBase>
+    + addSensor(sensor: SensorBase): void
+    + getSensor(sensorId: String): SensorBase
+    + removeSensor(sensorId: String): void
+    + listSensors(): List<SensorBase>
+  }
+
+  abstract class SensorBase {
+    + sensorId: String
+    + observableProperty: ObservableProperty
+    + procedure: String
+    + featureOfInterest: String
+    + addObservation(simpleResult: Object, phenomenonTime: DateTime): Observation
+    + buildObservation(rawValue: Object, phenomenonTime: DateTime): Observation
+  }
+
+  abstract class EventDrivenSensor {
+    + eventName: String
+    + handleEvent(payload: Object): Observation
+  }
+
+  abstract class PeriodicSensor {
+    + intervalSeconds: int
+    + timeoutSeconds: int
+    + start(): void
+    + stop(): void
+    + poll(): Observation
+  }
+
+  class HeartRateSensor {
+    + minValue: int
+    + maxValue: int
+    + buildObservation(rawValue: Object, phenomenonTime: DateTime): Observation
+  }
+
+  class TemperatureSensor {
+    + unit: String
+    + buildObservation(rawValue: Object, phenomenonTime: DateTime): Observation
+  }
+
+  class Observation {
+    + observationId: String
+    + observableProperty: ObservableProperty
+    + simpleResult: Object
+    + phenomenonTime: DateTime
+    + featureOfInterest: String
+    + procedure: String
+  }
+
+  enum ObservableProperty {
+    HEART_RATE
+    TEMPERATURE
+    SPO2
+  }
+}
+
+package "phonendoSensors" {
+
+  interface RawSensorAdapter {
+    + connect(): void
+    + disconnect(): void
+    + readRawValue(): Object
+  }
+
+  class BluetoothSensorAdapter {
+    + macAddress: String
+    + connect(): void
+    + disconnect(): void
+    + readRawValue(): Object
+  }
+
+  class LocalSensorAdapter {
+    + devicePath: String
+    + connect(): void
+    + disconnect(): void
+    + readRawValue(): Object
+  }
+
+  class HttpSensorAdapter {
+    + endpoint: String
+    + connect(): void
+    + disconnect(): void
+    + readRawValue(): Object
+  }
+}
+
+package "serialization" {
+
+  class SosaTTLSerializer {
+    + serialize(device: Device, observation: Observation): String
+  }
+}
+
+package "integration" {
+
+  class ManagerClient {
+    + baseUrl: String
+    + token: String
+    + registerDevice(device: Device): void
+    + sendObservationTTL(ttl: String): void
+  }
+}
+
+ReaderCore *-- "0..*" Device
+ReaderCore --> ReaderConfig
+ReaderCore --> ManagerClient
+ReaderCore --> SosaTTLSerializer
+ReaderService --> ReaderCore
+
+Device *-- "1..*" SensorBase
+
+SensorBase <|-- EventDrivenSensor
+SensorBase <|-- PeriodicSensor
+
+EventDrivenSensor <|-- HeartRateSensor
+PeriodicSensor <|-- TemperatureSensor
+
+SensorBase --> ObservableProperty
+SensorBase --> Observation : creates
+SensorBase o-- "0..1" RawSensorAdapter
+
+RawSensorAdapter <|.. BluetoothSensorAdapter
+RawSensorAdapter <|.. LocalSensorAdapter
+RawSensorAdapter <|.. HttpSensorAdapter
+
+SosaTTLSerializer --> Device
+SosaTTLSerializer --> Observation
+
+ManagerClient ..> Device
+ManagerClient ..> Observation
+
+note right of ReaderCore
+Reader can run:
+- inside a wearable device
+- in a gateway
+- in a mobile/edge device
+
+It manages multiple Devices and
+sends SOSA TTL to Manager over HTTP.
+end note
+
+note right of Device
+A Device is a physical or logical source
+of data and may contain multiple sensors.
+end note
+
+note right of Observation
+The important semantic fields are:
+- observableProperty
+- simpleResult
+- phenomenonTime
+- featureOfInterest
+- procedure
+end note
+
+@enduml
