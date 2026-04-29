@@ -10,3 +10,5 @@ coverage/
 .venv
 **/__pycache__/
 __pycache__/node_modules/
+.codex
+**/__pycache__/**
