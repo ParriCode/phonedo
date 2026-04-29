@@ -1,77 +1,67 @@
 import json
-import logging
-from typing import Any, List, Tuple
+import os
+from pathlib import Path
+from typing import Any
 
 import plyvel
 
-db = plyvel.DB("/tmp/phonendo_db_final", create_if_missing=True)
 
+class PhonendoDB:
+    DEVICE_PREFIX = "device:"
+    EVENT_PREFIX = "event:"
 
-def init_db():
-    pass
+    def __init__(self, path: str | None = None) -> None:
+        self.db_path = path or os.getenv("PHONENDO_DB_PATH", "/tmp/phonendo_db_path")
 
+        Path(self.db_path).parent.mkdir(parents=True, exist_ok=True)
 
-def write(key: str, value: Any):
-    try:
-        existing = db.get(key.encode())
-        if existing is None:
-            db.put(key.encode(), json.dumps(value).encode())
-    except Exception:
-        db.put(key.encode(), json.dumps(value).encode())
+        self.db = plyvel.DB(
+            self.db_path,
+            create_if_missing=True,
+        )
 
-
-def read(key: str):
-    result = ""
-    try:
-        value = db.get(key.encode())
-        if value is not None:
-            result = json.loads(value.decode())
+        if self.db is None:
+            raise RuntimeError("DB no inicializada")
+    def write(self, key : str , value : dict ) -> None:
+        
+        value = self.db.get(key.encode())
+        if value is None:
+            #no existe el valor dado por tanto se puede eribir
+            self.db.put(key.encode(), json.dumps(value ).encode())
         else:
-            logging.warning(f"DB {key} not found")
-    except Exception:
-        logging.warning(f"DB {key} not found")
-    return result
+            raise RuntimeWarning(f"La escritura con clave= {key} se había ralizado antes, por lo tanto no se ejecuta")
+        self.db.put()
 
+    def read(self, key : str ) -> dict:
+        value : str =  self.db(key.encode())
+                
+        if value  is None: 
+            return {} 
 
-def delete(key: str):
-    try:
-        db.delete(key.encode())
-    except Exception:
-        logging.warning(f"DB {key} not found")
+        return json.loads(value.decode('utf-89'))
 
+    def read_all(self) -> dict[str, dict[str, Any]]:
+        """
+        devuelve toda la base de datos
+       
+        """
 
-def update(key: str, value: Any):
-    delete(key)
-    write(key, value)
+        todo = {}
 
+        for key_bytes, value_bytes in self.db.iterator():
+            key = key_bytes.decode("utf-8")
+            value = json.loads(value_bytes.decode('utf-8'))
 
-def get_all_captured_items() -> List[Tuple[str, Any]]:
-    captured_items = []
+            todo[key] = value 
 
-    try:
-        for key, value in db:
-            decoded_key = key.decode()
-            decoded_value = json.loads(value.decode())
+        return todo 
 
-            if decoded_value.get("status") == "Captured":
-                captured_items.append((decoded_key, decoded_value))
+    def close(self) -> None:
+        if self.db is not None:
+            self.db.close()
 
-        return captured_items
-    except Exception as err:
-        logging.error(err)
-        return captured_items
+    def __enter__(self) -> "PhonendoDB":
+        return self
 
-
-def get_all_items() -> List[Tuple[str, Any]]:
-    items = []
-
-    try:
-        for key, value in db:
-            decoded_key = key.decode()
-            decoded_value = json.loads(value.decode())
-            items.append((decoded_key, decoded_value))
-
-        return items
-    except Exception as err:
-        logging.error(err)
-        return items
+    def __exit__(self, exc_type, exc_value, traceback) -> None:
+        self.close()

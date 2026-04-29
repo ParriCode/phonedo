@@ -4,34 +4,36 @@ from pathlib import Path
 from flask import Flask, jsonify, request
 from dotenv import load_dotenv
 
-from db import init_db, write, get_all_items
+from db import PhonendoDB
 
 load_dotenv(Path(__file__).resolve().parent.parent / "config.env")
 
 app = Flask(__name__)
 
 
+my_db  = PhonendoDB()
+
 @app.get("/")
 def home():
-    data = get_all_items()
+    data = my_db.read_all()
     return jsonify(data), 200
 
 
-@app.post("/devices")
+@app.post("/registerDevice")
 def store_device():
     try:
         print("Device received:", request.json)
-
+        #checkear el token
         if not request.json.get("token") or request.json.get("token") != os.getenv("API_TOKEN_STORAGE"):
             return "Not authorized", 401
 
         if not request.json.get("message"):
             return "Bad request", 403
-
+        #Obtener el mensaje
         message = request.json["message"]
         print("Registro en db:", message)
 
-        write(message["key"], message["value"])
+        my_db.write(message["key"], message["value"])
 
         print("Device registered on db:", message["key"])
         return "ok", 200
@@ -41,7 +43,7 @@ def store_device():
         return "Internal server error", 500
 
 
-@app.post("/events")
+@app.post("/event")
 def store_event():
     try:
         print("[STORAGE /events] Body:", request.json)
@@ -54,7 +56,7 @@ def store_event():
 
         message = request.json["message"]
 
-        write(message["key"], message["value"])
+        my_db.write(message["key"], message["value"])
 
         print("[STORAGE /events] Stored:", message["key"])
 
@@ -68,7 +70,7 @@ def store_event():
 @app.get("/raw")
 def raw():
     try:
-        data = get_all_items()
+        data = my_db.read()
         return jsonify(data), 200
     except Exception as error:
         print(error)
@@ -76,7 +78,6 @@ def raw():
 
 
 def start():
-    init_db()
     app.run(host="0.0.0.0", port=int(os.getenv("PORT_STORAGE", 5000)))
 
 

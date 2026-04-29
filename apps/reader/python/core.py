@@ -34,7 +34,7 @@ class ManagerClient:
         self.send_observation_path = send_observation_path
         self.timeout_seconds = timeout_seconds
 
-    def send_observation_ttl(self, ttl: str, reader_id : str ) -> None:
+    def send_observation_ttl(self, ttl: str, reader_id : str , device_id : str ) -> None:
         if not ttl:
             raise ValueError("ttl no puede estar vacío")
 
@@ -57,6 +57,7 @@ class ManagerClient:
                 "eventType": "observation",
                 "payloadFormat": "text/turtle",
                 "payload": ttl,
+                "deviceId": device_id,
                 "readerId": reader_id
             },
             headers=headers,
@@ -83,8 +84,9 @@ class ManagerClient:
                 "token": self.token,
                 "readerId": reader_id,
                 "deviceId": device.device_id,
-                "type": device.device_type,
+                "deviceType":device.device_type,
                 "serialNumber": device.serial_number,
+                "macAddress": device.mac_address,
                 "creationDatetime": int(time.time() * 1000),
             },
             headers={
@@ -205,4 +207,4 @@ class ReaderCore:
         )
 
         print(f"ttl que se va a enviar=:\n{ttl}")
-        self.manager_client.send_observation_ttl(ttl, observation.device_id)
+        self.manager_client.send_observation_ttl(ttl, self.reader_id,  observation.device_id)

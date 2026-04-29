@@ -9,13 +9,17 @@ class Device:
         self,
         device_id: str,
         device_type: str,
-        serial_number: str | None = None,
-        mac_address: str | None = None,
+        serial_number: str,
+        mac_address: str ,
         platform: str | None = None,
     ) -> None:
         if not device_id:
             raise ValueError("device_id no puede estar vacío")
-
+        if not serial_number:
+            raise ValueError("device_id no puede estar vacío")
+        
+        if not mac_address:
+            raise ValueError("mac_addres no puede estar vacía")
         self.device_id = device_id
         self.device_type = device_type
         self.serial_number = serial_number
