@@ -17,7 +17,7 @@ apps/storage/python/data/
 *.leveldb/
 **/*.leveldb/
 *.py[cod]
-
+*.pyc
 config.env
 config.env.save
 

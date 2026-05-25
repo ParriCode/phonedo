@@ -1,4 +1,5 @@
 import os
+import sys
 import json
 import time
 import hmac
@@ -6,10 +7,23 @@ import hashlib
 from pathlib import Path
 from uuid import UUID
 
-from flask import Flask, request, jsonify
+from flask import Flask, g, request, jsonify
 from dotenv import load_dotenv
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import padding
+
+ROOT_DIR = Path(__file__).resolve().parents[3]
+sys.path.insert(0, str(ROOT_DIR / "libs/python"))
+
+from logger import Logger
+
+
+def env_bool(name: str, default: bool) -> bool:
+    value = os.getenv(name)
+    if value is None:
+        return default
+
+    return value.strip().lower() in {"1", "true", "yes", "y", "on"}
 
 
 def is_uuid4(value: str) -> bool:
@@ -72,6 +86,14 @@ def sign_with_verifier(message: dict) -> str:
 
 load_dotenv(Path(__file__).resolve().parent.parent / "config.env")
 
+Logger.init(
+    os.getenv("PHONENDO_LOGS_DIR", str(ROOT_DIR / "logs/services")),
+    service="verifier",
+    verbose=env_bool("PHONENDO_VERBOSE", False),
+    logging=env_bool("PHONENDO_LOGGING", True),
+    dev=env_bool("PHONENDO_DEV", False),
+)
+
 BASE_DIR = Path(__file__).resolve().parent
 KEYS_PATH = BASE_DIR.parent / "keys.json"
 
@@ -86,6 +108,58 @@ private_key = serialization.load_pem_private_key(
 app = Flask(__name__)
 
 
+def sanitize_body(body):
+    if not isinstance(body, dict):
+        return body
+
+    sanitized = dict(body)
+    sanitized.pop("token", None)
+
+    message = sanitized.get("message")
+    if isinstance(message, dict):
+        sanitized["message"] = {
+            "key": message.get("key"),
+            "value": {
+                "deviceId": (message.get("value") or {}).get("deviceId")
+                if isinstance(message.get("value"), dict)
+                else None,
+                "readerId": (message.get("value") or {}).get("readerId")
+                if isinstance(message.get("value"), dict)
+                else None,
+                "status": (message.get("value") or {}).get("status")
+                if isinstance(message.get("value"), dict)
+                else None,
+            },
+        }
+
+    return sanitized
+
+
+@app.before_request
+def start_request_log():
+    g.request_started_at = time.time()
+
+
+@app.after_request
+def log_request(response):
+    duration_ms = int((time.time() - g.get("request_started_at", time.time())) * 1000)
+    body = request.get_json(silent=True) or {}
+    message = body.get("message") if isinstance(body, dict) else None
+    value = message.get("value") if isinstance(message, dict) else None
+
+    Logger.request(
+        request.method,
+        request.path,
+        response.status_code,
+        durationMs=duration_ms,
+        eventId=message.get("key") if isinstance(message, dict) else None,
+        deviceId=value.get("deviceId") if isinstance(value, dict) else None,
+        readerId=value.get("readerId") if isinstance(value, dict) else None,
+    )
+    Logger.debug("request_body", body=sanitize_body(body))
+    return response
+
+
 @app.get("/")
 def healthcheck():
     return "Service is alive", 200
@@ -96,22 +170,26 @@ def verify():
     data = request.get_json(silent=True)
 
     if not isinstance(data, dict):
+        Logger.warning("verify_invalid_json")
         return jsonify({"verified": False, "error": "Invalid JSON body"}), 400
 
     token = data.get("token")
     expected_token = os.getenv("API_TOKEN_VERIFIER")
 
     if not expected_token:
+        Logger.error("verifier_token_not_configured")
         return jsonify({"verified": False, "error": "API_TOKEN_VERIFIER is not configured"}), 500
     
     #Esta comparación es para que tarde lo mismo la comparación del token , ya que sino el atacante podría medir tiempos y 
     #tratar de averiguar el token poco a poco
     if not token or not hmac.compare_digest(str(token), expected_token):
+        Logger.warning("verify_not_authorized")
         return jsonify({"verified": False, "error": "Not authorized"}), 401
 
     message = data.get("message")
 
     if not isinstance(message, dict):
+        Logger.warning("verify_bad_request", error="message is required and must be an object")
         return jsonify({"verified": False, "error": "message is required and must be an object"}), 400
 
 
@@ -130,6 +208,7 @@ def verify():
         errors.append("value does not exist or is not an object")
 
     if errors:
+        Logger.warning("verify_rejected_bad_envelope", errors=errors)
         return jsonify({"verified": False, "errors": errors}), 400
 
     schema_version = value.get("schemaVersion")
@@ -170,6 +249,7 @@ def verify():
         errors.append("managerHash does not exist")
     #Enviar todos los correos
     if errors:
+        Logger.warning("verify_rejected_missing_fields", eventId=key, errors=errors)
         return jsonify({"verified": False, "errors": errors}), 400
 
     #Estos son campos que el maanager siempre debería de mandar igual
@@ -214,6 +294,7 @@ def verify():
         errors.append("managerHash must be a SHA256 hex string")
 
     if errors:
+        Logger.warning("verify_rejected_invalid_fields", eventId=key, deviceId=device_id, readerId=reader_id, errors=errors)
         return jsonify({
             "verified": False,
             "status": "Rejected",
@@ -238,6 +319,7 @@ def verify():
 
 
     if errors:
+        Logger.warning("verify_rejected_invalid_time", eventId=key, deviceId=device_id, readerId=reader_id, errors=errors)
         return jsonify({
             "verified": False,
             "status": "Rejected",
@@ -265,7 +347,8 @@ def verify():
 
     verified_message["value"]["verifierSign"] = signature
 
-    print("Event verified with signature:", signature)
+    Logger.info("event_verified", eventId=key, deviceId=device_id, readerId=reader_id)
+    Logger.debug("event_signature", eventId=key, signature=signature)
 
     return jsonify({
         "verified": True,
@@ -275,6 +358,7 @@ def verify():
 
 
 if __name__ == "__main__":
+    Logger.info("service_starting", port=os.getenv("PORT_VERIFIER", 5000))
     app.run(
         host="0.0.0.0",
         port=int(os.getenv("PORT_VERIFIER", 5000))
