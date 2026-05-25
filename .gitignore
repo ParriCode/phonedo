@@ -12,3 +12,11 @@ coverage/
 __pycache__/node_modules/
 .codex
 **/__pycache__/**
+
+apps/storage/python/data/
+*.leveldb/
+**/*.leveldb/
+*.py[cod]
+
+config.env
+config.env.save
