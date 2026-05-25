@@ -1,4 +1,4 @@
-@startuml
+@startuml reader
 skinparam classAttributeIconSize 0
 skinparam packageStyle rectangle
 title Phonendo Reader - Class Diagram

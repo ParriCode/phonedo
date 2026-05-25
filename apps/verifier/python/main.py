@@ -1,14 +1,76 @@
 import os
 import json
 import time
+import hmac
+import hashlib
 from pathlib import Path
+from uuid import UUID
 
-from flask import Flask, request
+from flask import Flask, request, jsonify
 from dotenv import load_dotenv
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import padding
 
-load_dotenv()
+
+def is_uuid4(value: str) -> bool:
+    try:
+        uuid_obj = UUID(str(value), version=4)
+    except (ValueError, TypeError, AttributeError):
+        return False
+
+    return str(uuid_obj) == str(value).lower()
+
+
+def canonical_json(data) -> str:
+    return json.dumps(
+        data,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False
+    )
+
+
+def is_sha256_hex(value: str) -> bool:
+    if not isinstance(value, str):
+        return False
+
+    if len(value) != 64:
+        return False
+
+    try:
+        int(value, 16)
+        return True
+    except ValueError:
+        return False
+
+
+def is_milliseconds_timestamp(value) -> bool:
+    if isinstance(value, bool):
+        return False
+
+    try:
+        int(value)
+        return True
+    except (TypeError, ValueError):
+        return False
+
+
+def is_non_empty_string(value) -> bool:
+    return isinstance(value, str) and bool(value.strip())
+
+
+
+def sign_with_verifier(message: dict) -> str:
+    message_bytes = canonical_json(message).encode("utf-8")
+
+    return private_key.sign(
+        message_bytes,
+        padding.PKCS1v15(),
+        hashes.SHA256()
+    ).hex()
+
+
+load_dotenv(Path(__file__).resolve().parent.parent / "config.env")
 
 BASE_DIR = Path(__file__).resolve().parent
 KEYS_PATH = BASE_DIR.parent / "keys.json"
@@ -31,31 +93,189 @@ def healthcheck():
 
 @app.post("/verify")
 def verify():
-    data = request.get_json(silent=True) or {}
+    data = request.get_json(silent=True)
 
-    if not data.get("token") or data.get("token") != os.getenv("API_TOKEN_VERIFIER"):
-        return "Not authorized", 401
+    if not isinstance(data, dict):
+        return jsonify({"verified": False, "error": "Invalid JSON body"}), 400
 
-    if not data.get("message"):
-        return "Bad request", 403
+    token = data.get("token")
+    expected_token = os.getenv("API_TOKEN_VERIFIER")
 
-    message = data["message"]
+    if not expected_token:
+        return jsonify({"verified": False, "error": "API_TOKEN_VERIFIER is not configured"}), 500
+    
+    #Esta comparación es para que tarde lo mismo la comparación del token , ya que sino el atacante podría medir tiempos y 
+    #tratar de averiguar el token poco a poco
+    if not token or not hmac.compare_digest(str(token), expected_token):
+        return jsonify({"verified": False, "error": "Not authorized"}), 401
 
-    message_bytes = json.dumps(message, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+    message = data.get("message")
 
-    signature = private_key.sign(
-        message_bytes,
-        padding.PKCS1v15(),
-        hashes.SHA256()
-    ).hex()
+    if not isinstance(message, dict):
+        return jsonify({"verified": False, "error": "message is required and must be an object"}), 400
 
-    message["value"]["verifierSign"] = signature
-    message["value"]["verifierSignDatetime"] = int(time.time() * 1000)
 
-    print("Event Verified with signature:", signature)
+    #En lugar de mandar el error nada más producirse, acumularlos , es mejor así porque se tiene la lista completa
+    errors = []
 
-    return message, 200
+    key = message.get("key")
+    value = message.get("value")
+
+    if not key:
+        errors.append("key does not exist")
+    elif not is_uuid4(key):
+        errors.append("key is not a valid UUID4")
+
+    if not isinstance(value, dict):
+        errors.append("value does not exist or is not an object")
+
+    if errors:
+        return jsonify({"verified": False, "errors": errors}), 400
+
+    schema_version = value.get("schemaVersion")
+    event_type = value.get("eventType")
+    reader_id = value.get("readerId")
+    device_id = value.get("deviceId")
+    payload_format = value.get("payloadFormat")
+    payload = value.get("payload")
+    status = value.get("status")
+    creation_datetime = value.get("creationDatetime")
+    manager_hash = value.get("managerHash")
+
+    if not schema_version:
+        errors.append("schemaVersion does not exist")
+
+    if not event_type:
+        errors.append("eventType does not exist")
+
+    if not reader_id:
+        errors.append("readerId does not exist")
+
+    if not device_id:
+        errors.append("deviceId does not exist")
+
+    if not payload_format:
+        errors.append("payloadFormat does not exist")
+
+    if payload is None:
+        errors.append("payload does not exist")
+
+    if not status:
+        errors.append("status does not exist")
+
+    if creation_datetime is None:
+        errors.append("creationDatetime does not exist")
+
+    if not manager_hash:
+        errors.append("managerHash does not exist")
+    #Enviar todos los correos
+    if errors:
+        return jsonify({"verified": False, "errors": errors}), 400
+
+    #Estos son campos que el maanager siempre debería de mandar igual
+
+    if schema_version != "phonendo.event.v1":
+        errors.append("schemaVersion is not valid")
+
+    if event_type != "observation":
+        errors.append("eventType is not valid")
+
+    if status != "Captured":
+        errors.append("status must be Captured")
+
+    # Formato
+    if not is_uuid4(reader_id):
+        errors.append("readerId is not a valid UUID4")
+
+    if not is_non_empty_string(device_id):
+        errors.append("deviceId must be a non-empty string")
+
+    if not isinstance(payload_format, str) or not payload_format.strip():
+        errors.append("payloadFormat must be a non-empty string")
+
+    if payload_format == "text/turtle":
+        if not is_non_empty_string(payload):
+            errors.append("payload must be a non-empty Turtle string")
+    elif not isinstance(payload, dict):
+        errors.append("payload must be a JSON object")
+    elif not payload:
+        errors.append("payload cannot be empty")
+
+    if isinstance(payload, dict):
+        try:
+            canonical_json(payload)
+        except (TypeError, ValueError):
+            errors.append("payload is not JSON serializable")
+
+    if not is_milliseconds_timestamp(creation_datetime):
+        errors.append("creationDatetime must be a milliseconds timestamp")
+
+    if not is_sha256_hex(manager_hash):
+        errors.append("managerHash must be a SHA256 hex string")
+
+    if errors:
+        return jsonify({
+            "verified": False,
+            "status": "Rejected",
+            "errors": errors
+        }), 422
+
+    creation_datetime = int(creation_datetime)
+    now_ms = int(time.time() * 1000)
+
+    max_age_ms = int(os.getenv("MAX_EVENT_AGE_MS", 5 * 60 * 1000))
+    max_future_drift_ms = int(os.getenv("MAX_FUTURE_DRIFT_MS", 30 * 1000))
+
+    # Tiempo
+    if creation_datetime > now_ms + max_future_drift_ms:
+        errors.append("creationDatetime cannot be in the future")
+
+    if creation_datetime < now_ms - max_age_ms:
+        errors.append("creationDatetime is too old")
+
+    # Hash del Manager
+  
+
+
+    if errors:
+        return jsonify({
+            "verified": False,
+            "status": "Rejected",
+            "errors": errors
+        }), 422
+
+    # Documento verificado
+    verified_message = {
+        "key": key,
+        "value": {
+            "schemaVersion": schema_version,
+            "eventType": event_type,
+            "readerId": reader_id,
+            "deviceId": device_id,
+            "payloadFormat": payload_format,
+            "payload": payload,
+            "status": "Verified",
+            "creationDatetime": creation_datetime,
+            "managerHash": manager_hash,
+            "verifierSignDatetime": now_ms,
+        }
+    }
+
+    signature = sign_with_verifier(verified_message)
+
+    verified_message["value"]["verifierSign"] = signature
+
+    print("Event verified with signature:", signature)
+
+    return jsonify({
+        "verified": True,
+        "status": "Verified",
+        "message": verified_message
+    }), 200
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.getenv("PORT_VERIFIER", 5000)))
+    app.run(
+        host="0.0.0.0",
+        port=int(os.getenv("PORT_VERIFIER", 5000))
+    )

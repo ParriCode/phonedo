@@ -82,6 +82,7 @@ class ManagerClient:
             f"{self.base_url}/registerDevice",
             json={
                 "token": self.token,
+                "schemaVersion": "phonendo.event.v1", 
                 "readerId": reader_id,
                 "deviceId": device.device_id,
                 "deviceType":device.device_type,
@@ -125,7 +126,7 @@ class ReaderCore:
         Registra el dispositivo localmente y también en el Manager.
         """
         self.add_device(device)
-        self.manager_client.register_device(device)
+        self.manager_client.register_device(self.reader_id,   device)
 
     def add_device(self, device: Device) -> None:
         if device is None:

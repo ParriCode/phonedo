@@ -13,6 +13,18 @@ app = Flask(__name__)
 
 my_db  = PhonendoDB()
 
+
+def storage_token_from_request():
+    auth_header = request.headers.get("Authorization", "")
+    if auth_header.startswith("Bearer "):
+        return auth_header.removeprefix("Bearer ").strip()
+
+    return (
+        request.headers.get("X-Storage-Token")
+        or request.headers.get("token")
+        or request.headers.get("Token")
+    )
+
 @app.get("/")
 def home():
     data = my_db.read_all()
@@ -36,11 +48,40 @@ def store_device():
         my_db.write(message["key"], message["value"])
 
         print("Device registered on db:", message["key"])
-        return "ok", 200
+        return jsonify(message), 200
 
     except Exception as error:
         print(error)
         return "Internal server error", 500
+
+
+@app.get("/device/<device_id>")
+def get_device(device_id):
+    try:
+
+        print("[DEBUG /device] device_id:", device_id, flush=True)
+
+        token = storage_token_from_request()
+
+        if not token or token != os.getenv("API_TOKEN_STORAGE"):
+            return jsonify({"error": "Not authorized"}), 401
+
+        device = my_db.read(device_id)
+
+        print("[DEBUG /device] device_id:", device, flush=True)
+
+
+        if not device:
+            return jsonify({"error": "Device not found"}), 404
+
+        return jsonify({
+            "key": device_id,
+            "value": device
+        }), 200
+
+    except Exception as error:
+        print("[STORAGE /device] Error:", error)
+        return jsonify({"error": "Internal server error"}), 500
 
 
 @app.post("/event")
@@ -60,7 +101,7 @@ def store_event():
 
         print("[STORAGE /events] Stored:", message["key"])
 
-        return "ok", 200
+        return jsonify(message), 200
 
     except Exception as error:
         print("[STORAGE /events] Error:", error)
@@ -70,7 +111,7 @@ def store_event():
 @app.get("/raw")
 def raw():
     try:
-        data = my_db.read()
+        data = my_db.read_all()
         return jsonify(data), 200
     except Exception as error:
         print(error)

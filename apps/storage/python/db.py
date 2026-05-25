@@ -22,23 +22,26 @@ class PhonendoDB:
 
         if self.db is None:
             raise RuntimeError("DB no inicializada")
-    def write(self, key : str , value : dict ) -> None:
-        
-        value = self.db.get(key.encode())
-        if value is None:
-            #no existe el valor dado por tanto se puede eribir
-            self.db.put(key.encode(), json.dumps(value ).encode())
-        else:
-            raise RuntimeWarning(f"La escritura con clave= {key} se había ralizado antes, por lo tanto no se ejecuta")
-        self.db.put()
+    def write(self, key: str, value: dict) -> None:
+        key_bytes = key.encode("utf-8")
 
-    def read(self, key : str ) -> dict:
-        value : str =  self.db(key.encode())
+#~        existing = self.db.get(key_bytes)
+#~
+#~        if existing is not None:
+#~            raise KeyError(f"Key already exists: {key}")
+
+        self.db.put(
+            key_bytes,
+            json.dumps(value, ensure_ascii=False).encode("utf-8")
+        )
+
+    def read(self, key : str ) -> dict | None:
+        value = self.db.get(key.encode("utf-8"))
                 
         if value  is None: 
-            return {} 
+            return None
 
-        return json.loads(value.decode('utf-89'))
+        return json.loads(value.decode("utf-8"))
 
     def read_all(self) -> dict[str, dict[str, Any]]:
         """

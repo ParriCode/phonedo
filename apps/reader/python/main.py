@@ -8,6 +8,8 @@ from device import Device
 from serializer import SosaTTLSerializer
 from sensors.temperature_sensor import TemperatureSensor
 from core import ReaderCore
+from bleak import BleakScanner
+import asyncio 
 
 def load_env(path: Path) -> dict[str, str]:
     values: dict[str, str] = {}
@@ -25,31 +27,6 @@ def load_env(path: Path) -> dict[str, str]:
         values[key.strip()] = value.strip()
 
     return values
-
-
-def post_json(url: str, body: dict) -> str:
-    request = Request(
-        url,
-        data=json.dumps(body).encode("utf-8"),
-        headers={
-            "Accept": "application/json, text/plain",
-            "Content-Type": "application/json",
-        },
-        method="POST",
-    )
-
-    try:
-        with urlopen(request, timeout=10) as response:
-            return response.read().decode("utf-8")
-    except HTTPError as error:
-        body_text = error.read().decode("utf-8")
-        raise RuntimeError(
-            f"Error enviando a Manager. Status={error.code}. Body={body_text}"
-        ) from error
-    except URLError as error:
-        raise RuntimeError(
-            f"No se pudo conectar con el Manager en {url}: {error.reason}"
-        ) from error
 
 
 def main() -> None:
@@ -96,15 +73,22 @@ def main() -> None:
     patient_watch.add_sensor(temperature_sensor)
 
 
-    core.add_device(patient_watch)
+    #core.add_device(patient_watch)
 
     observation = temperature_sensor.addObservation(34)
 
-    
+    core.register_device(patient_watch)    
 
     core.send_observation(observation)
     
 
+TIMEOUT_BLE = 8
+
+async def main():
+    devices = await BleakScanner.discover(timeout=TIMEOUT_BLE)
+    for d in devices:
+        print(d.address, d.name)
+
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
