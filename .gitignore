@@ -20,3 +20,19 @@ apps/storage/python/data/
 
 config.env
 config.env.save
+
+
+# Runtime databases
+apps/storage/python/data/
+apps/storage/python/data/phonendo.leveldb/
+*.leveldb/
+**/*.leveldb/
+
+# LevelDB files
+CURRENT
+LOCK
+LOG
+LOG.old
+MANIFEST-*
+*.ldb
+*.log
