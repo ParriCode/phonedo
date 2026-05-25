@@ -264,7 +264,7 @@ def verify():
         errors.append("status must be Captured")
 
     # Formato
-    if not is_uuid4(reader_id):
+    if reader_id is None or reader_id == "":
         errors.append("readerId is not a valid UUID4")
 
     if not is_non_empty_string(device_id):
