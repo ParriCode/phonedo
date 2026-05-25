@@ -1,0 +1,13 @@
+{
+  "name": "PhonendoReader",
+  "version": "0.1.0",
+  "description": "Arduino C++ library for the Phonendo Reader",
+  "keywords": ["phonendo", "reader", "iot", "esp8266"],
+  "authors": [
+    {
+      "name": "Jose Luis Parrilla"
+    }
+  ],
+  "frameworks": "arduino",
+  "platforms": ["espressif8266"]
+}

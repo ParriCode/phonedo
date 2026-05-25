@@ -55,7 +55,7 @@ def store_device():
         return "Internal server error", 500
 
 
-@app.get("/device/<device_id>")
+@app.get("/devices/<device_id>")
 def get_device(device_id):
     try:
 
@@ -84,7 +84,7 @@ def get_device(device_id):
         return jsonify({"error": "Internal server error"}), 500
 
 
-@app.post("/event")
+@app.post("/events")
 def store_event():
     try:
         print("[STORAGE /events] Body:", request.json)

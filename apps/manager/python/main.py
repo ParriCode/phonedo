@@ -14,7 +14,7 @@ app = Flask(__name__)
 
 def get_device_from_storage(device_id: str) -> dict:
     response = requests.get(
-        f"{os.getenv('INTERNAL_URL_STORAGE_DEVICE')}/{device_id}",
+        f"{os.getenv('INTERNAL_URL_STORAGE_DEVICES')}/{device_id}",
         headers={
             "X-Storage-Token": os.getenv("API_TOKEN_STORAGE")
         },
@@ -284,4 +284,4 @@ def new_event():
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.getenv("PORT_MANAGER", "3003")))
+    app.run(host="0.0.0.0", port=int(os.getenv("PORT_MANAGER")))
