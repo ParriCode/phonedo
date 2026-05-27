@@ -64,7 +64,6 @@ def main() -> None:
     patient_watch = Device(
         device_id="watch1",
         device_type="smart_watch",
-        serial_number="1234",
         mac_address="0a:47:83:b5:be:84",
         platform="phonendo_research",
     )

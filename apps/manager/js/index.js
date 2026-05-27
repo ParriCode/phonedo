@@ -19,7 +19,6 @@ express.post('/registerDevice', (req, res) => {
     } else {
         let device = req.body.device;
         let type = req.body.type;
-        let serialNumber = req.body.serialNumber;
         let creationDatetime = req.body.creationDatetime;
 
         if (device) {
@@ -30,7 +29,6 @@ express.post('/registerDevice', (req, res) => {
                 value: {
                     device: device,
                     type: type,
-                    serialNumber: serialNumber,
                     creationDatetime: creationDatetime
                 }
             };

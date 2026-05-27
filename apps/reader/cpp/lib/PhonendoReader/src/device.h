@@ -24,14 +24,12 @@ public:
     Device(
         const String& deviceId,
         const String& deviceType,
-        const String& serialNumber,
         const String& macAddress,
         const String& platform = ""
     );
 
     String deviceId;
     String deviceType;
-    String serialNumber;
     String macAddress;
     String platform;
 

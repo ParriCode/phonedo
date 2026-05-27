@@ -22,7 +22,6 @@ express.get('/', (_, res) => {
 
 express.post('/register', (req, res) => {
     let device = req.body.device;
-    let serialNumber = req.body.serialNumber;
     let deviceType = req.body.deviceType;
 
     if (device) {
@@ -32,7 +31,6 @@ express.post('/register', (req, res) => {
             token: process.env.API_TOKEN_MANAGER,
             device: device,
             type: deviceType,
-            serialNumber: serialNumber,
             creationDatetime: new Date().getTime()
         };
 

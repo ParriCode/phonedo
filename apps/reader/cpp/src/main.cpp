@@ -20,7 +20,6 @@ ReaderCore reader(
 Device device(
     "esp8266-device-01",
     "ESP8266-12F",
-    "SN-001",
     "AA:BB:CC:DD:EE:FF",
     "arduino"
 );

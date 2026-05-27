@@ -5,24 +5,15 @@ from typing import Dict, List
 from sensor_base import SensorBase
 
 class Device:
-    def __init__(
-        self,
-        device_id: str,
-        device_type: str,
-        serial_number: str,
-        mac_address: str ,
-        platform: str | None = None,
+    def __init__( self, device_id: str, device_type: str, mac_address: str , platform: str | None = None,
     ) -> None:
         if not device_id:
-            raise ValueError("device_id no puede estar vacío")
-        if not serial_number:
             raise ValueError("device_id no puede estar vacío")
         
         if not mac_address:
             raise ValueError("mac_addres no puede estar vacía")
         self.device_id = device_id
         self.device_type = device_type
-        self.serial_number = serial_number
         self.mac_address = mac_address
         self.platform = platform
 
@@ -82,7 +73,6 @@ class Device:
             f"Device("
             f"device_id={self.device_id!r}, "
             f"device_type={self.device_type!r}, "
-            f"serial_number={self.serial_number!r}, "
             f"mac_address={self.mac_address!r}, "
             f"platform={self.platform!r}, "
             f"sensors={list(self._sensors.keys())!r}"

@@ -86,7 +86,6 @@ class ManagerClient:
                 "readerId": reader_id,
                 "deviceId": device.device_id,
                 "deviceType":device.device_type,
-                "serialNumber": device.serial_number,
                 "macAddress": device.mac_address,
                 "creationDatetime": int(time.time() * 1000),
             },

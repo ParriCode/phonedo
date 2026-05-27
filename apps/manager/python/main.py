@@ -170,7 +170,6 @@ def alive():
                 "readerId": reader_id,
                 "deviceId": device.device_id,
                 "deviceType":device.device_type,
-                "serialNumber": device.serial_number,
                 "creationDatetime": int(time.time() * 1000),
 """
 
@@ -190,7 +189,6 @@ def register_device():
     device_id           = body.get("deviceId")
     reader_id           = body.get("readerId")
     device_type         = body.get("deviceType")
-    serial_number       = body.get("serialNumber")
     mac_address         = body.get("macAddress")
     creation_date_time  = body.get("creationDatetime")
     
@@ -211,10 +209,6 @@ def register_device():
         Logger.warning("manager_register_device_bad_request", missing="deviceType")
         return {"error": "deviceType is required"}, 400
 
-    if not serial_number:
-        Logger.warning("manager_register_device_bad_request", missing="serialNumber")
-        return {"error": "serialNumber is required"}, 400
-    
     if not mac_address:
         Logger.warning("manager_register_device_bad_request", missing="macAddress")
         return {"error": "macAddress is required"}, 400
@@ -231,7 +225,6 @@ def register_device():
         "value": {
             "deviceId": device_id,
             "deviceType": device_type,
-            "serialNumber": serial_number,
             "macAddress":mac_address,
             "registeredByReader": reader_id,
             "registrationDatetime": int(time.time() * 1000),

@@ -3,13 +3,11 @@
 Device::Device(
     const String& deviceId,
     const String& deviceType,
-    const String& serialNumber,
     const String& macAddress,
     const String& platform
 )
     : deviceId(deviceId),
       deviceType(deviceType),
-      serialNumber(serialNumber),
       macAddress(macAddress),
       platform(platform),
       sensorsCount(0) {
@@ -21,7 +19,6 @@ Device::Device(
 
 bool Device::isValid() const {
     return deviceId.length() > 0 &&
-           serialNumber.length() > 0 &&
            macAddress.length() > 0;
 }
 
@@ -121,8 +118,6 @@ String Device::toString() const {
     text += deviceId;
     text += F(", deviceType=");
     text += deviceType;
-    text += F(", serialNumber=");
-    text += serialNumber;
     text += F(", macAddress=");
     text += macAddress;
     text += F(", platform=");
