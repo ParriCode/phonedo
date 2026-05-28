@@ -3,8 +3,8 @@
 from datetime import datetime
 from typing import Any, Optional
 
-from observation import Observation, ObservableProperty
-from sensor_base import PeriodicSensor, RawSensorAdapter
+from apps.reader.python.reader_core.observation import Observation
+from apps.reader.python.reader_core.sensor_base import PeriodicSensor, RawSensorAdapter
 
 
 class TemperatureSensor(PeriodicSensor):
@@ -61,7 +61,7 @@ class TemperatureSensor(PeriodicSensor):
 
         super().__init__(
             sensor_id=sensor_id,
-            observable_property=ObservableProperty.TEMPERATURE,
+            observable_property="Temperature",
             procedure=procedure,
             feature_of_interest=feature_of_interest,
             interval_seconds=interval_seconds,

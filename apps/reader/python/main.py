@@ -2,18 +2,38 @@ from __future__ import annotations
 
 import asyncio
 from pathlib import Path
-from typing import Any
+from typing import Any, TYPE_CHECKING
+import json
+from apps.reader.python.reader_core.device import Device
+from apps.reader.python.reader_core.sensor_base import SensorBase ,PeriodicSensor , EventDrivenSensor 
+from apps.reader.python.reader_core.core import ReaderCore
+from apps.reader.python.reader_core.observation import Observation
+from apps.reader.python.sensors.temperature_sensor import TemperatureSensor
 
-from device import Device
-from sensor_base import SensorBase
-from core import ReaderCore
-from bluetooth_manager import BluetoothDeviceManager ,   BluetoothObservation
-
+if TYPE_CHECKING:
+    from apps.reader.python.bluetooth_manager import BluetoothObservation
 
 DEFAULT_SCAN_INTERVAL_SECONDS = 15.0
 
+
+class ConfiguredSensor(SensorBase):
+    def build_observation(
+        self,
+        raw_value: Any,
+        phenomenon_time=None,
+    ) -> Observation:
+        return self.addObservation(
+            _simple_result=raw_value,
+            _phenomenom_time=phenomenon_time,
+        )
+
+
 class Reader:
-    async def __init__(self):
+    async def __init__(
+            self,
+            mac : str =  "02:22:22:22", 
+            id : str = None 
+            ):
         
         self.env = self.load_env(Path(__file__).resolve().parent.parent / "config.env")
 
@@ -25,10 +45,23 @@ class Reader:
             manager_url=manager_url,
         )
 
-        self.devices = dict[ str : Device]
-        self.sensors = dict[str : SensorBase]
+        self.devices: dict[str, Device] = {}
+        self.sensors: dict[str, SensorBase] = {}
+
+        self.mac = mac 
+
+        self.reader_id = id if id is not None else "reader1"
+
+        self.reader_id : str = self.mac 
+
+        self.config_file = "devices_and_sensors.json"
 
 
+        #Cargar los dipositivos y los sensores
+        config_path = Path(__file__).resolve().parent / self.config_file
+        self.factory(self.load_config(config_path) if config_path.exists() else {})
+
+        from apps.reader.python.bluetooth_manager import BluetoothDeviceManager
 
         bluetooth_manager = BluetoothDeviceManager(
                 on_measurement=self.handle_bluetooth_data,
@@ -42,9 +75,7 @@ class Reader:
             )
 
         await bluetooth_manager.start()
-
-
-
+    
 
     def get_manager_url(self) -> str:
         manager_url = self.env.get("INTERNAL_URL_MANAGER")
@@ -61,19 +92,106 @@ class Reader:
     def handle_bluetooth_data(self, observation : BluetoothObservation) -> None:
         device_id = observation.mac
         sensor_id = observation.sensor_id
+
         raw_value = observation.value
-        
+        observation_prop = getattr(observation, "observation_property", "Unknown")
+        if device_id == "unknown": 
+            device_id = self.mac
         if device_id not in self.devices.keys():
-            self.devices[device_id] = Device(
+            device = Device(
                 device_id=device_id,
                 device_type="bluetooth",
-                mac_address=observation.mac,
+                mac_address=device_id,
             ) 
+            self.devices[device_id] = device
+            self.core.add_device(device)
+            
+
+        if sensor_id not in self.sensors.keys():
+            sensor = ConfiguredSensor(
+                observable_property=observation_prop,
+                procedure="configured-measurement",
+                feature_of_interest="unknown-feature",
+                sensor_id=sensor_id,
+                device_id=device_id,
+            )
+            self.sensors[sensor_id] = sensor
+            self.devices[device_id].add_sensor(sensor)
+        self.core.ingest_raw_measurement(device_id, sensor_id, raw_value)
+    
+    def factory(self, config : dict): 
+        
+        devices_json = config.get("devices", None)
+        sensors_json = config.get("sensors", None) 
+        
+        if devices_json is not None:  
+            for device_json in self._iter_config_items(devices_json):
+                device = self.device_from_json(device_json)
+                self.devices[device.device_id] = device
+                self.core.add_device(device)
+
+        if sensors_json is not None: 
+            for sensor_json in self._iter_config_items(sensors_json):
+                sensor = self.sensor_from_json(sensor_json)
+                self.sensors[sensor.sensor_id] = sensor
+
+                if sensor.device_id and sensor.device_id in self.devices:
+                    self.devices[sensor.device_id].add_sensor(sensor)
 
         
-        self.core.ingest_raw_measurement(device_id, sensor_id, raw_value)
+    def device_from_json(self, json_data : dict ) -> Device:
+        if not isinstance(json_data, dict):
+            raise ValueError("La configuración de un device debe ser un objeto JSON")
+
+        mac         = ( json_data.get("mac")       or json_data.get("mac_address") or self.mac )
+        device_id   = ( json_data.get("device_id") or mac or self.reader_id)
+        device_type = json_data.get("device_type") or json_data.get("deviceType") or "bluetooth"
+        platform = json_data.get("platform")
+
+        device = Device(
+            device_id=str(device_id),
+            device_type=str(device_type),
+            mac_address=str(mac),
+            platform=str(platform) if platform is not None else None,
+        )
+
+        device.comm = json_data.get("comm") or json_data.get("com") or json_data.get("source")
+
+        return device
+
+        
+    def sensor_from_json(self, json_data : dict ) -> SensorBase | PeriodicSensor | EventDrivenSensor:
+        if not isinstance(json_data, dict):
+            raise ValueError("La configuración de un sensor debe ser un objeto JSON")
+
+        sensor_id           = json_data.get("sensor_id", None) 
+        device_id           = json_data.get("device_id", None) 
+        procedure           = json_data.get("procedure", None)
+        feature_of_interest = json_data.get("feature_of_interest", None )
+        observable_property = json_data.get("observable_property" , None )
+        sensor_type         = json_data.get("type" , None)
+        unit                = json_data.get("unit" , None )
+        
+        
+     
+
+        return sensor
 
 
+    @staticmethod
+    def load_config(path : Path) -> dict[ str : dict ]: 
+        """
+        Read the file devies_and_sensors.json and load it to dict.
+        This file contains the configuration to understand devices and sensors entry data
+        """
+        try:
+            with open(path, "r") as  file_: 
+                return  json.load(file_)
+        except FileNotFoundError: 
+            #Sino existe el archivo y SE HA ESPECIFICADO , debe de mostrar error
+            raise FileNotFoundError(f"No existe el archivo: {path}")
+        except json.JSONDecodeError as error:
+            raise ValueError(f"Error al cargar el json: {error}")
     @staticmethod
     def load_env(path: Path) -> dict[str, str]:
         values: dict[str, str] = {}

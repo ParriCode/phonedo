@@ -3,7 +3,7 @@ from datetime import datetime
 from uuid import uuid4
 from typing import Any, Optional, Protocol
 
-from observation import Observation, ObservableProperty
+from apps.reader.python.reader_core.observation import Observation
 
 
 class RawSensorAdapter(Protocol):
@@ -60,7 +60,7 @@ class SensorBase(ABC):
 
     def __init__(
         self,
-        observable_property: ObservableProperty,
+        observable_property: str,
         procedure: str,
         feature_of_interest: str,
         sensor_id: str | None = None,
@@ -182,7 +182,7 @@ class EventDrivenSensor(SensorBase, ABC):
     def __init__(
         self,
         sensor_id: str,
-        observable_property: ObservableProperty,
+        observable_property: str,
         procedure: str,
         feature_of_interest: str,
         event_name: str,
@@ -260,7 +260,7 @@ class PeriodicSensor(SensorBase, ABC):
 
     def __init__(
         self,
-        observable_property: ObservableProperty,
+        observable_property: str,
         procedure: str,
         feature_of_interest: str,
         interval_seconds: int,

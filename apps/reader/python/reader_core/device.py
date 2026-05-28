@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Dict, List
 
-from sensor_base import SensorBase
+from apps.reader.python.reader_core.sensor_base import SensorBase
 
 class Device:
     def __init__( self, device_id: str, device_type: str, mac_address: str , platform: str | None = None,
@@ -67,6 +67,10 @@ class Device:
 
     def sensor_count(self) -> int:
         return len(self._sensors)
+
+
+
+
 
     def __repr__(self) -> str:
         return (

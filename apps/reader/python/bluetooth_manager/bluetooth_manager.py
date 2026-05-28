@@ -20,7 +20,8 @@ class BluetoothObservation:
     mac: str
     sensor_id: str
     value: str
-    transport: Transport
+    transport: Transport 
+    observation_property : str  = "unkown" 
     source: str = ""   # Ej: /dev/rfcomm0, manufacturer:76, service:xxxx...
 
 
