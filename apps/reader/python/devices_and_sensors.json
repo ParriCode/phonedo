@@ -1,4 +1,10 @@
 {
+    "bluetooth": {
+        "transports": ["RFCOMM"],
+        "rfcomm": {
+            "baudrate": 9600
+        }
+    },
     
     "devices":[
         {

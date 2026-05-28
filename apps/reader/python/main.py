@@ -9,7 +9,7 @@ from apps.reader.python.reader_core.sensor import Sensor, PeriodicSensor, EventD
 from apps.reader.python.reader_core.core import ReaderCore
 
 if TYPE_CHECKING:
-    from apps.reader.python.bluetooth_manager import BluetoothObservation
+    from apps.reader.python.bluetooth_manager import BluetoothDeviceManager, BluetoothObservation
 
 DEFAULT_SCAN_INTERVAL_SECONDS = 15.0
 
@@ -45,20 +45,13 @@ class Reader:
 
         #Cargar los dipositivos y los sensores
         config_path = Path(__file__).resolve().parent / self.config_file
-        self.factory(self.load_config(config_path) if config_path.exists() else {})
+        config = self.load_config(config_path) if config_path.exists() else {}
+        self.factory(config)
 
-        from apps.reader.python.bluetooth_manager import BluetoothDeviceManager
+        
 
-        bluetooth_manager = BluetoothDeviceManager(
-                on_measurement=self.handle_bluetooth_data,
-                transports={"RFCOMM"},
-                rfcomm_devices={
-                    "/dev/rfcomm0":{
-                        "mac": "00:21:13:01:1F:91",
 
-                    }
-                }
-            )
+        bluetooth_manager = self.bluetooth_manager_from_config(config)
 
         await bluetooth_manager.start()
     
@@ -124,6 +117,54 @@ class Reader:
 
                 if sensor.device_id and sensor.device_id in self.devices:
                     self.devices[sensor.device_id].add_sensor(sensor)
+
+    def bluetooth_manager_from_config(self, config: dict) -> BluetoothDeviceManager:
+        from apps.reader.python.bluetooth_manager import BluetoothDeviceManager
+
+        bluetooth_json = config.get("bluetooth", {})
+        rfcomm_json = bluetooth_json.get("rfcomm", {})
+
+        transports = set(bluetooth_json.get("transports", ["RFCOMM"]))
+        rfcomm_devices = self.rfcomm_devices_from_config(config)
+        rfcomm_devices.update(rfcomm_json.get("devices", {}))
+
+        return BluetoothDeviceManager(
+            on_measurement=self.handle_bluetooth_data,
+            transports=transports,
+            rfcomm_ports=rfcomm_json.get("ports", None),
+            rfcomm_devices=rfcomm_devices,
+            rfcomm_baudrate=rfcomm_json.get("baudrate", 9600),
+            rfcomm_read_timeout=rfcomm_json.get("read_timeout", 1.0),
+            rfcomm_poll_seconds=rfcomm_json.get("poll_seconds", 1.0),
+            rfcomm_reconnect_seconds=rfcomm_json.get("reconnect_seconds", 2.0),
+        )
+
+    def rfcomm_devices_from_config(self, config: dict) -> dict[str, dict]:
+        rfcomm_devices = {}
+        sensors_by_device = {}
+
+        for sensor_json in config.get("sensors", []):
+            device_id = sensor_json.get("device_id", None)
+            if device_id is not None:
+                sensors_by_device.setdefault(device_id, []).append(sensor_json)
+
+        for device_json in config.get("devices", []):
+            comm = device_json.get("comm") or device_json.get("com") or device_json.get("source")
+            if not comm:
+                continue
+
+            device_id = device_json.get("device_id", None)
+            metadata = {
+                "mac": device_json.get("mac") or device_json.get("mac_address") or self.mac,
+            }
+
+            sensors = sensors_by_device.get(device_id, [])
+            if len(sensors) == 1:
+                metadata["sensor_id"] = sensors[0].get("sensor_id", comm)
+
+            rfcomm_devices[comm] = metadata
+
+        return rfcomm_devices
 
         
     def device_from_json(self, json_data : dict ) -> Device:
