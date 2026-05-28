@@ -2,30 +2,16 @@ from __future__ import annotations
 
 import asyncio
 from pathlib import Path
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING
 import json
 from apps.reader.python.reader_core.device import Device
-from apps.reader.python.reader_core.sensor_base import SensorBase ,PeriodicSensor , EventDrivenSensor 
+from apps.reader.python.reader_core.sensor import Sensor, PeriodicSensor, EventDrivenSensor
 from apps.reader.python.reader_core.core import ReaderCore
-from apps.reader.python.reader_core.observation import Observation
-from apps.reader.python.sensors.temperature_sensor import TemperatureSensor
 
 if TYPE_CHECKING:
     from apps.reader.python.bluetooth_manager import BluetoothObservation
 
 DEFAULT_SCAN_INTERVAL_SECONDS = 15.0
-
-
-class ConfiguredSensor(SensorBase):
-    def build_observation(
-        self,
-        raw_value: Any,
-        phenomenon_time=None,
-    ) -> Observation:
-        return self.addObservation(
-            _simple_result=raw_value,
-            _phenomenom_time=phenomenon_time,
-        )
 
 
 class Reader:
@@ -46,7 +32,7 @@ class Reader:
         )
 
         self.devices: dict[str, Device] = {}
-        self.sensors: dict[str, SensorBase] = {}
+        self.sensors: dict[str, Sensor] = {}
 
         self.mac = mac 
 
@@ -108,12 +94,13 @@ class Reader:
             
 
         if sensor_id not in self.sensors.keys():
-            sensor = ConfiguredSensor(
+            sensor = Sensor(
                 observable_property=observation_prop,
                 procedure="configured-measurement",
                 feature_of_interest="unknown-feature",
                 sensor_id=sensor_id,
                 device_id=device_id,
+                unit=None,
             )
             self.sensors[sensor_id] = sensor
             self.devices[device_id].add_sensor(sensor)
@@ -125,13 +112,13 @@ class Reader:
         sensors_json = config.get("sensors", None) 
         
         if devices_json is not None:  
-            for device_json in self._iter_config_items(devices_json):
+            for device_json in devices_json:
                 device = self.device_from_json(device_json)
                 self.devices[device.device_id] = device
                 self.core.add_device(device)
 
         if sensors_json is not None: 
-            for sensor_json in self._iter_config_items(sensors_json):
+            for sensor_json in sensors_json:
                 sensor = self.sensor_from_json(sensor_json)
                 self.sensors[sensor.sensor_id] = sensor
 
@@ -160,7 +147,7 @@ class Reader:
         return device
 
         
-    def sensor_from_json(self, json_data : dict ) -> SensorBase | PeriodicSensor | EventDrivenSensor:
+    def sensor_from_json(self, json_data : dict ) -> Sensor | PeriodicSensor | EventDrivenSensor:
         if not isinstance(json_data, dict):
             raise ValueError("La configuración de un sensor debe ser un objeto JSON")
 
@@ -169,11 +156,26 @@ class Reader:
         procedure           = json_data.get("procedure", None)
         feature_of_interest = json_data.get("feature_of_interest", None )
         observable_property = json_data.get("observable_property" , None )
-        sensor_type         = json_data.get("type" , None)
         unit                = json_data.get("unit" , None )
         
-        
-     
+        if observable_property is None:
+            observable_property = "unknown"
+        if procedure is None:
+            procedure = "configured-measurement"
+        if feature_of_interest is None:
+            feature_of_interest = "unknown-feature"
+
+        sensor = Sensor(
+            observable_property=observable_property,
+            procedure=procedure,
+            feature_of_interest=feature_of_interest,
+            sensor_id=sensor_id,
+            device_id=device_id,
+            unit=unit,
+        )
+
+        if device_id is not None:
+            sensor.device_id = device_id
 
         return sensor
 

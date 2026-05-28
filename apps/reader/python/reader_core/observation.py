@@ -15,6 +15,7 @@ class Observation:
     
     device_id: Optional[str] = None
     sensor_id: Optional[str] = None
+    unit: Optional[str] = None
     observation_id: str = field(default_factory=lambda: uuid4().hex)
 
 
@@ -26,4 +27,5 @@ class Observation:
             "phenomenon_time": self.phenomenon_time.isoformat(),
             "feature_of_interest": self.feature_of_interest,
             "procedure": self.procedure,
+            "unit": self.unit,
         }

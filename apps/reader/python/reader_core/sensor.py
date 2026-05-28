@@ -1,4 +1,4 @@
-from abc import ABC, abstractmethod
+from abc import ABC
 from datetime import datetime
 from uuid import uuid4
 from typing import Any, Optional, Protocol
@@ -18,7 +18,7 @@ class RawSensorAdapter(Protocol):
     - HttpSensorAdapter: lee datos desde un endpoint HTTP.
     - LocalSensorAdapter: lee datos desde un sensor local, fichero o puerto serie.
 
-    El objetivo de esta interfaz es que SensorBase no dependa directamente
+    El objetivo de esta interfaz es que Sensor no dependa directamente
     de un protocolo concreto como Bluetooth, HTTP o lectura local.
     """
 
@@ -39,7 +39,7 @@ class RawSensorAdapter(Protocol):
         ...
 
 
-class SensorBase(ABC):
+class Sensor(ABC):
     """
     Clase base abstracta para todos los sensores del Reader.
 
@@ -65,7 +65,7 @@ class SensorBase(ABC):
         feature_of_interest: str,
         sensor_id: str | None = None,
         raw_adapter: Optional[RawSensorAdapter] = None,
-
+        unit: Optional[str] = None,
         device_id: Optional[str] = None, 
     ) -> None:
         """
@@ -98,7 +98,7 @@ class SensorBase(ABC):
         self.procedure = procedure
         self.feature_of_interest = feature_of_interest
         self.raw_adapter = raw_adapter
-
+        self.unit = unit
         self.device_id = device_id
 
     def addObservation(
@@ -133,11 +133,11 @@ class SensorBase(ABC):
             feature_of_interest=self.feature_of_interest,
             procedure=self.procedure,
             sensor_id=self.sensor_id,
-            device_id=self.device_id
+            device_id=self.device_id,
+            unit=self.unit,
 
         )
 
-    @abstractmethod
     def build_observation(
         self,
         raw_value: Any,
@@ -158,13 +158,16 @@ class SensorBase(ABC):
         Por ejemplo, un HeartRateSensor podría recibir bytes desde Bluetooth
         y convertirlos en un número entero de pulsaciones por minuto.
 
-        Al ser abstractmethod, SensorBase no puede instanciarse directamente.
+        Al ser abstractmethod, Sensor no puede instanciarse directamente.
         Todas las clases hijas deben implementar este método.
         """
-        pass
+        return self.addObservation(
+            _simple_result=raw_value,
+            _phenomenom_time=phenomenon_time,
+        )
 
 
-class EventDrivenSensor(SensorBase, ABC):
+class EventDrivenSensor(Sensor, ABC):
     """
     Clase base para sensores dirigidos por eventos.
 
@@ -187,6 +190,7 @@ class EventDrivenSensor(SensorBase, ABC):
         feature_of_interest: str,
         event_name: str,
         raw_adapter: Optional[RawSensorAdapter] = None,
+        unit: Optional[str] = None,
     ) -> None:
         """
         Inicializa un sensor basado en eventos.
@@ -207,6 +211,7 @@ class EventDrivenSensor(SensorBase, ABC):
             procedure=procedure,
             feature_of_interest=feature_of_interest,
             raw_adapter=raw_adapter,
+            unit=unit,
         )
 
         if not event_name:
@@ -241,7 +246,7 @@ class EventDrivenSensor(SensorBase, ABC):
         )
 
 
-class PeriodicSensor(SensorBase, ABC):
+class PeriodicSensor(Sensor, ABC):
     """
     Clase base para sensores periódicos.
 
@@ -266,6 +271,7 @@ class PeriodicSensor(SensorBase, ABC):
         interval_seconds: int,
         sensor_id: Optional[str] = None,
         raw_adapter: Optional[RawSensorAdapter] = None,
+        unit: Optional[str] = None,
     ) -> None:
         """
         Inicializa un sensor periódico.
@@ -288,6 +294,7 @@ class PeriodicSensor(SensorBase, ABC):
             procedure=procedure,
             feature_of_interest=feature_of_interest,
             raw_adapter=raw_adapter,
+            unit=unit,
         )
 
         if interval_seconds <= 0:

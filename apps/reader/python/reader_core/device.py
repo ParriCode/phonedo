@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Dict, List
 
-from apps.reader.python.reader_core.sensor_base import SensorBase
+from apps.reader.python.reader_core.sensor import Sensor
 
 class Device:
     def __init__( self, device_id: str, device_type: str, mac_address: str , platform: str | None = None,
@@ -17,9 +17,9 @@ class Device:
         self.mac_address = mac_address
         self.platform = platform
 
-        self._sensors: Dict[str, SensorBase] = {}
+        self._sensors: Dict[str, Sensor] = {}
 
-    def add_sensor(self, sensor: SensorBase) -> None:
+    def add_sensor(self, sensor: Sensor) -> None:
         if sensor is None:
             raise ValueError("sensor no puede ser None")
 
@@ -35,7 +35,7 @@ class Device:
         #Añadir el sensor
         self._sensors[sensor.sensor_id] = sensor
         
-    def get_sensor(self, sensor_id: str) -> SensorBase:
+    def get_sensor(self, sensor_id: str) -> Sensor:
         if not sensor_id:
             raise ValueError("sensor_id no puede estar vacío")
 
@@ -59,7 +59,7 @@ class Device:
 
         del self._sensors[sensor_id]
 
-    def list_sensors(self) -> List[SensorBase]:
+    def list_sensors(self) -> List[Sensor]:
         return list(self._sensors.values())
 
     def has_sensor(self, sensor_id: str) -> bool:

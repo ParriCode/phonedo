@@ -9,7 +9,7 @@ import requests
 
 from apps.reader.python.reader_core.device import Device
 from apps.reader.python.reader_core.observation import Observation
-from apps.reader.python.reader_core.sensor_base import SensorBase
+from apps.reader.python.reader_core.sensor import Sensor
 from apps.reader.python.reader_core.serializer import SosaTTLSerializer
 from uuid import uuid4
 @dataclass
