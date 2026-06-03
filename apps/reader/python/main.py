@@ -2,12 +2,19 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import os
 import re
 import subprocess
+import sys
 import uuid
 from pathlib import Path
 from typing import TYPE_CHECKING
 import json
+
+ROOT_DIR = Path(__file__).resolve().parents[3]
+sys.path.insert(0, str(ROOT_DIR / "libs/python"))
+
+from logger import Logger
 from reader_core.device import Device
 from reader_core.sensor import Sensor
 from reader_core.core import ReaderCore
@@ -28,16 +35,20 @@ class Reader:
             id : str | None = None,
             mac_policy: str = "auto",
             config_file: str = "devices_and_sensors.json",
+            verbose: bool | None = None,
             ):
-        
-        print("Creando Reader")
+
+        self.verbose = verbose
         self.mac = self.resolve_reader_mac(mac, mac_policy)
         self.reader_id = id if id is not None else self.mac
 
         self.env = self.load_env(Path(__file__).resolve().parent.parent / "config.env")
+        self.init_logger()
+        Logger.info("reader_created", readerId=self.reader_id, mac=self.mac, configFile=config_file)
 
         manager_token = self.env.get("API_TOKEN_MANAGER", "token_manager")
         manager_url = self.get_manager_url()
+        Logger.info("manager_configured", managerUrl=manager_url)
 
         self.core = ReaderCore(
             reader_id=self.reader_id,
@@ -55,17 +66,23 @@ class Reader:
         config_path = Path(self.config_file)
         if not config_path.is_absolute() and not config_path.exists():
             config_path = Path(__file__).resolve().parent / config_path
-        config = self.load_config(config_path) if config_path.exists() else {}
-        self.factory(config)
+        try:
+            config = self.load_config(config_path) if config_path.exists() else {}
+        except Exception as error:
+            Logger.error("config_load_failed", path=str(config_path), error=str(error))
+            raise
+        Logger.info("config_loaded", path=str(config_path), exists=config_path.exists())
 
-        self.bluetooth_manager = self.bluetooth_manager_from_config(config) #ahora mismo en cada medición le llegará esta puta mierda
+
+        self.factory(config) #Cargar dispositivos y sensores desde la configuración antes de iniciar nada más
+
+        self.bluetooth_manager = self.bluetooth_manager_from_config(config)
 
     async def run(self) -> None:
+        Logger.info("service_starting", readerId=self.reader_id)
         await self.bluetooth_manager.start()
         
-            
-    
-
+        
     def get_manager_url(self) -> str:
         manager_url = self.env.get("INTERNAL_URL_MANAGER")
         if manager_url:
@@ -82,6 +99,13 @@ class Reader:
         device_id, mac_address = self.resolve_observation_device(observation)
         sensor_id = observation.sensor_id or "unknown-sensor"
         raw_value = observation.value
+        Logger.info(
+            "measurement_received",
+            deviceId=device_id,
+            sensorId=sensor_id,
+            source=getattr(observation, "source", ""),
+            transport=getattr(observation, "transport", ""),
+        )
 
         if device_id not in self.devices.keys():
             device = Device(
@@ -91,6 +115,7 @@ class Reader:
             ) 
             self.devices[device_id] = device
             self.core.add_device(device)
+            Logger.info("fallback_device_created", deviceId=device_id, macAddress=mac_address)
             
 
         if not self.devices[device_id].has_sensor(sensor_id):
@@ -104,7 +129,21 @@ class Reader:
             )
             self.sensors.setdefault(sensor_id, sensor)
             self.devices[device_id].add_sensor(sensor)
-        self.core.ingest_raw_measurement(device_id, sensor_id, raw_value)
+            Logger.info(
+                "fallback_sensor_created",
+                deviceId=device_id,
+                sensorId=sensor_id,
+                observableProperty=sensor.observable_property,
+                procedure=sensor.procedure,
+                featureOfInterest=sensor.feature_of_interest,
+                unit=sensor.unit,
+            )
+        try:
+            self.core.ingest_raw_measurement(device_id, sensor_id, raw_value)
+        except Exception as error:
+            Logger.error("measurement_ingest_failed", deviceId=device_id, sensorId=sensor_id, error=str(error))
+            raise
+        Logger.info("measurement_ingested", deviceId=device_id, sensorId=sensor_id)
 
     def resolve_observation_device(self, observation: BluetoothObservation) -> tuple[str, str]:
         obs_mac = getattr(observation, "mac", "") or ""
@@ -125,6 +164,7 @@ class Reader:
                 device = self.device_from_json(device_json)
                 self.devices[device.device_id] = device
                 self.core.add_device(device)
+                Logger.info("configured_device_loaded", deviceId=device.device_id, macAddress=device.mac_address)
 
         if sensors_json is not None: 
             for sensor_json in sensors_json:
@@ -133,6 +173,12 @@ class Reader:
 
                 if sensor.device_id and sensor.device_id in self.devices:
                     self.devices[sensor.device_id].add_sensor(sensor)
+                    Logger.info(
+                        "configured_sensor_loaded",
+                        deviceId=sensor.device_id,
+                        sensorId=sensor.sensor_id,
+                        observableProperty=sensor.observable_property,
+                    )
 
     def bluetooth_manager_from_config(self, config: dict) -> BluetoothDeviceManager:
 
@@ -143,6 +189,7 @@ class Reader:
         transports = set(bluetooth_json.get("transports", ["RFCOMM"]))
         rfcomm_devices = self.rfcomm_devices_from_config(config)
         rfcomm_devices.update(rfcomm_json.get("devices", {}))
+        Logger.info("bluetooth_manager_configured", transports=list(transports), rfcommDevices=list(rfcomm_devices.keys()))
 
         return BluetoothDeviceManager(
             on_measurement=self.handle_bluetooth_data,
@@ -160,6 +207,7 @@ class Reader:
     def rfcomm_devices_from_config(self, config: dict) -> dict[str, dict]:
         rfcomm_devices = {}
         sensors_by_device = {}
+        reader_static = self.config_bool(config, "static", False)
 
         for sensor_json in config.get("sensors", []):
             device_id = sensor_json.get("device_id", None)
@@ -177,6 +225,8 @@ class Reader:
                 "device_id": device_id,
                 "device_type": device_json.get("device_type") or device_json.get("deviceType") or "bluetooth",
                 "allow_conflicts": self.config_bool(device_json, "allow_conflicts", False),
+                "static": self.config_bool(device_json, "static", False),
+                "reader_static": reader_static,
             }
 
             sensors = sensors_by_device.get(device_id, [])
@@ -324,6 +374,15 @@ class Reader:
 
         return values
 
+    def init_logger(self) -> None:
+        Logger.init(
+            os.getenv("PHONENDO_LOGS_DIR", self.env.get("PHONENDO_LOGS_DIR", str(ROOT_DIR / "logs/services"))),
+            service="reader",
+            verbose=self.verbose if self.verbose is not None else self.config_bool(self.env, "PHONENDO_VERBOSE", False),
+            logging=self.config_bool(self.env, "PHONENDO_LOGGING", True),
+            dev=self.config_bool(self.env, "PHONENDO_DEV", False),
+        )
+
     @staticmethod
     def config_bool(json_data: dict, key: str, default: bool) -> bool:
         value = json_data.get(key, default)
@@ -363,6 +422,8 @@ Ejemplos:
     parser.add_argument("--mac", default=None, help="MAC explícita del Reader para fallback o identificación local.")
     parser.add_argument("--mac-policy", choices=["auto", "random", "default"], default="auto", help="Cómo resolver la MAC si no se pasa --mac.")
     parser.add_argument("--config", default="devices_and_sensors.json", help="Ruta al JSON de configuración de dispositivos, sensores y Bluetooth.")
+    parser.add_argument("--verbose", action="store_true", default=None, help="Habilitar salida detallada para depuración.")
+    parser.add_argument("--static", action="store_true", help="No descubrir dispositivos o sensores fuera de la configuración.")
     return parser.parse_args()
 
 
@@ -370,11 +431,11 @@ Ejemplos:
 if __name__ == "__main__":
 
     args = parse_args()
-    print("iniciando")
     reader = Reader(
         mac=args.mac,
         id=args.reader_id,
         mac_policy=args.mac_policy,
         config_file=args.config,
+        verbose=args.verbose,
     )
     asyncio.run(reader.run())

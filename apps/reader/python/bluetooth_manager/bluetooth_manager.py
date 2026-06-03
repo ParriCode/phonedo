@@ -152,8 +152,8 @@ class BluetoothDeviceManager:
                     for observation in observations:
                         await self._emit(observation)
 
-            except Exception as e:
-                print(f"[BLE] Error escaneando: {e}")
+            except Exception:
+                pass
 
             await asyncio.sleep(self.ble_sleep_seconds)
 
@@ -198,7 +198,6 @@ class BluetoothDeviceManager:
                 task = self._rfcomm_reader_tasks.get(port)
 
                 if task is None or task.done():
-                    print(f"[RFCOMM] Detectado {port}. Arrancando lector.")
                     self._rfcomm_reader_tasks[port] = asyncio.create_task(
                         self._rfcomm_reader_loop(port)
                     )
@@ -230,15 +229,11 @@ class BluetoothDeviceManager:
             ser: Optional[serial.Serial] = None
 
             try:
-                print(f"[RFCOMM] Abriendo {port}")
-
                 ser = serial.Serial(
                     port=port,
                     baudrate=self.rfcomm_baudrate,
                     timeout=self.rfcomm_read_timeout,
                 )
-
-                print(f"[RFCOMM] Conectado a {port}")
 
                 while self._running and os.path.exists(port):
                     try:
@@ -252,23 +247,19 @@ class BluetoothDeviceManager:
                         for observation in observations:
                             await self._emit(observation)
 
-                    except serial.SerialException as e:
-                        print(f"[RFCOMM] Error leyendo {port}: {e}")
+                    except serial.SerialException:
                         break
 
-                    except OSError as e:
-                        print(f"[RFCOMM] Error del sistema en {port}: {e}")
+                    except OSError:
                         break
 
-            except serial.SerialException as e:
-                print(f"[RFCOMM] No se pudo abrir {port}: {e}")
+            except serial.SerialException:
+                pass
 
             finally:
                 if ser is not None:
                     with contextlib.suppress(Exception):
                         ser.close()
-
-                print(f"[RFCOMM] Cerrado {port}")
 
             await asyncio.sleep(self.rfcomm_reconnect_seconds)
 
@@ -311,6 +302,8 @@ class BluetoothDeviceManager:
         default_unit = metadata.get("unit", None)
         allow_device_conflicts = bool(metadata.get("allow_conflicts", False))
         allow_sensor_conflicts = bool(metadata.get("sensor_allow_conflicts", False))
+        device_static = bool(metadata.get("static", False))
+        reader_static = bool(metadata.get("reader_static", False))
 
         # Formato JSON
         try:
@@ -321,33 +314,46 @@ class BluetoothDeviceManager:
                 value = str(obj.get("value", obj.get("raw_value", obj.get("rawValue", obj))))
                 msg_mac = obj.get("mac") or obj.get("mac_address") or obj.get("macAddress")
                 sensor_id_conflicts = self._conflicts(configured_sensor_id, obj.get("sensor_id", obj.get("sensorId", None)))
+                device_id_conflicts = self._conflicts(default_device_id, obj.get("device_id", obj.get("deviceId", None)))
+                sensor_has_metadata = self._has_sensor_metadata(obj)
                 semantic_default = "unknown" if sensor_id_conflicts else default_observable_property
                 procedure_default = "" if sensor_id_conflicts else default_procedure
                 feature_default = "" if sensor_id_conflicts else default_feature_of_interest
                 unit_default = None if sensor_id_conflicts else default_unit
 
+                if self._conflicts(mac, msg_mac):
+                    return []
+
+                if reader_static and device_id_conflicts:
+                    return []
+
+                if device_static and sensor_id_conflicts:
+                    return []
+
                 if (
                     not allow_device_conflicts
                     and (
-                        self._conflicts(default_device_id, obj.get("device_id", obj.get("deviceId", None)))
-                        or self._conflicts(mac, msg_mac)
+                        device_id_conflicts
                         or self._conflicts(default_device_type, obj.get("device_type", obj.get("deviceType", None)))
                     )
                 ):
-                    print(f"[RFCOMM] Medición descartada por conflicto de device en {port}: {text}")
                     return []
 
                 if (
                     not allow_sensor_conflicts
                     and (
-                        sensor_id_conflicts
-                        or self._conflicts(default_observable_property, obj.get("observable_property", obj.get("observableProperty", obj.get("observation_property", None))))
-                        or self._conflicts(default_procedure, obj.get("procedure", None))
-                        or self._conflicts(default_feature_of_interest, obj.get("feature_of_interest", obj.get("featureOfInterest", None)))
-                        or self._conflicts(default_unit, obj.get("unit", None))
+                        (sensor_id_conflicts and not sensor_has_metadata)
+                        or (
+                            not sensor_id_conflicts
+                            and (
+                                self._conflicts(default_observable_property, obj.get("observable_property", obj.get("observableProperty", obj.get("observation_property", None))))
+                                or self._conflicts(default_procedure, obj.get("procedure", None))
+                                or self._conflicts(default_feature_of_interest, obj.get("feature_of_interest", obj.get("featureOfInterest", None)))
+                                or self._conflicts(default_unit, obj.get("unit", None))
+                            )
+                        )
                     )
                 ):
-                    print(f"[RFCOMM] Medición descartada por conflicto de sensor en {port}: {text}")
                     return []
 
                 return [
@@ -378,10 +384,12 @@ class BluetoothDeviceManager:
                 not allow_sensor_conflicts
                 and self._conflicts(configured_sensor_id, sensor_id)
             ):
-                print(f"[RFCOMM] Medición descartada por conflicto de sensor en {port}: {text}")
                 return []
 
             sensor_id_conflicts = self._conflicts(configured_sensor_id, sensor_id)
+
+            if device_static and sensor_id_conflicts:
+                return []
 
             return [
                 BluetoothObservation(
@@ -430,3 +438,11 @@ class BluetoothDeviceManager:
             return False
 
         return configured.lower() != received.lower()
+
+    def _has_sensor_metadata(self, obj: dict) -> bool:
+        observable_property = (
+            obj.get("observable_property")
+            or obj.get("observableProperty")
+            or obj.get("observation_property")
+        )
+        return bool(observable_property and obj.get("procedure"))

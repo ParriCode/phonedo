@@ -206,5 +206,4 @@ class ReaderCore:
             observation=observation,
         )
 
-        print(f"ttl que se va a enviar=:\n{ttl}")
         self.manager_client.send_observation_ttl(ttl, self.reader_id,  observation.device_id)
