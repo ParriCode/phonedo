@@ -3,7 +3,6 @@ from __future__ import annotations
 import argparse
 import asyncio
 import re
-import secrets
 import subprocess
 import uuid
 from pathlib import Path
@@ -177,6 +176,7 @@ class Reader:
                 "mac": device_json.get("mac") or device_json.get("mac_address") or self.mac,
                 "device_id": device_id,
                 "device_type": device_json.get("device_type") or device_json.get("deviceType") or "bluetooth",
+                "allow_conflicts": self.config_bool(device_json, "allow_conflicts", False),
             }
 
             sensors = sensors_by_device.get(device_id, [])
@@ -187,6 +187,7 @@ class Reader:
                 metadata["procedure"] = sensor.get("procedure", "configured-measurement")
                 metadata["feature_of_interest"] = sensor.get("feature_of_interest", "unknown-feature")
                 metadata["unit"] = sensor.get("unit", None)
+                metadata["sensor_allow_conflicts"] = self.config_bool(sensor, "allow_conflicts", False)
 
             rfcomm_devices[comm] = metadata
 
@@ -277,6 +278,13 @@ class Reader:
         return detected or DEFAULT_READER_MAC
 
     @staticmethod
+    def random_local_mac() -> str:
+        node = uuid.uuid4().int
+        first = 0x02
+        rest = [(node >> bits) & 0xff for bits in range(32, -1, -8)]
+        return ":".join(f"{part:02x}" for part in [first, *rest])
+
+    @staticmethod
     def get_system_mac() -> str | None:
         try:
             result = subprocess.run(
@@ -316,22 +324,53 @@ class Reader:
 
         return values
 
+    @staticmethod
+    def config_bool(json_data: dict, key: str, default: bool) -> bool:
+        value = json_data.get(key, default)
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, str):
+            return value.strip().lower() in {"1", "true", "yes", "si", "sí"}
+        return bool(value)
+
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Phonendo Python Reader")
-    parser.add_argument("--reader-id", dest="reader_id", default=None)
-    parser.add_argument("--mac", default=None)
-    parser.add_argument("--mac-policy", choices=["auto", "random", "default"], default="auto")
-    parser.add_argument("--config", default="devices_and_sensors.json")
-    parser.add_argument("--allow-conflicts", action="store_true")
+    parser = argparse.ArgumentParser(
+        description="Phonendo Python Reader",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""\
+Qué hace:
+  - Carga dispositivos y sensores desde devices_and_sensors.json.
+  - Escucha fuentes Bluetooth configuradas. Ahora mismo el flujo real es RFCOMM (/dev/rfcomm*).
+  - Acepta mensajes RFCOMM en JSON, sensor:valor o valor plano.
+  - Completa valores planos con la configuración del puerto y del sensor.
+  - Convierte cada medición en una observación SOSA/Turtle.
+  - Envía la observación al Manager en /newEvent.
+
+Configuración de conflictos:
+  - En devices[] y sensors[] se puede poner "allow_conflicts": true o false.
+  - Si es false y un mensaje contradice la configuración, la medición se descarta.
+  - Si es true, el dato recibido puede crear/usar el nuevo device o sensor recibido.
+
+Ejemplos:
+  python3 main.py
+  python3 main.py --config devices_and_sensors.json
+  python3 main.py --reader-id reader-1 --mac 02:aa:bb:cc:dd:ee
+  python3 main.py --mac-policy random
+""",
+    )
+    parser.add_argument("--reader-id", dest="reader_id", default=None, help="Identificador lógico del Reader. Si no se indica, usa la MAC resuelta.")
+    parser.add_argument("--mac", default=None, help="MAC explícita del Reader para fallback o identificación local.")
+    parser.add_argument("--mac-policy", choices=["auto", "random", "default"], default="auto", help="Cómo resolver la MAC si no se pasa --mac.")
+    parser.add_argument("--config", default="devices_and_sensors.json", help="Ruta al JSON de configuración de dispositivos, sensores y Bluetooth.")
     return parser.parse_args()
 
 
 
 if __name__ == "__main__":
 
-    print("iniciando")
     args = parse_args()
+    print("iniciando")
     reader = Reader(
         mac=args.mac,
         id=args.reader_id,

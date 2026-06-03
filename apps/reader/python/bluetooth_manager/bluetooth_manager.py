@@ -301,13 +301,16 @@ class BluetoothDeviceManager:
 
         mac :str = metadata.get("mac", "unknown")
         mac = mac.strip().lower()
-        default_sensor_id = metadata.get("sensor_id", port)
-        default_device_id = str(metadata.get("device_id", ""))
-        default_device_type = str(metadata.get("device_type", "bluetooth"))
-        default_observable_property = str(metadata.get("observable_property", "unknown"))
-        default_procedure = str(metadata.get("procedure", ""))
-        default_feature_of_interest = str(metadata.get("feature_of_interest", ""))
+        configured_sensor_id = metadata.get("sensor_id", "")
+        default_sensor_id = configured_sensor_id or port
+        default_device_id = str(metadata.get("device_id") or "")
+        default_device_type = str(metadata.get("device_type") or "bluetooth")
+        default_observable_property = str(metadata.get("observable_property") or "unknown")
+        default_procedure = str(metadata.get("procedure") or "")
+        default_feature_of_interest = str(metadata.get("feature_of_interest") or "")
         default_unit = metadata.get("unit", None)
+        allow_device_conflicts = bool(metadata.get("allow_conflicts", False))
+        allow_sensor_conflicts = bool(metadata.get("sensor_allow_conflicts", False))
 
         # Formato JSON
         try:
@@ -316,20 +319,49 @@ class BluetoothDeviceManager:
             if isinstance(obj, dict):
                 sensor_id = str(obj.get("sensor_id", obj.get("sensorId", default_sensor_id)))
                 value = str(obj.get("value", obj.get("raw_value", obj.get("rawValue", obj))))
-                msg_mac = obj.get("mac") or obj.get("mac_address") or obj.get("macAddress") or mac
+                msg_mac = obj.get("mac") or obj.get("mac_address") or obj.get("macAddress")
+                sensor_id_conflicts = self._conflicts(configured_sensor_id, obj.get("sensor_id", obj.get("sensorId", None)))
+                semantic_default = "unknown" if sensor_id_conflicts else default_observable_property
+                procedure_default = "" if sensor_id_conflicts else default_procedure
+                feature_default = "" if sensor_id_conflicts else default_feature_of_interest
+                unit_default = None if sensor_id_conflicts else default_unit
+
+                if (
+                    not allow_device_conflicts
+                    and (
+                        self._conflicts(default_device_id, obj.get("device_id", obj.get("deviceId", None)))
+                        or self._conflicts(mac, msg_mac)
+                        or self._conflicts(default_device_type, obj.get("device_type", obj.get("deviceType", None)))
+                    )
+                ):
+                    print(f"[RFCOMM] Medición descartada por conflicto de device en {port}: {text}")
+                    return []
+
+                if (
+                    not allow_sensor_conflicts
+                    and (
+                        sensor_id_conflicts
+                        or self._conflicts(default_observable_property, obj.get("observable_property", obj.get("observableProperty", obj.get("observation_property", None))))
+                        or self._conflicts(default_procedure, obj.get("procedure", None))
+                        or self._conflicts(default_feature_of_interest, obj.get("feature_of_interest", obj.get("featureOfInterest", None)))
+                        or self._conflicts(default_unit, obj.get("unit", None))
+                    )
+                ):
+                    print(f"[RFCOMM] Medición descartada por conflicto de sensor en {port}: {text}")
+                    return []
 
                 return [
                     BluetoothObservation(
-                        mac=str(msg_mac).strip().lower(),
+                        mac=str(msg_mac or mac).strip().lower(),
                         sensor_id=sensor_id,
                         value=value,
                         transport="RFCOMM",
-                        observation_property=str(obj.get("observable_property", obj.get("observableProperty", obj.get("observation_property", default_observable_property)))),
+                        observation_property=str(obj.get("observable_property", obj.get("observableProperty", obj.get("observation_property", semantic_default)))),
                         device_id=str(obj.get("device_id", obj.get("deviceId", default_device_id))),
                         device_type=str(obj.get("device_type", obj.get("deviceType", default_device_type))),
-                        procedure=str(obj.get("procedure", default_procedure)),
-                        feature_of_interest=str(obj.get("feature_of_interest", obj.get("featureOfInterest", default_feature_of_interest))),
-                        unit=obj.get("unit", default_unit),
+                        procedure=str(obj.get("procedure", procedure_default)),
+                        feature_of_interest=str(obj.get("feature_of_interest", obj.get("featureOfInterest", feature_default))),
+                        unit=obj.get("unit", unit_default),
                         source=port,
                     )
                 ]
@@ -340,19 +372,29 @@ class BluetoothDeviceManager:
         # Formato tipo sensor_id:valor
         if ":" in text:
             sensor_id, value = text.split(":", 1)
+            sensor_id = sensor_id.strip()
+
+            if (
+                not allow_sensor_conflicts
+                and self._conflicts(configured_sensor_id, sensor_id)
+            ):
+                print(f"[RFCOMM] Medición descartada por conflicto de sensor en {port}: {text}")
+                return []
+
+            sensor_id_conflicts = self._conflicts(configured_sensor_id, sensor_id)
 
             return [
                 BluetoothObservation(
                     mac=mac,
-                    sensor_id=sensor_id.strip(),
+                    sensor_id=sensor_id,
                     value=value.strip(),
                     transport="RFCOMM",
-                    observation_property=default_observable_property,
+                    observation_property="unknown" if sensor_id_conflicts else default_observable_property,
                     device_id=default_device_id,
                     device_type=default_device_type,
-                    procedure=default_procedure,
-                    feature_of_interest=default_feature_of_interest,
-                    unit=default_unit,
+                    procedure="" if sensor_id_conflicts else default_procedure,
+                    feature_of_interest="" if sensor_id_conflicts else default_feature_of_interest,
+                    unit=None if sensor_id_conflicts else default_unit,
                     source=port,
                 )
             ]
@@ -373,3 +415,18 @@ class BluetoothDeviceManager:
                 source=port,
             )
         ]
+
+    def _conflicts(self, configured, received) -> bool:
+        if received is None:
+            return False
+
+        configured = "" if configured is None else str(configured).strip()
+        received = str(received).strip()
+
+        if not configured or not received:
+            return False
+
+        if configured.lower() in {"unknown", "unknown-feature", "configured-measurement"}:
+            return False
+
+        return configured.lower() != received.lower()

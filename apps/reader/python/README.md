@@ -52,7 +52,8 @@ Ejemplo actual:
     {
       "comm": "/dev/rfcomm0",
       "mac": "00:21:13:01:1F:91",
-      "device_id": "prueba1"
+      "device_id": "prueba1",
+      "allow_conflicts": false
     }
   ],
   "sensors": [
@@ -60,7 +61,8 @@ Ejemplo actual:
       "sensor_id": "temp1",
       "procedure": "termorreceptor",
       "observable_property": "temperatura",
-      "device_id": "prueba1"
+      "device_id": "prueba1",
+      "allow_conflicts": false
     }
   ]
 }
@@ -82,6 +84,7 @@ Campos de `devices`:
 - `device_type`: tipo de dispositivo. Si no se indica, se usa `"bluetooth"`.
 - `platform`: plataforma opcional.
 - `comm`: fuente de comunicación local, por ejemplo `/dev/rfcomm0`.
+- `allow_conflicts`: si es `false`, se descartan mensajes que contradigan la identidad configurada del dispositivo.
 
 Campos de `sensors`:
 
@@ -91,6 +94,7 @@ Campos de `sensors`:
 - `procedure`: procedimiento de medición.
 - `feature_of_interest`: entidad observada. Si no se indica, se usa `"unknown-feature"`.
 - `unit`: unidad opcional, por ejemplo `"CELSIUS"`.
+- `allow_conflicts`: si es `false`, se descartan mensajes que contradigan el sensor o su semántica configurada.
 
 ## Clases Principales
 
