@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Dict, List
 
-from apps.reader.python.reader_core.sensor import Sensor
+from reader_core.sensor import Sensor
 
 class Device:
     def __init__( self, device_id: str, device_type: str, mac_address: str , platform: str | None = None,

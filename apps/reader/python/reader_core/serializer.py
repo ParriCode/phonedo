@@ -9,20 +9,27 @@ import re
 
 class SosaTTLSerializer:
     def serialize(self,  observation) -> str:
-        device_ref = self._ref("device", observation.device_id)
-        obs_ref = self._ref("obs", observation.observation_id)
+        device_ref = self._ph(observation.device_id)
+        obs_ref = self._ph(observation.observation_id)
 
         property_name = self._enum_value(observation.observable_property)
-        property_ref = self._ref("property", property_name)
+        property_ref = self._ph(property_name)
 
-        sensor_ref = self._ref("sensor", f"{observation.device_id}-{property_name}")
-        feature_ref = self._ref("feature", observation.feature_of_interest)
-        procedure_ref = self._ref("procedure", observation.procedure)
+        sensor_ref = self._ph(observation.sensor_id)
+        feature_ref = self._ph(observation.feature_of_interest)
+        procedure_ref = self._ph(observation.procedure)
+        has_unit = self._has_unit(observation.unit)
+        result_block = self._result_block(observation, has_unit)
+        qudt_prefixes = """@prefix qudt: <http://qudt.org/schema/qudt/> .
+@prefix unit: <http://qudt.org/vocab/unit/> .
+""" if has_unit else ""
+
 
         return f"""@prefix sosa: <http://www.w3.org/ns/sosa/> .
 @prefix time: <http://www.w3.org/2006/time#> .
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
 @prefix ph: <urn:phonendo:> .
+{qudt_prefixes}
 
 {device_ref} a sosa:Platform .
 
@@ -46,11 +53,11 @@ class SosaTTLSerializer:
         a time:Instant ;
         time:inXSDDateTimeStamp {self._datetime_stamp_literal(observation.phenomenon_time)}
     ] ;
-    sosa:hasSimpleResult {self._value_literal(observation.simple_result)} .
+{result_block}
 """
 
-    def _ref(self, prefix: str, value: Any) -> str:
-        return f"ph:{prefix}-{self._slug(value)}"
+    def _ph(self, value: Any) -> str:
+        return f"ph:{self._slug(value)}"
 
     def _slug(self, value: Any) -> str:
         text = str(value).strip().lower()
@@ -92,3 +99,20 @@ class SosaTTLSerializer:
     def _literal(self, value: Any) -> str:
         escaped = str(value).replace("\\", "\\\\").replace('"', '\\"')
         return f'"{escaped}"'
+
+    def _result_block(self, observation, has_unit: bool) -> str:
+        if not has_unit:
+            return f"    sosa:hasSimpleResult {self._value_literal(observation.simple_result)} ."
+
+        return f"""    sosa:hasResult [
+        a qudt:QuantityValue ;
+        qudt:value {observation.simple_result} ;
+        qudt:hasUnit unit:{observation.unit}
+    ] ."""
+
+    def _has_unit(self, unit: Any) -> bool:
+        if unit is None:
+            return False
+
+        unit = str(unit).strip()
+        return unit != "" and unit.lower() != "unknown"

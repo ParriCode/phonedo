@@ -1,32 +1,47 @@
 from __future__ import annotations
 
+import argparse
 import asyncio
+import re
+import secrets
+import subprocess
+import uuid
 from pathlib import Path
 from typing import TYPE_CHECKING
 import json
-from apps.reader.python.reader_core.device import Device
-from apps.reader.python.reader_core.sensor import Sensor, PeriodicSensor, EventDrivenSensor
-from apps.reader.python.reader_core.core import ReaderCore
+from reader_core.device import Device
+from reader_core.sensor import Sensor
+from reader_core.core import ReaderCore
+
+from bluetooth_manager import BluetoothDeviceManager
 
 if TYPE_CHECKING:
-    from apps.reader.python.bluetooth_manager import BluetoothDeviceManager, BluetoothObservation
+    from bluetooth_manager import BluetoothDeviceManager, BluetoothObservation
 
 DEFAULT_SCAN_INTERVAL_SECONDS = 15.0
+DEFAULT_READER_MAC = "02:22:22:22:22:22"
 
 
 class Reader:
-    async def __init__(
+    def __init__(
             self,
-            mac : str =  "02:22:22:22", 
-            id : str = None 
+            mac : str | None = None,
+            id : str | None = None,
+            mac_policy: str = "auto",
+            config_file: str = "devices_and_sensors.json",
             ):
         
+        print("Creando Reader")
+        self.mac = self.resolve_reader_mac(mac, mac_policy)
+        self.reader_id = id if id is not None else self.mac
+
         self.env = self.load_env(Path(__file__).resolve().parent.parent / "config.env")
 
         manager_token = self.env.get("API_TOKEN_MANAGER", "token_manager")
         manager_url = self.get_manager_url()
 
         self.core = ReaderCore(
+            reader_id=self.reader_id,
             token=manager_token,
             manager_url=manager_url,
         )
@@ -34,26 +49,22 @@ class Reader:
         self.devices: dict[str, Device] = {}
         self.sensors: dict[str, Sensor] = {}
 
-        self.mac = mac 
-
-        self.reader_id = id if id is not None else "reader1"
-
-        self.reader_id : str = self.mac 
-
-        self.config_file = "devices_and_sensors.json"
+        self.config_file = config_file
 
 
         #Cargar los dipositivos y los sensores
-        config_path = Path(__file__).resolve().parent / self.config_file
+        config_path = Path(self.config_file)
+        if not config_path.is_absolute() and not config_path.exists():
+            config_path = Path(__file__).resolve().parent / config_path
         config = self.load_config(config_path) if config_path.exists() else {}
         self.factory(config)
 
+        self.bluetooth_manager = self.bluetooth_manager_from_config(config) #ahora mismo en cada medición le llegará esta puta mierda
+
+    async def run(self) -> None:
+        await self.bluetooth_manager.start()
         
-
-
-        bluetooth_manager = self.bluetooth_manager_from_config(config)
-
-        await bluetooth_manager.start()
+            
     
 
     def get_manager_url(self) -> str:
@@ -69,35 +80,41 @@ class Reader:
 
 
     def handle_bluetooth_data(self, observation : BluetoothObservation) -> None:
-        device_id = observation.mac
-        sensor_id = observation.sensor_id
-
+        device_id, mac_address = self.resolve_observation_device(observation)
+        sensor_id = observation.sensor_id or "unknown-sensor"
         raw_value = observation.value
-        observation_prop = getattr(observation, "observation_property", "Unknown")
-        if device_id == "unknown": 
-            device_id = self.mac
+
         if device_id not in self.devices.keys():
             device = Device(
                 device_id=device_id,
-                device_type="bluetooth",
-                mac_address=device_id,
+                device_type=getattr(observation, "device_type", "bluetooth") or "bluetooth",
+                mac_address=mac_address,
             ) 
             self.devices[device_id] = device
             self.core.add_device(device)
             
 
-        if sensor_id not in self.sensors.keys():
+        if not self.devices[device_id].has_sensor(sensor_id):
             sensor = Sensor(
-                observable_property=observation_prop,
-                procedure="configured-measurement",
-                feature_of_interest="unknown-feature",
+                observable_property=getattr(observation, "observation_property", "unknown") or "unknown",
+                procedure=getattr(observation, "procedure", "") or "unknown",
+                feature_of_interest=getattr(observation, "feature_of_interest", "") or "unknown",
                 sensor_id=sensor_id,
                 device_id=device_id,
-                unit=None,
+                unit=getattr(observation, "unit", None) or "Unknown",
             )
-            self.sensors[sensor_id] = sensor
+            self.sensors.setdefault(sensor_id, sensor)
             self.devices[device_id].add_sensor(sensor)
         self.core.ingest_raw_measurement(device_id, sensor_id, raw_value)
+
+    def resolve_observation_device(self, observation: BluetoothObservation) -> tuple[str, str]:
+        obs_mac = getattr(observation, "mac", "") or ""
+        obs_device_id = getattr(observation, "device_id", "") or ""
+
+        if obs_mac.lower() == "unknown" or not obs_mac:
+            return obs_device_id or self.reader_id, self.mac
+
+        return obs_device_id or obs_mac, obs_mac
     
     def factory(self, config : dict): 
         
@@ -119,9 +136,9 @@ class Reader:
                     self.devices[sensor.device_id].add_sensor(sensor)
 
     def bluetooth_manager_from_config(self, config: dict) -> BluetoothDeviceManager:
-        from apps.reader.python.bluetooth_manager import BluetoothDeviceManager
 
         bluetooth_json = config.get("bluetooth", {})
+        ble_json = bluetooth_json.get("ble", {})
         rfcomm_json = bluetooth_json.get("rfcomm", {})
 
         transports = set(bluetooth_json.get("transports", ["RFCOMM"]))
@@ -131,6 +148,8 @@ class Reader:
         return BluetoothDeviceManager(
             on_measurement=self.handle_bluetooth_data,
             transports=transports,
+            scan_timeout_seconds=ble_json.get("scan_timeout_seconds", 2.0),
+            ble_sleep_seconds=ble_json.get("sleep_seconds", 0.5),
             rfcomm_ports=rfcomm_json.get("ports", None),
             rfcomm_devices=rfcomm_devices,
             rfcomm_baudrate=rfcomm_json.get("baudrate", 9600),
@@ -156,11 +175,18 @@ class Reader:
             device_id = device_json.get("device_id", None)
             metadata = {
                 "mac": device_json.get("mac") or device_json.get("mac_address") or self.mac,
+                "device_id": device_id,
+                "device_type": device_json.get("device_type") or device_json.get("deviceType") or "bluetooth",
             }
 
             sensors = sensors_by_device.get(device_id, [])
             if len(sensors) == 1:
-                metadata["sensor_id"] = sensors[0].get("sensor_id", comm)
+                sensor = sensors[0]
+                metadata["sensor_id"] = sensor.get("sensor_id", comm)
+                metadata["observable_property"] = sensor.get("observable_property", "unknown")
+                metadata["procedure"] = sensor.get("procedure", "configured-measurement")
+                metadata["feature_of_interest"] = sensor.get("feature_of_interest", "unknown-feature")
+                metadata["unit"] = sensor.get("unit", None)
 
             rfcomm_devices[comm] = metadata
 
@@ -188,7 +214,7 @@ class Reader:
         return device
 
         
-    def sensor_from_json(self, json_data : dict ) -> Sensor | PeriodicSensor | EventDrivenSensor:
+    def sensor_from_json(self, json_data : dict ) -> Sensor:
         if not isinstance(json_data, dict):
             raise ValueError("La configuración de un sensor debe ser un objeto JSON")
 
@@ -235,6 +261,43 @@ class Reader:
             raise FileNotFoundError(f"No existe el archivo: {path}")
         except json.JSONDecodeError as error:
             raise ValueError(f"Error al cargar el json: {error}")
+
+    @staticmethod
+    def resolve_reader_mac(mac: str | None, mac_policy: str) -> str:
+        if mac:
+            return mac
+
+        if mac_policy == "random":
+            return Reader.random_local_mac()
+
+        if mac_policy == "default":
+            return DEFAULT_READER_MAC
+
+        detected = Reader.get_system_mac()
+        return detected or DEFAULT_READER_MAC
+
+    @staticmethod
+    def get_system_mac() -> str | None:
+        try:
+            result = subprocess.run(
+                ["bluetoothctl", "show"],
+                check=False,
+                capture_output=True,
+                text=True,
+                timeout=2,
+            )
+            match = re.search(r"Controller\s+([0-9A-Fa-f:]{17})", result.stdout)
+            if match:
+                return match.group(1).lower()
+        except Exception:
+            pass
+
+        node = uuid.getnode()
+        if (node >> 40) % 2 == 0:
+            return ":".join(f"{(node >> bits) & 0xff:02x}" for bits in range(40, -1, -8))
+
+        return None
+
     @staticmethod
     def load_env(path: Path) -> dict[str, str]:
         values: dict[str, str] = {}
@@ -254,8 +317,25 @@ class Reader:
         return values
 
 
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Phonendo Python Reader")
+    parser.add_argument("--reader-id", dest="reader_id", default=None)
+    parser.add_argument("--mac", default=None)
+    parser.add_argument("--mac-policy", choices=["auto", "random", "default"], default="auto")
+    parser.add_argument("--config", default="devices_and_sensors.json")
+    parser.add_argument("--allow-conflicts", action="store_true")
+    return parser.parse_args()
 
 
 
 if __name__ == "__main__":
-    reader = Reader()
+
+    print("iniciando")
+    args = parse_args()
+    reader = Reader(
+        mac=args.mac,
+        id=args.reader_id,
+        mac_policy=args.mac_policy,
+        config_file=args.config,
+    )
+    asyncio.run(reader.run())

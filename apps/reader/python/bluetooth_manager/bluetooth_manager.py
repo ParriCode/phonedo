@@ -21,7 +21,12 @@ class BluetoothObservation:
     sensor_id: str
     value: str
     transport: Transport 
-    observation_property : str  = "unkown" 
+    observation_property : str  = "unknown"
+    device_id: str = ""
+    device_type: str = "bluetooth"
+    procedure: str = ""
+    feature_of_interest: str = ""
+    unit: str | None = None
     source: str = ""   # Ej: /dev/rfcomm0, manufacturer:76, service:xxxx...
 
 
@@ -297,21 +302,34 @@ class BluetoothDeviceManager:
         mac :str = metadata.get("mac", "unknown")
         mac = mac.strip().lower()
         default_sensor_id = metadata.get("sensor_id", port)
+        default_device_id = str(metadata.get("device_id", ""))
+        default_device_type = str(metadata.get("device_type", "bluetooth"))
+        default_observable_property = str(metadata.get("observable_property", "unknown"))
+        default_procedure = str(metadata.get("procedure", ""))
+        default_feature_of_interest = str(metadata.get("feature_of_interest", ""))
+        default_unit = metadata.get("unit", None)
 
         # Formato JSON
         try:
             obj = json.loads(text)
 
             if isinstance(obj, dict):
-                sensor_id = str(obj.get("sensor_id", default_sensor_id))
-                value = str(obj.get("value", obj))
+                sensor_id = str(obj.get("sensor_id", obj.get("sensorId", default_sensor_id)))
+                value = str(obj.get("value", obj.get("raw_value", obj.get("rawValue", obj))))
+                msg_mac = obj.get("mac") or obj.get("mac_address") or obj.get("macAddress") or mac
 
                 return [
                     BluetoothObservation(
-                        mac=mac,
+                        mac=str(msg_mac).strip().lower(),
                         sensor_id=sensor_id,
                         value=value,
                         transport="RFCOMM",
+                        observation_property=str(obj.get("observable_property", obj.get("observableProperty", obj.get("observation_property", default_observable_property)))),
+                        device_id=str(obj.get("device_id", obj.get("deviceId", default_device_id))),
+                        device_type=str(obj.get("device_type", obj.get("deviceType", default_device_type))),
+                        procedure=str(obj.get("procedure", default_procedure)),
+                        feature_of_interest=str(obj.get("feature_of_interest", obj.get("featureOfInterest", default_feature_of_interest))),
+                        unit=obj.get("unit", default_unit),
                         source=port,
                     )
                 ]
@@ -329,6 +347,12 @@ class BluetoothDeviceManager:
                     sensor_id=sensor_id.strip(),
                     value=value.strip(),
                     transport="RFCOMM",
+                    observation_property=default_observable_property,
+                    device_id=default_device_id,
+                    device_type=default_device_type,
+                    procedure=default_procedure,
+                    feature_of_interest=default_feature_of_interest,
+                    unit=default_unit,
                     source=port,
                 )
             ]
@@ -340,6 +364,12 @@ class BluetoothDeviceManager:
                 sensor_id=default_sensor_id,
                 value=text,
                 transport="RFCOMM",
+                observation_property=default_observable_property,
+                device_id=default_device_id,
+                device_type=default_device_type,
+                procedure=default_procedure,
+                feature_of_interest=default_feature_of_interest,
+                unit=default_unit,
                 source=port,
             )
         ]

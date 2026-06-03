@@ -1,13 +1,8 @@
 from pathlib import Path
-import json
-import time
-from urllib.error import HTTPError, URLError
-from urllib.request import Request, urlopen
 
-from device import Device
-from serializer import SosaTTLSerializer
-from sensors.temperature_sensor import TemperatureSensor
-from core import ReaderCore
+from reader_core.core import ReaderCore
+from reader_core.device import Device
+from reader_core.sensor import Sensor
 
 def load_env(path: Path) -> dict[str, str]:
     values: dict[str, str] = {}
@@ -34,31 +29,18 @@ def main() -> None:
 
     manager_token = env.get("API_TOKEN_MANAGER", "token_manager")
     #Obtener la URL del manager
-    register_device_url = env.get(
-        "INTERNAL_URL_MANAGER_REGISTER_DEVICE",
-        "http://localhost:3003/registerDevice",
-    )
-    #Obtener la URL del newEvent
-    new_event_url = env.get(
-        "INTERNAL_URL_MANAGER_NEW_EVENT",
-        "http://localhost:3003/newEvent",
-    )
-
     core = ReaderCore(
         token=manager_token,
         manager_url="http://localhost:3003",
 
     )
 
-    temperature_sensor = TemperatureSensor(
-        feature_of_interest="patient-001",
-        interval_seconds=10,
-        sensor_id="temp-001",
+    temperature_sensor = Sensor(
+        observable_property="temperatura",
         procedure="temperature-measurement",
+        feature_of_interest="patient-001",
+        sensor_id="temp-001",
         unit="CELSIUS",
-        min_value=30.0,
-        max_value=45.0,
-        raw_adapter=None,
     )
 
     patient_watch = Device(
@@ -73,7 +55,7 @@ def main() -> None:
 
     #core.add_device(patient_watch)
 
-    observation = temperature_sensor.addObservation(34)
+    observation = temperature_sensor.build_observation(34)
 
     core.register_device(patient_watch)    
 

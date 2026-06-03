@@ -2,6 +2,7 @@
 #include <SoftwareSerial.h>
 
 #define LED_PIN 2
+#define BT_BAUD 9600
 
 // RX, TX desde el punto de vista del Arduino
 // HC-05 TXD -> D11
@@ -11,18 +12,21 @@ SoftwareSerial BT(11, 10);
 unsigned long lastPing = 0;
 bool ledState = false;
 
-void setup() {
+
+void setup(){
     pinMode(LED_PIN, OUTPUT);
 
     Serial.begin(9600);
-    BT.begin(9600);
+    BT.begin(BT_BAUD);
 
     delay(1000);
 
     Serial.println("Arduino listo.");
-    Serial.println("Bluetooth listo.");
+    Serial.print("Bluetooth listo a ");
+    Serial.print(BT_BAUD);
+    Serial.println(" baudios.");
 
-    BT.println("Hola desde Arduino por Bluetooth");
+    BT.println("Hola mundo desde Arduino por Bluetooth");
 }
 
 void loop() {
@@ -34,8 +38,8 @@ void loop() {
         ledState = !ledState;
         digitalWrite(LED_PIN, ledState ? HIGH : LOW);
 
-        Serial.println("[USB] Enviando PING por Bluetooth");
-        BT.println("PING desde Arduino");
+        Serial.println("[USB] Temperatura enviada");
+        BT.println("45");
     }
 
     // Bluetooth -> USB

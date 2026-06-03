@@ -35,92 +35,36 @@ package "domain" {
   class Device {
     + deviceId: String
     + deviceType: String
-    + serialNumber: String
     + macAddress: String
     + platform: String
-    - sensors: Map<String, SensorBase>
-    + addSensor(sensor: SensorBase): void
-    + getSensor(sensorId: String): SensorBase
+    - sensors: Map<String, Sensor>
+    + addSensor(sensor: Sensor): void
+    + getSensor(sensorId: String): Sensor
     + removeSensor(sensorId: String): void
-    + listSensors(): List<SensorBase>
+    + listSensors(): List<Sensor>
   }
 
-  abstract class SensorBase {
+  class Sensor {
     + sensorId: String
-    + observableProperty: ObservableProperty
+    + observableProperty: String
     + procedure: String
     + featureOfInterest: String
-    + addObservation(simpleResult: Object, phenomenonTime: DateTime): Observation
-    + buildObservation(rawValue: Object, phenomenonTime: DateTime): Observation
-  }
-
-  abstract class EventDrivenSensor {
-    + eventName: String
-    + handleEvent(payload: Object): Observation
-  }
-
-  abstract class PeriodicSensor {
-    + intervalSeconds: int
-    + timeoutSeconds: int
-    + start(): void
-    + stop(): void
-    + poll(): Observation
-  }
-
-  class HeartRateSensor {
-    + minValue: int
-    + maxValue: int
-    + buildObservation(rawValue: Object, phenomenonTime: DateTime): Observation
-  }
-
-  class TemperatureSensor {
     + unit: String
+    + deviceId: String
     + buildObservation(rawValue: Object, phenomenonTime: DateTime): Observation
+    + addObservation(simpleResult: Object, phenomenonTime: DateTime): Observation
   }
 
   class Observation {
     + observationId: String
-    + observableProperty: ObservableProperty
+    + observableProperty: String
     + simpleResult: Object
     + phenomenonTime: DateTime
     + featureOfInterest: String
     + procedure: String
-  }
-
-  enum ObservableProperty {
-    HEART_RATE
-    TEMPERATURE
-    SPO2
-  }
-}
-
-package "phonendoSensors" {
-
-  interface RawSensorAdapter {
-    + connect(): void
-    + disconnect(): void
-    + readRawValue(): Object
-  }
-
-  class BluetoothSensorAdapter {
-    + macAddress: String
-    + connect(): void
-    + disconnect(): void
-    + readRawValue(): Object
-  }
-
-  class LocalSensorAdapter {
-    + devicePath: String
-    + connect(): void
-    + disconnect(): void
-    + readRawValue(): Object
-  }
-
-  class HttpSensorAdapter {
-    + endpoint: String
-    + connect(): void
-    + disconnect(): void
-    + readRawValue(): Object
+    + sensorId: String
+    + deviceId: String
+    + unit: String
   }
 }
 
@@ -147,21 +91,9 @@ ReaderCore --> ManagerClient
 ReaderCore --> SosaTTLSerializer
 ReaderService --> ReaderCore
 
-Device *-- "1..*" SensorBase
+Device *-- "1..*" Sensor
 
-SensorBase <|-- EventDrivenSensor
-SensorBase <|-- PeriodicSensor
-
-EventDrivenSensor <|-- HeartRateSensor
-PeriodicSensor <|-- TemperatureSensor
-
-SensorBase --> ObservableProperty
-SensorBase --> Observation : creates
-SensorBase o-- "0..1" RawSensorAdapter
-
-RawSensorAdapter <|.. BluetoothSensorAdapter
-RawSensorAdapter <|.. LocalSensorAdapter
-RawSensorAdapter <|.. HttpSensorAdapter
+Sensor --> Observation : creates
 
 SosaTTLSerializer --> Device
 SosaTTLSerializer --> Observation

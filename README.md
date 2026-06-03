@@ -132,7 +132,7 @@ This is an example of how to list things you need to use the software and how to
 
 Once all services are up, next step is to register a device using the Reader endpoint
 ``` 
-curl --location 'http://127.0.0.1:3003/register' \ --header 'Content-Type: application/x-www-form-urlencoded' \ --data-urlencode 'device=XXXXXXXXXX' \ --data-urlencode 'serialNumber=XXX' \ --data-urlencode 'deviceType=SMARTWATCH'
+curl --location 'http://127.0.0.1:3003/register' \ --header 'Content-Type: application/x-www-form-urlencoded' \ --data-urlencode 'device=XXXXXXXXXX' \ --data-urlencode 'deviceType=SMARTWATCH'
 ```
 
 Once the device is registered, Phonendo will automatically detect, connect and start listening events. In particular, it captures heartbeat events.

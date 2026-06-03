@@ -7,10 +7,10 @@ from typing import Any, Dict, Optional
 
 import requests
 
-from apps.reader.python.reader_core.device import Device
-from apps.reader.python.reader_core.observation import Observation
-from apps.reader.python.reader_core.sensor import Sensor
-from apps.reader.python.reader_core.serializer import SosaTTLSerializer
+from reader_core.device import Device
+from reader_core.observation import Observation
+from reader_core.sensor import Sensor
+from reader_core.serializer import SosaTTLSerializer
 from uuid import uuid4
 @dataclass
 class ReaderConfig:

@@ -2,7 +2,7 @@
 
 Este módulo implementa el Reader Python de Phonendo. Su responsabilidad es recibir datos crudos desde fuentes externas, asociarlos a un dispositivo y sensor conocidos, construir una observación semántica y enviarla al Manager.
 
-El Reader actual está pensado para trabajar principalmente con sensores Bluetooth/RFCOMM o puertos serie, usando una configuración previa en `devices_and_sensors.json`.
+El Reader actual está pensado para trabajar principalmente con sensores Bluetooth/RFCOMM, BLE o puertos serie. Puede usar una configuración previa en `devices_and_sensors.json`, pero también acepta sensores no configurados aplicando políticas de fallback.
 
 ## Estructura
 
@@ -25,7 +25,7 @@ apps/reader/python/
 
 1. `Reader` carga variables de entorno desde `config.env`.
 2. `Reader` crea un `ReaderCore`.
-3. `Reader` carga `devices_and_sensors.json`.
+3. `Reader` carga `devices_and_sensors.json` si existe.
 4. `Reader.factory()` crea los `Device` y `Sensor` definidos en configuración.
 5. `BluetoothDeviceManager` escucha datos Bluetooth/RFCOMM.
 6. Cada dato recibido llega a `Reader.handle_bluetooth_data()`.
@@ -42,6 +42,12 @@ Ejemplo actual:
 
 ```json
 {
+  "bluetooth": {
+    "transports": ["RFCOMM"],
+    "rfcomm": {
+      "baudrate": 9600
+    }
+  },
   "devices": [
     {
       "comm": "/dev/rfcomm0",
@@ -59,6 +65,15 @@ Ejemplo actual:
   ]
 }
 ```
+
+La sección `bluetooth` es opcional. Permite configurar transports y parámetros del `BluetoothDeviceManager`:
+
+- `transports`: lista con `"RFCOMM"`, `"BLE"` o ambos.
+- `rfcomm.baudrate`: velocidad de lectura de los puertos RFCOMM.
+- `rfcomm.ports`: lista opcional de puertos permitidos.
+- `rfcomm.devices`: metadatos manuales por puerto.
+- `ble.scan_timeout_seconds`: tiempo de escaneo BLE.
+- `ble.sleep_seconds`: pausa entre escaneos BLE.
 
 Campos de `devices`:
 
@@ -98,11 +113,15 @@ Atributos principales:
 Métodos:
 
 - `get_manager_url()`: resuelve la URL base del Manager.
+- `start()`: arranca el `BluetoothDeviceManager`.
 - `handle_bluetooth_data(observation)`: recibe una `BluetoothObservation`, crea fallback si no existe device/sensor, e ingiere la medición.
+- `resolve_observation_device(observation)`: decide qué `device_id` y MAC usar para una observación.
 - `factory(config)`: crea dispositivos y sensores desde el JSON de configuración.
+- `bluetooth_manager_from_config(config)`: construye el manager Bluetooth desde configuración.
 - `device_from_json(json_data)`: construye un `Device`.
 - `sensor_from_json(json_data)`: construye un `Sensor`.
 - `load_config(path)`: lee un archivo JSON de configuración.
+- `resolve_reader_mac(mac, mac_policy)`: resuelve la MAC del Reader por argumento, sistema, aleatoria local o fallback.
 - `load_env(path)`: lee un archivo `.env` simple.
 
 ### BluetoothDeviceManager
@@ -119,7 +138,14 @@ Produce objetos `BluetoothObservation`.
 Formatos RFCOMM soportados:
 
 ```json
-{"sensor_id": "temp1", "value": "24.5"}
+{
+  "macAddress": "AA:BB:CC:DD:EE:FF",
+  "deviceId": "device-1",
+  "sensorId": "temp1",
+  "value": "24.5",
+  "observableProperty": "temperatura",
+  "unit": "CELSIUS"
+}
 ```
 
 ```text
@@ -143,6 +169,11 @@ Campos:
 - `value`: valor recibido.
 - `transport`: `"BLE"` o `"RFCOMM"`.
 - `observation_property`: propiedad observada si el origen la indica.
+- `device_id`: identificador lógico del dispositivo si el origen lo indica.
+- `device_type`: tipo de dispositivo si el origen lo indica.
+- `procedure`: procedimiento de medición si el origen lo indica.
+- `feature_of_interest`: entidad observada si el origen lo indica.
+- `unit`: unidad si el origen la indica.
 - `source`: fuente local, por ejemplo `/dev/rfcomm0`.
 
 ### ReaderCore
@@ -213,14 +244,13 @@ Atributos:
 - `observable_property`
 - `procedure`
 - `feature_of_interest`
-- `raw_adapter`
 - `unit`
 - `device_id`
 
 Métodos:
 
-- `addObservation(_simple_result, _phenomenom_time)`: crea una `Observation`.
 - `build_observation(raw_value, phenomenon_time)`: crea una observación a partir de un valor crudo.
+- `addObservation(_simple_result, _phenomenom_time)`: alias compatible de `build_observation`.
 
 Actualmente `Sensor` no aplica validación específica al valor recibido. Solo lo encapsula en una observación usando la configuración disponible.
 
@@ -337,20 +367,8 @@ classDiagram
         +feature_of_interest: str
         +unit: str
         +device_id: str
-        +addObservation(result, time) Observation
         +build_observation(raw_value, time) Observation
-    }
-
-    class EventDrivenSensor {
-        +event_name: str
-        +handle_event(payload, time) Observation
-    }
-
-    class PeriodicSensor {
-        +interval_seconds: int
-        +last_poll_time
-        +should_poll(now) bool
-        +poll(now) Observation
+        +addObservation(result, time) Observation
     }
 
     class Observation {
@@ -378,8 +396,6 @@ classDiagram
     ReaderCore --> SosaTTLSerializer
     Device "1" o-- "*" Sensor
     Sensor --> Observation
-    EventDrivenSensor --|> Sensor
-    PeriodicSensor --|> Sensor
     SosaTTLSerializer --> Observation
 ```
 
@@ -454,28 +470,47 @@ Si el sensor existe en `devices_and_sensors.json`, se crea al arrancar y se enla
 
 ### Dispositivo no configurado
 
-Si llega una observación con una MAC desconocida, `handle_bluetooth_data()` crea un `Device` básico:
+Si llega una observación de un dispositivo no registrado, `handle_bluetooth_data()` crea un `Device` básico. Si el mensaje trae `device_id`, se usa ese identificador. Si no lo trae, se usa la MAC observada.
 
 ```text
-device_id = observation.mac
-device_type = bluetooth
+device_id = observation.device_id or observation.mac
+device_type = observation.device_type or bluetooth
 mac_address = observation.mac
 ```
 
-Si `observation.mac == "unknown"`, se usa la MAC fallback del Reader.
+Si `observation.mac == "unknown"` o no hay MAC, el dato se considera originado por el propio Reader:
+
+```text
+device_id = reader_id
+mac_address = reader.mac
+```
 
 ### Sensor no configurado
 
 Si llega un `sensor_id` no registrado, se crea un `Sensor` básico:
 
 ```text
-observable_property = observation.observation_property or "Unknown"
-procedure = configured-measurement
-feature_of_interest = unknown-feature
-unit = None
+observable_property = observation.observation_property or "unknown"
+procedure = observation.procedure or "unknown"
+feature_of_interest = observation.feature_of_interest or "unknown"
+unit = observation.unit or "Unknown"
 ```
 
 Este fallback permite no perder el dato, pero la calidad semántica es limitada.
+
+### MAC del Reader
+
+La MAC del Reader se resuelve con esta prioridad:
+
+```text
+--mac > --mac-policy random > --mac-policy default > bluetoothctl/uuid.getnode() > default
+```
+
+La MAC por defecto es local/pseudónima:
+
+```text
+02:22:22:22:22:22
+```
 
 ## Limitaciones Actuales
 
@@ -492,6 +527,7 @@ Todavía no cubre completamente:
 - Persistencia de dispositivos descubiertos dinámicamente.
 - Resolución automática fiable de MAC remota desde `/dev/rfcomm0`.
 - Validación específica por tipo de sensor.
+- Lectura activa desde un adaptador local por sensor.
 - Diferenciación fuerte entre MAC física, MAC configurada y MAC pseudónima.
 
 ## Futuras Extensiones
@@ -517,7 +553,7 @@ Extensiones razonables:
 }
 ```
 
-- Añadir política explícita para identidades:
+- Guardar explícitamente el origen de identidad:
 
 ```text
 configured > handshake > transport_discovery > pseudonymous > unknown
@@ -543,8 +579,17 @@ El entrypoint actual es:
 python apps/reader/python/main.py
 ```
 
-Actualmente `Reader.__init__` es asíncrono, pero se invoca directamente al final de `main.py`. Para ejecución real debería ajustarse a un patrón con `asyncio.run()` cuando se estabilice el arranque.
+Opciones principales:
+
+```bash
+python apps/reader/python/main.py --config apps/reader/python/devices_and_sensors.json
+python apps/reader/python/main.py --mac 02:aa:bb:cc:dd:ee
+python apps/reader/python/main.py --mac-policy random
+python apps/reader/python/main.py --reader-id reader-1
+```
+
+El arranque usa `asyncio.run(reader.start())`.
 
 ## Resumen
 
-El Reader Python actual es una base configurable para recibir datos por Bluetooth/RFCOMM, asociarlos a dispositivos y sensores, construir observaciones y enviarlas al Manager. La configuración previa es el mecanismo principal para dar semántica a sensores simples. Los sensores no configurados se aceptan mediante fallback, pero con semántica mínima.
+El Reader Python actual es una base configurable para recibir datos por Bluetooth/RFCOMM y BLE, asociarlos a dispositivos y sensores, construir observaciones y enviarlas al Manager. La configuración previa sigue siendo el mecanismo más fiable para dar semántica a sensores simples. Los sensores no configurados se aceptan mediante fallback, usando los metadatos disponibles y rellenando lo desconocido con valores `unknown`/`Unknown`.
