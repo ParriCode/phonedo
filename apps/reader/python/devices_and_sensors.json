@@ -1,15 +1,12 @@
 {
-    "bluetooth": {
-        "transports": ["RFCOMM"],
-        "rfcomm": {
-            "baudrate": 9600
-        }
+    "serial": {
+        "glob": "/dev/rfcomm*",
+        "baudrate": 9600
     },
     
     "devices":[
         {
             "comm": "/dev/rfcomm0",
-            "mac": "00:21:13:01:1F:91",
             "device_id": "prueba1",
             "allow_conflicts": false
         },

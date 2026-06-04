@@ -5,19 +5,45 @@ from typing import Dict, List
 from reader_core.sensor import Sensor
 
 class Device:
-    def __init__( self, device_id: str, device_type: str, mac_address: str , platform: str | None = None,
+    def __init__(
+        self,
+        device_id: str,
+        device_type: str = "device",
+        _legacy_address: str = "",
+        platform: str | None = None,
+        **_ignored_fields,
     ) -> None:
         if not device_id:
             raise ValueError("device_id no puede estar vacío")
-        
-        if not mac_address:
-            raise ValueError("mac_addres no puede estar vacía")
+
         self.device_id = device_id
         self.device_type = device_type
-        self.mac_address = mac_address
         self.platform = platform
 
         self._sensors: Dict[str, Sensor] = {}
+
+    @staticmethod
+    def fromJson(
+        json_data: dict,
+        default_device_id: str | None = None,
+    ) -> "Device":
+        if not isinstance(json_data, dict):
+            raise ValueError("La configuración de un device debe ser un objeto JSON")
+
+        device_id = json_data.get("device_id") or default_device_id
+        if not device_id:
+            raise ValueError("device_id no puede estar vacío")
+
+        device_type = json_data.get("device_type") or json_data.get("deviceType") or "device"
+        platform = json_data.get("platform")
+
+        device = Device(
+            device_id=str(device_id),
+            device_type=str(device_type),
+            platform=str(platform) if platform is not None else None,
+        )
+        device.comm = json_data.get("comm") or json_data.get("com")
+        return device
 
     def add_sensor(self, sensor: Sensor) -> None:
         if sensor is None:
@@ -77,7 +103,6 @@ class Device:
             f"Device("
             f"device_id={self.device_id!r}, "
             f"device_type={self.device_type!r}, "
-            f"mac_address={self.mac_address!r}, "
             f"platform={self.platform!r}, "
             f"sensors={list(self._sensors.keys())!r}"
             f")"

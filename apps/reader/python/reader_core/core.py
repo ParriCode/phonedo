@@ -7,6 +7,7 @@ from typing import Any, Dict, Optional
 
 import requests
 
+from logger import Logger
 from reader_core.device import Device
 from reader_core.observation import Observation
 from reader_core.sensor import Sensor
@@ -41,6 +42,9 @@ class ManagerClient:
         if not reader_id:
             raise ValueError("reader_id no puede estar vacío")
 
+        if not self.base_url.startswith(("http://", "https://")):
+            raise ValueError(f"manager_url inválida: {self.base_url!r}")
+
         headers = {
             "Accept": "application/json, text/plain",
             "Content-Type": "application/json",
@@ -49,28 +53,51 @@ class ManagerClient:
         if self.token:
             headers["Authorization"] = f"Bearer {self.token}"
 
+        url = f"{self.base_url}{self.send_observation_path}"
+        payload = {
+            "token": self.token,
+            "eventType": "observation",
+            "payloadFormat": "text/turtle",
+            "payload": ttl,
+            "deviceId": device_id,
+            "readerId": reader_id,
+        }
+        Logger.info("manager_observation_send_started", url=url, readerId=reader_id, deviceId=device_id)
 
-        response = requests.post(
-            f"{self.base_url}{self.send_observation_path}",
-            json={
-                "token": self.token,
-                "eventType": "observation",
-                "payloadFormat": "text/turtle",
-                "payload": ttl,
-                "deviceId": device_id,
-                "readerId": reader_id
-            },
-            headers=headers,
-            timeout=self.timeout_seconds,
+        try:
+            response = requests.post(
+                url,
+                json=payload,
+                headers=headers,
+                timeout=self.timeout_seconds,
+            )
+        except requests.RequestException as error:
+            Logger.error("manager_observation_send_failed", url=url, readerId=reader_id, deviceId=device_id, error=str(error))
+            raise
+
+        Logger.info(
+            "manager_observation_send_response",
+            url=url,
+            readerId=reader_id,
+            deviceId=device_id,
+            status=response.status_code,
         )
 
-
-
         if not response.ok:
+            Logger.error(
+                "manager_observation_send_rejected",
+                url=url,
+                readerId=reader_id,
+                deviceId=device_id,
+                status=response.status_code,
+                body=response.text,
+            )
             raise RuntimeError(
                 f"Error HTTP comunicando con Manager. "
                 f"Status={response.status_code}. Body={response.text}"
             )
+
+        Logger.info("manager_observation_sent", readerId=reader_id, deviceId=device_id, status=response.status_code)
 
     def register_device(self, reader_id : str ,  device: Device) -> None:
         if reader_id is None: 
@@ -78,17 +105,17 @@ class ManagerClient:
         if device is None:
             raise ValueError("device no puede ser None")
 
+        payload = {
+            "token": self.token,
+            "schemaVersion": "phonendo.event.v1",
+            "readerId": reader_id,
+            "deviceId": device.device_id,
+            "deviceType": device.device_type,
+            "creationDatetime": int(time.time() * 1000),
+        }
         response = requests.post(
             f"{self.base_url}/registerDevice",
-            json={
-                "token": self.token,
-                "schemaVersion": "phonendo.event.v1", 
-                "readerId": reader_id,
-                "deviceId": device.device_id,
-                "deviceType":device.device_type,
-                "macAddress": device.mac_address,
-                "creationDatetime": int(time.time() * 1000),
-            },
+            json=payload,
             headers={
                 "Accept": "application/json, text/plain",
                 "Content-Type": "application/json",

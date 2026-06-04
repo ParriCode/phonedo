@@ -1,1 +1,1 @@
-from .bluetooth_manager import BluetoothDeviceManager, BluetoothObservation
+from .bluetooth_manager import BluetoothDeviceManager
