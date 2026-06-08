@@ -87,7 +87,7 @@ Ejemplo:
 ### `sensors`
 
 - `sensor_id`: identificador del sensor.
-- `device_id`: dispositivo al que pertenece.
+- `device_id`: opcional. Si se define, el sensor queda ligado al device y al puerto configurado para ese device. Si no se define, el sensor es portable y puede llegar por cualquier puerto.
 - `observable_property`: propiedad observada.
 - `procedure`: procedimiento de medición.
 - `feature_of_interest`: entidad observada.
@@ -185,9 +185,40 @@ Cuando llega una línea:
 bytes -> JSON -> Observation -> Reader.handle_serial_data()
 ```
 
-## Conflictos
+## Sensores Portables Y Conflictos
 
-El parser compara el mensaje con la configuración del puerto.
+El parser primero asigna contexto usando el puerto, el `sensor_id` recibido y la configuración.
+
+Un sensor sin `device_id` es portable:
+
+```json
+{
+  "sensor_id": "temp1",
+  "observable_property": "temperatura",
+  "procedure": "termorreceptor"
+}
+```
+
+Puede llegar por `/dev/rfcomm0`, `/dev/rfcomm1` o cualquier puerto escuchado. Si además es el único sensor portable configurado, también puede aceptar valores crudos como:
+
+```text
+45.3
+```
+
+Un sensor con `device_id` queda ligado al puerto del device:
+
+```json
+{
+  "sensor_id": "temp1",
+  "device_id": "prueba2",
+  "observable_property": "temperatura",
+  "procedure": "termorreceptor"
+}
+```
+
+Si `prueba2` está configurado en `/dev/rfcomm1`, ese sensor no se acepta por `/dev/rfcomm9`.
+
+Después de asignar el contexto, el parser compara el mensaje con la configuración.
 
 Si el puerto está configurado con:
 
@@ -213,7 +244,7 @@ Para permitirlo:
 {"allow_conflicts": true}
 ```
 
-Para sensores pasa lo mismo con `allow_conflicts` dentro del sensor configurado. Internamente se guarda como política del puerto para `sensor_id`, semántica y unidad.
+Para sensores pasa lo mismo con `allow_conflicts` dentro del sensor configurado. Internamente se guarda como política para `sensor_id`, semántica y unidad.
 
 ## Fallback
 

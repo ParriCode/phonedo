@@ -37,6 +37,14 @@ Logger.init(
 app = Flask(__name__)
 
 
+class InternalPostError(RuntimeError):
+    def __init__(self, url: str, status: int, body: str):
+        super().__init__(f"{url} returned {status}: {body}")
+        self.url = url
+        self.status = status
+        self.body = body
+
+
 def sanitize_body(body):
     if not isinstance(body, dict):
         return body
@@ -100,18 +108,17 @@ def get_device_from_storage(device_id: str) -> dict:
     Logger.info("storage_device_found", deviceId=device_id)
     return response.json()["value"]
 
-def generate_wearable_key(mac_address : str ) -> str: 
+def generate_wearable_key(device_id: str) -> str:
     manager_password = os.getenv("MANAGER_PASSWORD")
     if not manager_password:
         raise ValueError("MANAGER_PASSSWORD no está definida")
 
-    #normalizar la MAC
-    mac_lower = mac_address.strip().lower()
-    clave = f"{mac_lower}:{manager_password}"
+    device_key = device_id.strip().lower()
+    clave = f"{device_key}:{manager_password}"
 
-    hash_sha265 = hashlib.sha256(clave.encode("utf-8")).hexdigest()
+    hash_sha256 = hashlib.sha256(clave.encode("utf-8")).hexdigest()
 
-    return hash_sha265
+    return hash_sha256
 
 
 def get_message_from_response(response):
@@ -124,7 +131,9 @@ def post_request(url, body):
     Logger.debug("internal_post_request", url=url, body=sanitize_body(body))
     response = requests.post(url, json=body, timeout=10)
     Logger.debug("internal_post_response", url=url, status=response.status_code, body=response.text)
-    response.raise_for_status()
+    if not response.ok:
+        raise InternalPostError(url, response.status_code, response.text)
+
     try:
         return response.json()
     except Exception:
@@ -189,7 +198,6 @@ def register_device():
     device_id           = body.get("deviceId")
     reader_id           = body.get("readerId")
     device_type         = body.get("deviceType")
-    mac_address         = body.get("macAddress")
     creation_date_time  = body.get("creationDatetime")
     
     #verificar que todos los cuerpos existen
@@ -209,10 +217,6 @@ def register_device():
         Logger.warning("manager_register_device_bad_request", missing="deviceType")
         return {"error": "deviceType is required"}, 400
 
-    if not mac_address:
-        Logger.warning("manager_register_device_bad_request", missing="macAddress")
-        return {"error": "macAddress is required"}, 400
-    
     if not creation_date_time:
         Logger.warning("manager_register_device_bad_request", missing="creationDatetime")
         return {"error": "creation_date_time is requires"}, 400 
@@ -225,14 +229,13 @@ def register_device():
         "value": {
             "deviceId": device_id,
             "deviceType": device_type,
-            "macAddress":mac_address,
             "registeredByReader": reader_id,
             "registrationDatetime": int(time.time() * 1000),
         },
     }
 
     try:
-        hash_sha256 =  generate_wearable_key(mac_address)
+        hash_sha256 =  generate_wearable_key(device_id)
         message["value"]["managerHash"] = hash_sha256
         #Registro de un nuevo token
         storage_body = {
@@ -244,6 +247,16 @@ def register_device():
 
         Logger.info("device_registered", deviceId=device_id, readerId=reader_id)
         Logger.debug("device_register_storage_response", response=response)
+    except InternalPostError as error:
+        Logger.error(
+            "device_register_failed",
+            deviceId=device_id,
+            readerId=reader_id,
+            url=error.url,
+            status=error.status,
+            body=error.body,
+        )
+        return f"Storage register failed. Status={error.status}. Body={error.body}", 502
     except Exception as error:
         Logger.error("device_register_failed", deviceId=device_id, readerId=reader_id, error=str(error))
         return "Internal server error", 500
@@ -306,18 +319,13 @@ def new_event():
         },
     }
     try:
-        device = get_device_from_storage(device_id)
+        get_device_from_storage(device_id)
     except Exception as error:
         Logger.warning("event_rejected_device_not_registered", deviceId=device_id, readerId=reader_id, error=str(error))
         return "device not registered " , 404
 
 
-    mac_address = device.get("macAddress")
-
-    if not mac_address:
-        raise ValueError("Device does not have macAddress")
-
-    manager_signature = generate_wearable_key(mac_address)
+    manager_signature = generate_wearable_key(device_id)
 
     message["value"]["managerHash"] = manager_signature
 

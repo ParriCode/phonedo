@@ -24,13 +24,11 @@ public:
     Device(
         const String& deviceId,
         const String& deviceType,
-        const String& macAddress,
         const String& platform = ""
     );
 
     String deviceId;
     String deviceType;
-    String macAddress;
     String platform;
 
     bool isValid() const;

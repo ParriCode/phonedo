@@ -20,6 +20,7 @@ class SerialDeviceManager:
         port_glob: str = "/dev/rfcomm*",
         ports: list[str] | None = None,
         devices: dict[str, dict] | None = None,
+        sensors: dict[str, dict] | None = None,
         baudrate: int = 9600,
         read_timeout: float = 1.0,
         poll_seconds: float = 1.0,
@@ -29,6 +30,7 @@ class SerialDeviceManager:
         self.port_glob = port_glob
         self.ports = set(ports) if ports else None
         self.devices = devices or {}
+        self.sensors = sensors or {}
         self.baudrate = baudrate
         self.read_timeout = read_timeout
         self.poll_seconds = poll_seconds
@@ -118,7 +120,11 @@ class SerialDeviceManager:
             Logger.error("serial_message_discarded", port=port, reason="invalid_format", raw=text)
             return []
 
-        config = self.devices.get(port, {})
+        config = self._config_for(port, data)
+        if self._conflicts(config.get("port"), port):
+            Logger.error("serial_message_discarded", port=port, reason="port_conflict", expectedPort=config.get("port"), sensorId=config.get("sensor_id"), deviceId=config.get("device_id"))
+            return []
+
         device_id = str(data.get("device_id") or config.get("device_id") or "")
         sensor_id = str(data.get("sensor_id") or config.get("sensor_id") or port)
 
@@ -130,7 +136,10 @@ class SerialDeviceManager:
             Logger.error("serial_message_discarded", port=port, reason="sensor_conflict", sensorId=sensor_id)
             return []
 
-        if not config.get("sensor_allow_conflicts", False) and self._metadata_conflicts(config, data):
+        if not config.get("sensor_allow_conflicts", False) and any(
+            self._conflicts(config.get(key), data.get(key))
+            for key in ("observable_property", "procedure", "feature_of_interest", "unit")
+        ):
             Logger.error("serial_message_discarded", port=port, reason="metadata_conflict", sensorId=sensor_id)
             return []
 
@@ -149,25 +158,39 @@ class SerialDeviceManager:
             )
         ]
 
-    def _blocked(self, config: dict, key: str, value: str, allow_key: str) -> bool:
-        if key == "device_id" and config.get("reader_static") and self._conflicts(config.get(key), value):
-            return True
+    def _config_for(self, port: str, data: dict) -> dict:
+        port_config = self.devices.get(port)
+        sensor_id = data.get("sensor_id")
 
-        if key == "sensor_id" and config.get("static") and self._conflicts(config.get(key), value):
-            return True
+        if sensor_id:
+            sensor_config = self.sensors.get(str(sensor_id))
+            if not sensor_config:
+                return port_config or {}
+            if port_config and not sensor_config.get("device_id"):
+                return {**port_config, **sensor_config, "device_id": data.get("device_id") or port_config.get("device_id")}
+            return sensor_config
+
+        if port_config is not None:
+            return port_config
+
+        portable = [sensor for sensor in self.sensors.values() if not sensor.get("device_id")]
+        if len(portable) == 1 and not data.get("device_id"):
+            return portable[0]
+
+        return {}
+
+    def _blocked(self, config: dict, key: str, value: str, allow_key: str) -> bool:
+        if (key == "device_id" and config.get("reader_static")) or (key == "sensor_id" and config.get("static")):
+            return self._conflicts(config.get(key), value)
 
         return not config.get(allow_key, False) and self._conflicts(config.get(key), value)
 
     def _field(self, data: dict, config: dict, key: str, default: str, sensor_changed: bool) -> str:
         if key in data:
             return str(data[key] or default)
-        return str(default if sensor_changed else config.get(key, default) or default)
-
-    def _metadata_conflicts(self, config: dict, data: dict) -> bool:
-        return any(
-            self._conflicts(config.get(key), data.get(key))
-            for key in ("observable_property", "procedure", "feature_of_interest", "unit")
-        )
+        if sensor_changed:
+            return default
+        return str(config.get(key, default) or default)
 
     def _conflicts(self, configured, received) -> bool:
         if configured is None or received is None:

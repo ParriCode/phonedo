@@ -7,7 +7,6 @@
     "devices":[
         {
             "comm": "/dev/rfcomm0",
-            "device_id": "prueba1",
             "allow_conflicts": false
         },
         {
@@ -17,13 +16,7 @@
         }
     ],
     "sensors":[
-        {
-            "sensor_id": "temp1",
-            "procedure":"termorreceptor",
-            "observable_property": "temperatura",
-            "device_id": "prueba2",
-            "allow_conflicts": false
-        }
+
     ]
 
 }

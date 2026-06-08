@@ -100,7 +100,7 @@ def store_device():
             return "Bad request", 403
         #Obtener el mensaje
         message = request.json["message"]
-        Logger.debug("storage_device_register_message", message=message)
+        Logger.debug("storage_device_register_message", storedMessage=message)
 
         my_db.write(message["key"], message["value"])
 

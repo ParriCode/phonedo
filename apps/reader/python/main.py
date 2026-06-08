@@ -117,7 +117,7 @@ class Reader:
                 device_type="device",
             )
             self.devices[device_id] = device
-            self.core.add_device(device)
+            self.core.register_device(device) # ENVIA AL MANAGER EL DISPOSITIVO CREADO
             Logger.info("fallback_device_created", deviceId=device_id)
 
         if not device.has_sensor(sensor_id):
@@ -160,12 +160,12 @@ class Reader:
             for device_json in devices_json:
                 device = Device.fromJson( device_json, default_device_id=self.reader_id, )
                 self.devices[device.device_id] = device
-                self.core.add_device(device)
+                self.core.register_device(device) #ENVIA AL MANAGER EL NUEVO DISPOSITIVO
                 Logger.info("configured_device_loaded", deviceId=device.device_id)
 
         if sensors_json is not None: 
             for sensor_json in sensors_json:
-                sensor = Sensor.fromJson(sensor_json, default_device_id=self.reader_id)
+                sensor = Sensor.fromJson(sensor_json)
                 self.sensors[sensor.sensor_id] = sensor
 
                 if sensor.device_id and sensor.device_id in self.devices:
@@ -195,20 +195,19 @@ class Reader:
 
     def serial_manager_from_config(self, config: dict) -> SerialDeviceManager | None:
         serial_json = config.get("serial", {})
-        has_configured_serial_devices = any(
+        if not serial_json and not any(
             device_json.get("comm") or device_json.get("com")
             for device_json in config.get("devices", [])
-        )
-
-        if not serial_json and not has_configured_serial_devices:
+        ):
             return None
 
-        serial_devices = self.serial_devices_from_config(config)
+        serial_devices, serial_sensors = self.serial_config_from_config(config)
         serial_devices.update(serial_json.get("devices", {}))
         Logger.info(
             "serial_manager_configured",
             ports=serial_json.get("ports", None),
             devices=list(serial_devices.keys()),
+            sensors=list(serial_sensors.keys()),
         )
 
         return SerialDeviceManager(
@@ -216,21 +215,19 @@ class Reader:
             port_glob=serial_json.get("glob", "/dev/rfcomm*"),
             ports=serial_json.get("ports", None),
             devices=serial_devices,
+            sensors=serial_sensors,
             baudrate=serial_json.get("baudrate", 9600),
             read_timeout=serial_json.get("read_timeout", 1.0),
             poll_seconds=serial_json.get("poll_seconds", 1.0),
             reconnect_seconds=serial_json.get("reconnect_seconds", 2.0),
         )
 
-    def serial_devices_from_config(self, config: dict) -> dict[str, dict]:
+    def serial_config_from_config(self, config: dict) -> tuple[dict[str, dict], dict[str, dict]]:
         serial_devices = {}
-        sensors_by_device = {}
+        serial_sensors = {}
+        devices_by_id = {}
         reader_static = self.config_bool(config, "static", False)
-
-        for sensor_json in config.get("sensors", []):
-            device_id = sensor_json.get("device_id", None)
-            if device_id is not None:
-                sensors_by_device.setdefault(device_id, []).append(sensor_json)
+        sensors_json = config.get("sensors", [])
 
         for device_json in config.get("devices", []):
             comm = device_json.get("comm") or device_json.get("com")
@@ -239,25 +236,42 @@ class Reader:
 
             device_id = device_json.get("device_id", None)
             metadata = {
+                "port": comm,
                 "device_id": device_id,
                 "allow_conflicts": self.config_bool(device_json, "allow_conflicts", False),
                 "static": self.config_bool(device_json, "static", False),
                 "reader_static": reader_static,
             }
 
-            sensors = sensors_by_device.get(device_id, [])
-            if len(sensors) == 1:
-                sensor = sensors[0]
-                metadata["sensor_id"] = sensor.get("sensor_id", comm)
-                metadata["observable_property"] = sensor.get("observable_property", "unknown")
-                metadata["procedure"] = sensor.get("procedure", "configured-measurement")
-                metadata["feature_of_interest"] = sensor.get("feature_of_interest", "unknown-feature")
-                metadata["unit"] = sensor.get("unit", None)
-                metadata["sensor_allow_conflicts"] = self.config_bool(sensor, "allow_conflicts", False)
-
             serial_devices[comm] = metadata
+            if device_id:
+                devices_by_id[device_id] = metadata
 
-        return serial_devices
+        for sensor_json in sensors_json:
+            sensor_id = sensor_json.get("sensor_id")
+            if not sensor_id:
+                continue
+
+            device_id = sensor_json.get("device_id")
+            device = devices_by_id.get(device_id, {})
+            metadata = {
+                "sensor_id": sensor_id,
+                "observable_property": sensor_json.get("observable_property", "unknown"),
+                "procedure": sensor_json.get("procedure", "configured-measurement"),
+                "feature_of_interest": sensor_json.get("feature_of_interest", "unknown-feature"),
+                "unit": sensor_json.get("unit", None),
+                "sensor_allow_conflicts": self.config_bool(sensor_json, "allow_conflicts", False),
+                "reader_static": reader_static,
+            }
+
+            if device_id:
+                metadata.update(device_id=device_id, allow_conflicts=device.get("allow_conflicts", False), static=device.get("static", False), port=device.get("port"))
+                if device and sum(1 for sensor in sensors_json if sensor.get("device_id") == device_id) == 1:
+                    device.update(metadata)
+
+            serial_sensors[sensor_id] = metadata
+
+        return serial_devices, serial_sensors
 
     @staticmethod
     def load_config(path : Path) -> dict[ str : dict ]: 

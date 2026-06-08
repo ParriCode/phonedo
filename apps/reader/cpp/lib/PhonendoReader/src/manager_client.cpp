@@ -198,7 +198,6 @@ bool ManagerClient::registerDevice(
     appendJsonField(body, "readerId", readerId);
     appendJsonField(body, "deviceId", device.deviceId);
     appendJsonField(body, "deviceType", device.deviceType);
-    appendJsonField(body, "macAddress", device.macAddress);
     appendJsonNumberField(body, "creationDatetime", millis(), false);
     body += '}';
 
