@@ -62,6 +62,16 @@ get_service_port() {
     fi
 }
 
+get_service_dir() {
+    local service="$1"
+
+    if [[ "$service" == "reader" ]]; then
+        echo "$ROOT_DIR/apps/reader/linux"
+    else
+        echo "$ROOT_DIR/apps/$service"
+    fi
+}
+
 print_service_status() {
     local service="$1"
     local pid="$2"
@@ -96,7 +106,8 @@ service_up() {
     print_info "Ejecutando servicio: $service"
 
     # Rutas del servicio
-    local service_dir="$ROOT_DIR/apps/$service"
+    local service_dir
+    service_dir="$(get_service_dir "$service")"
     local venv_dir="$service_dir/.venv"
     local activate_file="$venv_dir/bin/activate"
     local python_bin="$venv_dir/bin/python"

@@ -17,8 +17,7 @@ static std::string slug(const std::string& value) {
             previousDash = true;
         }
     }
-    while (!result.empty() && result.front() == '-') result.erase(result.begin());
-    while (!result.empty() && result.back() == '-') result.pop_back();
+    
     return result.empty() ? "unknown" : result;
 }
 

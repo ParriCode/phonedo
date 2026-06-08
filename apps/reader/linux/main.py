@@ -4,14 +4,31 @@ import argparse
 import asyncio
 import os
 import sys
+import types
 from pathlib import Path
 import json
 
 ROOT_DIR = Path(__file__).resolve().parents[3]
+CORE_DIR = ROOT_DIR / "apps" / "reader" / "core" / "python"
+INPUTS_MANAGER_DIR = Path(__file__).resolve().parent / "inputs_manager"
 sys.path.insert(0, str(ROOT_DIR / "libs"))
+sys.path.insert(0, str(CORE_DIR))
+sys.path.insert(0, str(INPUTS_MANAGER_DIR))
 
 from logger import Logger
-from cpp_reader_core import ManagerClient, Observation, ReaderCore
+from manager_client import ManagerClient
+from reader_core.core import ReaderCore
+from reader_core.device import Device
+from reader_core.observation import Observation
+from reader_core.sensor import Sensor
+
+cpp_reader_core = types.ModuleType("cpp_reader_core")
+cpp_reader_core.Device = Device
+cpp_reader_core.ManagerClient = ManagerClient
+cpp_reader_core.Observation = Observation
+cpp_reader_core.ReaderCore = ReaderCore
+cpp_reader_core.Sensor = Sensor
+sys.modules.setdefault("cpp_reader_core", cpp_reader_core)
 
 from bluetooth_manager import BluetoothDeviceManager
 from serial_manager import SerialDeviceManager
@@ -49,13 +66,17 @@ class Reader:
         self.static = self.static or self.config_bool(config, "static", False)
         self.manager_token = self.env.get("API_TOKEN_MANAGER", "token_manager")
         self.manager_url = self.env.get("INTERNAL_URL_MANAGER") or "http://127.0.0.1:3003"
+        
         self.manager_client = ManagerClient(base_url=self.manager_url, token=self.manager_token)
+      
         self.core = ReaderCore(
             reader_id=self.reader_id,
-            manager_client=self.manager_client,
             allow_new_devices=not self.static,
             allow_new_sensors=not self.static,
+            on_register_device=self.manager_client.register_device,
+            on_send=self.manager_client.send_observation_ttl,
         )
+        self.core.manager_client = self.manager_client
         Logger.info("manager_configured", managerUrl=self.manager_url)
 
         self.core.load_devices_from_config(config, default_device_id=self.reader_id)
@@ -82,6 +103,7 @@ class Reader:
 
     handle_bluetooth_data = handle_measurement_data
     handle_serial_data = handle_measurement_data
+
 
     def bluetooth_manager_from_config(self, config: dict) -> BluetoothDeviceManager | None:
 
