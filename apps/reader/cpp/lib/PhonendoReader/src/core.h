@@ -22,23 +22,22 @@ struct ReaderConfig {
 
 class ReaderCore {
 public:
-    /**
-     * @brief Crea un objeto ReaderCore con la configuración especificada.
-     * @param readerId 
-     * @param token 
-     * @param managerUrl URL del manager al que se enviarán las observaciones. Si es vacío se usará config.managerUrl
-     * @param config Configuración del reader. Si managerUrl o managerToken están especificados, se usarán en lugar de los de config.
-     */
     ReaderCore(
         const String& readerId = "",
         const String& token = "",
         const String& managerUrl = "",
-        ReaderConfig config = ReaderConfig()
+        ReaderConfig config = ReaderConfig(),
+        bool allowNewDevices = true,
+        bool allowNewSensors = true
     );
+
+    ~ReaderCore();
 
     String readerId;
     ReaderConfig config;
     ManagerClient managerClient;
+    bool allowNewDevices;
+    bool allowNewSensors;
 
     String lastError;
 
@@ -61,11 +60,23 @@ public:
         Observation* outputObservation = nullptr
     );
 
+    bool handleMeasurementData(
+        const Observation& measurement,
+        bool send = true,
+        Observation* outputObservation = nullptr
+    );
+
     bool sendObservation(const Observation& observation);
 
 private:
     Device* devices[PHONENDO_MAX_DEVICES];
+    bool ownedDevices[PHONENDO_MAX_DEVICES];
     uint8_t devicesCount;
+
+    Sensor* ownedSensors[PHONENDO_MAX_SENSORS];
+    uint8_t ownedSensorsCount;
+
+    bool addDevicePointer(Device* device, bool owned);
 
     static String generateReaderId();
 };

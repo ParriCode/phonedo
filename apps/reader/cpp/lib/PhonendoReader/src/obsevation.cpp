@@ -6,13 +6,14 @@
 #include "observation.h"
 
 Observation::Observation(
-    ObservableProperty observableProperty,
+    const String& observableProperty,
     const String& simpleResult,
     const String& phenomenonTime,
     const String& featureOfInterest,
     const String& procedure,
     const String& deviceId,
     const String& sensorId,
+    const String& unit,
     const String& observationId
 )
     : observableProperty(observableProperty),
@@ -21,7 +22,8 @@ Observation::Observation(
       featureOfInterest(featureOfInterest),
       procedure(procedure),
       deviceId(deviceId),
-      sensorId(sensorId) {
+      sensorId(sensorId),
+      unit(unit) {
 
     if (observationId.length() == 0) {
         this->observationId = generateObservationId();
@@ -29,23 +31,6 @@ Observation::Observation(
         this->observationId = observationId;
     }
 }
-
-String observablePropertyToString(ObservableProperty property) {
-    switch (property) {
-        case ObservableProperty::HeartRate:
-            return "HeartRate";
-
-        case ObservableProperty::Temperature:
-            return "Temperature";
-
-        case ObservableProperty::SpO2:
-            return "SpO2";
-
-        default:
-            return "Unknown";
-    }
-}
-
 
 String Observation::generateObservationId() {
     String id = "";
@@ -90,7 +75,7 @@ String Observation::toJson() const {
     json += "\",";
 
     json += "\"observable_property\":\"";
-    json += observablePropertyToString(observableProperty);
+    json += escapeJson(observableProperty);
     json += "\",";
 
     json += "\"simple_result\":\"";
@@ -118,6 +103,12 @@ String Observation::toJson() const {
     if (sensorId.length() > 0) {
         json += ",\"sensor_id\":\"";
         json += escapeJson(sensorId);
+        json += "\"";
+    }
+
+    if (unit.length() > 0) {
+        json += ",\"unit\":\"";
+        json += escapeJson(unit);
         json += "\"";
     }
 

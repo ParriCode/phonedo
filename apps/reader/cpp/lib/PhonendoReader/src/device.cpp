@@ -19,7 +19,7 @@ bool Device::isValid() const {
     return deviceId.length() > 0;
 }
 
-bool Device::addSensor(SensorBase& sensor) {
+bool Device::addSensor(Sensor& sensor) {
     if (!isValid()) {
         return false;
     }
@@ -44,7 +44,7 @@ bool Device::addSensor(SensorBase& sensor) {
     return true;
 }
 
-SensorBase* Device::getSensor(const String& sensorId) {
+Sensor* Device::getSensor(const String& sensorId) {
     if (sensorId.length() == 0) {
         return nullptr;
     }
@@ -97,7 +97,7 @@ uint8_t Device::sensorCount() const {
     return sensorsCount;
 }
 
-SensorBase* Device::sensorAt(uint8_t index) {
+Sensor* Device::sensorAt(uint8_t index) {
     if (index >= sensorsCount) {
         return nullptr;
     }

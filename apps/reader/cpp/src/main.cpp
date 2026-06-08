@@ -3,7 +3,7 @@
 
 #include <core.h>
 #include <device.h>
-#include <sensors/temperature_sensor.h>
+#include <sensor.h>
 
 const char* WIFI_SSID = "DIGIFIBRA-4RE7";
 const char* WIFI_PASS = "DtUPRsyPNE";
@@ -23,10 +23,12 @@ Device device(
     "arduino"
 );
 
-TemperatureSensor tempSensor(
+Sensor tempSensor(
+    "temperatura",
+    "temperature-measurement",
     "patient-001",
-    5,
-    "temperature-sensor-01"
+    "temperature-sensor-01",
+    "CELSIUS"
 );
 
 void setup() {
@@ -52,17 +54,15 @@ void setup() {
 }
 
 void loop() {
-    if (tempSensor.shouldPoll()) {
-        if (!reader.ingestRawMeasurement(
-            device.deviceId,
-            tempSensor.sensorId,
-            "36.7",
-            "2026-05-25T18:30:00Z",
-            true
-        )) {
-            Serial.print("Error ingesting measurement: ");
-            Serial.println(reader.lastError);
-        }
+    if (!reader.ingestRawMeasurement(
+        device.deviceId,
+        tempSensor.sensorId,
+        "36.7",
+        "2026-05-25T18:30:00Z",
+        true
+    )) {
+        Serial.print("Error ingesting measurement: ");
+        Serial.println(reader.lastError);
     }
 
     delay(1000);

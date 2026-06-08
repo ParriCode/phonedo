@@ -9,11 +9,11 @@
  * 
  */
 
- #ifndef PHONENDO_DEVICE_H
+#ifndef PHONENDO_DEVICE_H
 #define PHONENDO_DEVICE_H
 
 #include <Arduino.h>
-#include "sensor_base.h"
+#include "sensor.h"
 
 #ifndef PHONENDO_MAX_SENSORS
 #define PHONENDO_MAX_SENSORS 8
@@ -33,19 +33,19 @@ public:
 
     bool isValid() const;
 
-    bool addSensor(SensorBase& sensor);
-    SensorBase* getSensor(const String& sensorId);
+    bool addSensor(Sensor& sensor);
+    Sensor* getSensor(const String& sensorId);
     bool removeSensor(const String& sensorId);
 
     bool hasSensor(const String& sensorId) const;
     uint8_t sensorCount() const;
 
-    SensorBase* sensorAt(uint8_t index);
+    Sensor* sensorAt(uint8_t index);
 
     String toString() const;
 
 private:
-    SensorBase* sensors[PHONENDO_MAX_SENSORS];
+    Sensor* sensors[PHONENDO_MAX_SENSORS];
     uint8_t sensorsCount;
 };
 

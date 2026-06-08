@@ -55,10 +55,8 @@ static String slug(const String& value) {
     return result;
 }
 
-static void appendRef(String& out, const char* prefix, const String& value) {
+static void appendRef(String& out, const String& value) {
     out += F("ph:");
-    out += prefix;
-    out += '-';
     out += slug(value);
 }
 
@@ -163,80 +161,64 @@ static void appendDateTimeStampLiteral(String& out, const String& value) {
 }
 
 static void appendValueLiteral(String& out, const String& value) {
-    if (value == "true" || value == "false") {
-        appendLiteral(out, value);
-        out += F("^^xsd:boolean");
-        return;
-    }
-
-    if (isIntegerValue(value)) {
-        appendLiteral(out, value);
-        out += F("^^xsd:integer");
-        return;
-    }
-
-    if (isDecimalValue(value)) {
-        appendLiteral(out, value);
-        out += F("^^xsd:decimal");
-        return;
-    }
-
     appendLiteral(out, value);
 }
 
 String serializeSosaTTL(const Observation& observation) {
     String ttl;
-    ttl.reserve(900);
+    ttl.reserve(1000);
 
-    String propertyName = observablePropertyToString(observation.observableProperty);
-    String sensorName = observation.deviceId + "-" + propertyName;
-    //F para que se guarde en memoría flash y no en la RAM consumiendo recursos limitados 
-    //Es decir , este código coge de la memoería flash y le añade los parámetros para posteriormente si cargar el string necesario
+    bool hasUnit = observation.unit.length() > 0 && !observation.unit.equalsIgnoreCase("unknown");
     ttl += F("@prefix sosa: <http://www.w3.org/ns/sosa/> .\n");
     ttl += F("@prefix time: <http://www.w3.org/2006/time#> .\n");
     ttl += F("@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .\n");
-    ttl += F("@prefix ph: <urn:phonendo:> .\n\n");
+    ttl += F("@prefix ph: <urn:phonendo:> .\n");
+    if (hasUnit) {
+        ttl += F("@prefix qudt: <http://qudt.org/schema/qudt/> .\n");
+        ttl += F("@prefix unit: <http://qudt.org/vocab/unit/> .\n");
+    }
+    ttl += F("\n");
 
-    appendRef(ttl, "device", observation.deviceId);
+    appendRef(ttl, observation.deviceId);
     ttl += F(" a sosa:Platform .\n\n");
 
-    appendRef(ttl, "sensor", sensorName);
+    appendRef(ttl, observation.sensorId);
     ttl += F("\n");
     ttl += F("    a sosa:Sensor ;\n");
     ttl += F("    sosa:isHostedBy ");
-    appendRef(ttl, "device", observation.deviceId);
+    appendRef(ttl, observation.deviceId);
     ttl += F(" ;\n");
     ttl += F("    sosa:observes ");
-    appendRef(ttl, "property", propertyName);
+    appendRef(ttl, observation.observableProperty);
     ttl += F(" .\n\n");
 
-    appendRef(ttl, "property", propertyName);
+    appendRef(ttl, observation.observableProperty);
     ttl += F(" a sosa:ObservableProperty .\n");
 
-    appendRef(ttl, "feature", observation.featureOfInterest);
+    appendRef(ttl, observation.featureOfInterest);
     ttl += F(" a sosa:FeatureOfInterest .\n");
 
-    appendRef(ttl, "procedure", observation.procedure);
+    appendRef(ttl, observation.procedure);
     ttl += F(" a sosa:Procedure .\n\n");
 
-    appendRef(ttl, "obs", observation.observationId);
+    appendRef(ttl, observation.observationId);
     ttl += F("\n");
     ttl += F("    a sosa:Observation ;\n");
 
     ttl += F("    sosa:madeBySensor ");
-    appendRef(ttl, "sensor", sensorName);
+    appendRef(ttl, observation.sensorId);
     ttl += F(" ;\n");
 
     ttl += F("    sosa:usedProcedure ");
-    appendRef(ttl, "procedure", observation.procedure);
+    appendRef(ttl, observation.procedure);
     ttl += F(" ;\n");
 
     ttl += F("    sosa:observedProperty ");
-    appendRef(ttl, "property", propertyName);
+    appendRef(ttl, observation.observableProperty);
     ttl += F(" ;\n");
 
     ttl += F("    sosa:hasFeatureOfInterest ");
-    appendRef(ttl, "feature", observation.featureOfInterest);
+    appendRef(ttl, observation.featureOfInterest);
     ttl += F(" ;\n");
 
     ttl += F("    sosa:resultTime ");
@@ -250,9 +232,21 @@ String serializeSosaTTL(const Observation& observation) {
     ttl += F("\n");
     ttl += F("    ] ;\n");
 
-    ttl += F("    sosa:hasSimpleResult ");
-    appendValueLiteral(ttl, observation.simpleResult);
-    ttl += F(" .\n");
+    if (!hasUnit) {
+        ttl += F("    sosa:hasSimpleResult ");
+        appendValueLiteral(ttl, observation.simpleResult);
+        ttl += F(" .\n");
+    } else {
+        ttl += F("    sosa:hasResult [\n");
+        ttl += F("        a qudt:QuantityValue ;\n");
+        ttl += F("        qudt:value ");
+        ttl += observation.simpleResult;
+        ttl += F(" ;\n");
+        ttl += F("        qudt:hasUnit unit:");
+        ttl += observation.unit;
+        ttl += F("\n");
+        ttl += F("    ] .\n");
+    }
 
     return ttl;
 }

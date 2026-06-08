@@ -8,31 +8,21 @@
 #define PHONENDO_OBSERVATION_H
 
 #include <Arduino.h>
-#include <string>
-
-enum class ObservableProperty {
-    HeartRate,
-    Temperature,
-    SpO2,
-    Unknown
-};
-
-String observablePropertyToString(ObservableProperty property);
-
 class Observation{
     public: 
         Observation(
-            ObservableProperty observableProperty,
+            const String& observableProperty,
             const String& simpleResult,
             const String& phenomenonTime,
             const String& featureOfInterest,
             const String& procedure,
             const String& deviceId = "",
             const String& sensorId = "",
+            const String& unit = "",
             const String& observationId = ""
         );
 
-        ObservableProperty observableProperty;
+        String observableProperty;
         String simpleResult;
         String phenomenonTime;
         String featureOfInterest;
@@ -40,6 +30,7 @@ class Observation{
 
         String deviceId;
         String sensorId;
+        String unit;
         String observationId;
 
         String toJson() const;
