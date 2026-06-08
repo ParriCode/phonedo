@@ -1,39 +1,41 @@
 #ifndef PHONENDO_SENSOR_H
 #define PHONENDO_SENSOR_H
 
+#include <string>
+
 #include "observation.h"
 
 class Sensor {
 public:
     Sensor(
-        const String& observableProperty,
-        const String& procedure,
-        const String& featureOfInterest,
-        const String& sensorId = "",
-        const String& unit = "",
-        const String& deviceId = ""
+        const std::string& observableProperty,
+        const std::string& procedure,
+        const std::string& featureOfInterest,
+        const std::string& sensorId = "",
+        const std::string& unit = "",
+        const std::string& deviceId = ""
     );
 
-    String sensorId;
-    String observableProperty;
-    String procedure;
-    String featureOfInterest;
-    String unit;
-    String deviceId;
+    std::string sensorId;
+    std::string observableProperty;
+    std::string procedure;
+    std::string featureOfInterest;
+    std::string unit;
+    std::string deviceId;
 
     Observation buildObservation(
-        const String& rawValue,
-        const String& phenomenonTime = ""
+        const std::string& rawValue,
+        const std::string& phenomenonTime = ""
     ) const;
 
     Observation addObservation(
-        const String& simpleResult,
-        const String& phenomenonTime = ""
+        const std::string& simpleResult,
+        const std::string& phenomenonTime = ""
     ) const;
 
 private:
-    static String generateSensorId();
-    static String defaultPhenomenonTime();
+    static std::string generateSensorId();
+    static std::string defaultPhenomenonTime();
 };
 
 #endif

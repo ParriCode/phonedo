@@ -11,8 +11,7 @@ ROOT_DIR = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(ROOT_DIR / "libs/python"))
 
 from logger import Logger
-from reader_core.observation import Observation
-from reader_core.core import ManagerClient, ReaderCore
+from cpp_reader_core import ManagerClient, Observation, ReaderCore
 
 from bluetooth_manager import BluetoothDeviceManager
 from serial_manager import SerialDeviceManager

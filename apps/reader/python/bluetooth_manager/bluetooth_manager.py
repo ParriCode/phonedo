@@ -7,7 +7,7 @@ from typing import Awaitable, Callable
 from bleak import BleakScanner
 
 from logger import Logger
-from reader_core.observation import Observation
+from cpp_reader_core import Observation
 
 
 class BluetoothDeviceManager:

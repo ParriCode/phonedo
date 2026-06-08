@@ -1,18 +1,9 @@
-/**
- * @file device.h
- * @author your name (you@domain.com)
- * @brief 
- * @version 0.1
- * @date 2026-05-25
- * 
- * @copyright Copyright (c) 2026
- * 
- */
-
 #ifndef PHONENDO_DEVICE_H
 #define PHONENDO_DEVICE_H
 
-#include <Arduino.h>
+#include <cstdint>
+#include <string>
+
 #include "sensor.h"
 
 #ifndef PHONENDO_MAX_SENSORS
@@ -22,31 +13,30 @@
 class Device {
 public:
     Device(
-        const String& deviceId,
-        const String& deviceType,
-        const String& platform = ""
+        const std::string& deviceId,
+        const std::string& deviceType = "device",
+        const std::string& platform = ""
     );
 
-    String deviceId;
-    String deviceType;
-    String platform;
+    std::string deviceId;
+    std::string deviceType;
+    std::string platform;
 
     bool isValid() const;
 
     bool addSensor(Sensor& sensor);
-    Sensor* getSensor(const String& sensorId);
-    bool removeSensor(const String& sensorId);
+    Sensor* getSensor(const std::string& sensorId);
+    bool removeSensor(const std::string& sensorId);
 
-    bool hasSensor(const String& sensorId) const;
-    uint8_t sensorCount() const;
+    bool hasSensor(const std::string& sensorId) const;
+    std::uint8_t sensorCount() const;
 
-    Sensor* sensorAt(uint8_t index);
-
-    String toString() const;
+    Sensor* sensorAt(std::uint8_t index);
+    std::string toString() const;
 
 private:
     Sensor* sensors[PHONENDO_MAX_SENSORS];
-    uint8_t sensorsCount;
+    std::uint8_t sensorsCount;
 };
 
 #endif

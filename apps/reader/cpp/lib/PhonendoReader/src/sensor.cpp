@@ -1,33 +1,31 @@
 #include "sensor.h"
 
+#include <chrono>
+
 Sensor::Sensor(
-    const String& observableProperty,
-    const String& procedure,
-    const String& featureOfInterest,
-    const String& sensorId,
-    const String& unit,
-    const String& deviceId
-) {
-    this->sensorId = sensorId.length() > 0 ? sensorId : generateSensorId();
-    this->observableProperty = observableProperty;
-    this->procedure = procedure;
-    this->featureOfInterest = featureOfInterest;
-    this->unit = unit;
-    this->deviceId = deviceId;
+    const std::string& observableProperty,
+    const std::string& procedure,
+    const std::string& featureOfInterest,
+    const std::string& sensorId,
+    const std::string& unit,
+    const std::string& deviceId
+)
+    : sensorId(sensorId.empty() ? generateSensorId() : sensorId),
+      observableProperty(observableProperty),
+      procedure(procedure),
+      featureOfInterest(featureOfInterest),
+      unit(unit),
+      deviceId(deviceId) {
 }
 
 Observation Sensor::buildObservation(
-    const String& rawValue,
-    const String& phenomenonTime
+    const std::string& rawValue,
+    const std::string& phenomenonTime
 ) const {
-    String finalPhenomenonTime = phenomenonTime.length() > 0
-        ? phenomenonTime
-        : defaultPhenomenonTime();
-
     return Observation(
         observableProperty,
         rawValue,
-        finalPhenomenonTime,
+        phenomenonTime.empty() ? defaultPhenomenonTime() : phenomenonTime,
         featureOfInterest,
         procedure,
         deviceId,
@@ -37,16 +35,19 @@ Observation Sensor::buildObservation(
 }
 
 Observation Sensor::addObservation(
-    const String& simpleResult,
-    const String& phenomenonTime
+    const std::string& simpleResult,
+    const std::string& phenomenonTime
 ) const {
     return buildObservation(simpleResult, phenomenonTime);
 }
 
-String Sensor::generateSensorId() {
-    return "sensor-" + String(micros()) + "-" + String(random(100000, 999999));
+std::string Sensor::generateSensorId() {
+    static unsigned long counter = 0;
+    return "sensor-" + std::to_string(++counter);
 }
 
-String Sensor::defaultPhenomenonTime() {
-    return String(millis());
+std::string Sensor::defaultPhenomenonTime() {
+    auto now = std::chrono::system_clock::now().time_since_epoch();
+    auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(now).count();
+    return std::to_string(ms);
 }

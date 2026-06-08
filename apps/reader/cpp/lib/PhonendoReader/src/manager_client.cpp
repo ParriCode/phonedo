@@ -196,8 +196,8 @@ bool ManagerClient::registerDevice(
     appendJsonField(body, "token", token);
     appendJsonField(body, "schemaVersion", "phonendo.event.v1");
     appendJsonField(body, "readerId", readerId);
-    appendJsonField(body, "deviceId", device.deviceId);
-    appendJsonField(body, "deviceType", device.deviceType);
+    appendJsonField(body, "deviceId", String(device.deviceId.c_str()));
+    appendJsonField(body, "deviceType", String(device.deviceType.c_str()));
     appendJsonNumberField(body, "creationDatetime", millis(), false);
     body += '}';
 

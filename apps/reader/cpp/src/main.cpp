@@ -3,18 +3,20 @@
 
 #include <core.h>
 #include <device.h>
+#include <manager_client.h>
 #include <sensor.h>
+#include <serializer.h>
 
 const char* WIFI_SSID = "DIGIFIBRA-4RE7";
 const char* WIFI_PASS = "DtUPRsyPNE";
 
-ReaderConfig config;
-
 ReaderCore reader(
-    "reader-esp8266-01",
-    "token_manager",
+    "reader-esp8266-01"
+);
+
+ManagerClient manager(
     "http://192.168.1.135:3003",
-    config
+    "token_manager"
 );
 
 Device device(
@@ -47,22 +49,39 @@ void setup() {
 
     device.addSensor(tempSensor);
 
-    if (!reader.registerDevice(device)) {
+    if (!reader.addDevice(device)) {
+        Serial.print("Error adding device: ");
+        Serial.println(reader.lastError.c_str());
+        return;
+    }
+
+    if (!manager.registerDevice(String(reader.readerId.c_str()), device)) {
         Serial.print("Error registering device: ");
-        Serial.println(reader.lastError);
+        Serial.println(manager.lastError);
     }
 }
 
 void loop() {
+    Observation observation;
     if (!reader.ingestRawMeasurement(
         device.deviceId,
         tempSensor.sensorId,
         "36.7",
         "2026-05-25T18:30:00Z",
-        true
+        &observation
     )) {
         Serial.print("Error ingesting measurement: ");
-        Serial.println(reader.lastError);
+        Serial.println(reader.lastError.c_str());
+    } else {
+        std::string ttl = serializeSosaTTL(observation);
+        if (!manager.sendObservationTTL(
+            String(ttl.c_str()),
+            String(reader.readerId.c_str()),
+            String(observation.deviceId.c_str())
+        )) {
+            Serial.print("Error sending observation: ");
+            Serial.println(manager.lastError);
+        }
     }
 
     delay(1000);

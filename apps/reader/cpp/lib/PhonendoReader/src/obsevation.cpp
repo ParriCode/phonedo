@@ -1,20 +1,18 @@
-
-/**
-* @author: Jose Luis Parrilla Fuentes
-*/
-
 #include "observation.h"
 
+#include <chrono>
+#include <sstream>
+
 Observation::Observation(
-    const String& observableProperty,
-    const String& simpleResult,
-    const String& phenomenonTime,
-    const String& featureOfInterest,
-    const String& procedure,
-    const String& deviceId,
-    const String& sensorId,
-    const String& unit,
-    const String& observationId
+    const std::string& observableProperty,
+    const std::string& simpleResult,
+    const std::string& phenomenonTime,
+    const std::string& featureOfInterest,
+    const std::string& procedure,
+    const std::string& deviceId,
+    const std::string& sensorId,
+    const std::string& unit,
+    const std::string& observationId
 )
     : observableProperty(observableProperty),
       simpleResult(simpleResult),
@@ -23,96 +21,44 @@ Observation::Observation(
       procedure(procedure),
       deviceId(deviceId),
       sensorId(sensorId),
-      unit(unit) {
-
-    if (observationId.length() == 0) {
-        this->observationId = generateObservationId();
-    } else {
-        this->observationId = observationId;
-    }
+      unit(unit),
+      observationId(observationId.empty() ? generateObservationId() : observationId) {
 }
 
-String Observation::generateObservationId() {
-    String id = "";
-
-    id += String(millis(), HEX);
-    id += String(micros(), HEX);
-    id += String(random(0xFFFF), HEX);
-    id += String(random(0xFFFF), HEX);
-
-    return id;
+std::string Observation::generateObservationId() {
+    static unsigned long counter = 0;
+    auto now = std::chrono::system_clock::now().time_since_epoch();
+    auto micros = std::chrono::duration_cast<std::chrono::microseconds>(now).count();
+    return std::to_string(micros) + "-" + std::to_string(++counter);
 }
 
-String Observation::escapeJson(const String& value) {
-    String escaped = "";
-
-    for (unsigned int i = 0; i < value.length(); i++) {
-        char c = value.charAt(i);
-
-        if (c == '"') {
-            escaped += "\\\"";
-        } else if (c == '\\') {
-            escaped += "\\\\";
-        } else if (c == '\n') {
-            escaped += "\\n";
-        } else if (c == '\r') {
-            escaped += "\\r";
-        } else if (c == '\t') {
-            escaped += "\\t";
-        } else {
-            escaped += c;
+std::string Observation::escapeJson(const std::string& value) {
+    std::string escaped;
+    for (char c : value) {
+        switch (c) {
+            case '"': escaped += "\\\""; break;
+            case '\\': escaped += "\\\\"; break;
+            case '\n': escaped += "\\n"; break;
+            case '\r': escaped += "\\r"; break;
+            case '\t': escaped += "\\t"; break;
+            default: escaped += c; break;
         }
     }
-
     return escaped;
 }
 
-String Observation::toJson() const {
-    String json = "{";
-
-    json += "\"observation_id\":\"";
-    json += escapeJson(observationId);
-    json += "\",";
-
-    json += "\"observable_property\":\"";
-    json += escapeJson(observableProperty);
-    json += "\",";
-
-    json += "\"simple_result\":\"";
-    json += escapeJson(simpleResult);
-    json += "\",";
-
-    json += "\"phenomenon_time\":\"";
-    json += escapeJson(phenomenonTime);
-    json += "\",";
-
-    json += "\"feature_of_interest\":\"";
-    json += escapeJson(featureOfInterest);
-    json += "\",";
-
-    json += "\"procedure\":\"";
-    json += escapeJson(procedure);
-    json += "\"";
-
-    if (deviceId.length() > 0) {
-        json += ",\"device_id\":\"";
-        json += escapeJson(deviceId);
-        json += "\"";
-    }
-
-    if (sensorId.length() > 0) {
-        json += ",\"sensor_id\":\"";
-        json += escapeJson(sensorId);
-        json += "\"";
-    }
-
-    if (unit.length() > 0) {
-        json += ",\"unit\":\"";
-        json += escapeJson(unit);
-        json += "\"";
-    }
-
-    json += "}";
-
-    return json;
+std::string Observation::toJson() const {
+    std::ostringstream json;
+    json << "{"
+         << "\"observation_id\":\"" << escapeJson(observationId) << "\","
+         << "\"observable_property\":\"" << escapeJson(observableProperty) << "\","
+         << "\"simple_result\":\"" << escapeJson(simpleResult) << "\","
+         << "\"phenomenon_time\":\"" << escapeJson(phenomenonTime) << "\","
+         << "\"feature_of_interest\":\"" << escapeJson(featureOfInterest) << "\","
+         << "\"procedure\":\"" << escapeJson(procedure) << "\","
+         << "\"device_id\":\"" << escapeJson(deviceId) << "\","
+         << "\"sensor_id\":\"" << escapeJson(sensorId) << "\","
+         << "\"unit\":\"" << escapeJson(unit) << "\""
+         << "}";
+    return json.str();
 }

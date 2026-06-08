@@ -1,135 +1,93 @@
 #include "device.h"
 
+#include <sstream>
+
 Device::Device(
-    const String& deviceId,
-    const String& deviceType,
-    const String& platform
+    const std::string& deviceId,
+    const std::string& deviceType,
+    const std::string& platform
 )
     : deviceId(deviceId),
       deviceType(deviceType),
       platform(platform),
       sensorsCount(0) {
-
-    for (uint8_t i = 0; i < PHONENDO_MAX_SENSORS; i++) {
+    for (std::uint8_t i = 0; i < PHONENDO_MAX_SENSORS; i++) {
         sensors[i] = nullptr;
     }
 }
 
 bool Device::isValid() const {
-    return deviceId.length() > 0;
+    return !deviceId.empty();
 }
 
 bool Device::addSensor(Sensor& sensor) {
-    if (!isValid()) {
+    if (!isValid() || sensor.sensorId.empty() || sensorsCount >= PHONENDO_MAX_SENSORS || hasSensor(sensor.sensorId)) {
         return false;
     }
-
-    if (sensor.sensorId.length() == 0) {
-        return false;
-    }
-
-    if (sensorsCount >= PHONENDO_MAX_SENSORS) {
-        return false;
-    }
-
-    if (hasSensor(sensor.sensorId)) {
-        return false;
-    }
-
     sensor.deviceId = deviceId;
-
-    sensors[sensorsCount] = &sensor;
-    sensorsCount++;
-
+    sensors[sensorsCount++] = &sensor;
     return true;
 }
 
-Sensor* Device::getSensor(const String& sensorId) {
-    if (sensorId.length() == 0) {
+Sensor* Device::getSensor(const std::string& sensorId) {
+    if (sensorId.empty()) {
         return nullptr;
     }
-
-    for (uint8_t i = 0; i < sensorsCount; i++) {
+    for (std::uint8_t i = 0; i < sensorsCount; i++) {
         if (sensors[i] != nullptr && sensors[i]->sensorId == sensorId) {
             return sensors[i];
         }
     }
-
     return nullptr;
 }
 
-bool Device::removeSensor(const String& sensorId) {
-    if (sensorId.length() == 0) {
+bool Device::removeSensor(const std::string& sensorId) {
+    if (sensorId.empty()) {
         return false;
     }
-
-    for (uint8_t i = 0; i < sensorsCount; i++) {
+    for (std::uint8_t i = 0; i < sensorsCount; i++) {
         if (sensors[i] != nullptr && sensors[i]->sensorId == sensorId) {
-            for (uint8_t j = i; j < sensorsCount - 1; j++) {
+            for (std::uint8_t j = i; j < sensorsCount - 1; j++) {
                 sensors[j] = sensors[j + 1];
             }
-
-            sensors[sensorsCount - 1] = nullptr;
-            sensorsCount--;
-
+            sensors[--sensorsCount] = nullptr;
             return true;
         }
     }
-
     return false;
 }
 
-bool Device::hasSensor(const String& sensorId) const {
-    if (sensorId.length() == 0) {
+bool Device::hasSensor(const std::string& sensorId) const {
+    if (sensorId.empty()) {
         return false;
     }
-
-    for (uint8_t i = 0; i < sensorsCount; i++) {
+    for (std::uint8_t i = 0; i < sensorsCount; i++) {
         if (sensors[i] != nullptr && sensors[i]->sensorId == sensorId) {
             return true;
         }
     }
-
     return false;
 }
 
-uint8_t Device::sensorCount() const {
+std::uint8_t Device::sensorCount() const {
     return sensorsCount;
 }
 
-Sensor* Device::sensorAt(uint8_t index) {
-    if (index >= sensorsCount) {
-        return nullptr;
-    }
-
-    return sensors[index];
+Sensor* Device::sensorAt(std::uint8_t index) {
+    return index >= sensorsCount ? nullptr : sensors[index];
 }
 
-String Device::toString() const {
-    String text;
-
-    text.reserve(160);
-
-    text += F("Device(");
-    text += F("deviceId=");
-    text += deviceId;
-    text += F(", deviceType=");
-    text += deviceType;
-    text += F(", platform=");
-    text += platform;
-    text += F(", sensors=[");
-
-    for (uint8_t i = 0; i < sensorsCount; i++) {
+std::string Device::toString() const {
+    std::ostringstream text;
+    text << "Device(deviceId=" << deviceId << ", deviceType=" << deviceType << ", platform=" << platform << ", sensors=[";
+    for (std::uint8_t i = 0; i < sensorsCount; i++) {
         if (i > 0) {
-            text += F(", ");
+            text << ", ";
         }
-
         if (sensors[i] != nullptr) {
-            text += sensors[i]->sensorId;
+            text << sensors[i]->sensorId;
         }
     }
-
-    text += F("])");
-
-    return text;
+    text << "])";
+    return text.str();
 }

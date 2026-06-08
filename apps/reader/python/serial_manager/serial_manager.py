@@ -10,7 +10,7 @@ from typing import Awaitable, Callable
 import serial
 
 from logger import Logger
-from reader_core.observation import Observation
+from cpp_reader_core import Observation
 
 
 class SerialDeviceManager:

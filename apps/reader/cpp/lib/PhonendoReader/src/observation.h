@@ -1,44 +1,37 @@
-
-/**
-* @author: Jose Luis Parrilla Fuentes
-*/
-
-
 #ifndef PHONENDO_OBSERVATION_H
 #define PHONENDO_OBSERVATION_H
 
-#include <Arduino.h>
-class Observation{
-    public: 
-        Observation(
-            const String& observableProperty,
-            const String& simpleResult,
-            const String& phenomenonTime,
-            const String& featureOfInterest,
-            const String& procedure,
-            const String& deviceId = "",
-            const String& sensorId = "",
-            const String& unit = "",
-            const String& observationId = ""
-        );
+#include <string>
 
-        String observableProperty;
-        String simpleResult;
-        String phenomenonTime;
-        String featureOfInterest;
-        String procedure;
+class Observation {
+public:
+    Observation(
+        const std::string& observableProperty = "",
+        const std::string& simpleResult = "",
+        const std::string& phenomenonTime = "",
+        const std::string& featureOfInterest = "",
+        const std::string& procedure = "",
+        const std::string& deviceId = "",
+        const std::string& sensorId = "",
+        const std::string& unit = "",
+        const std::string& observationId = ""
+    );
 
-        String deviceId;
-        String sensorId;
-        String unit;
-        String observationId;
+    std::string observableProperty;
+    std::string simpleResult;
+    std::string phenomenonTime;
+    std::string featureOfInterest;
+    std::string procedure;
+    std::string deviceId;
+    std::string sensorId;
+    std::string unit;
+    std::string observationId;
 
-        String toJson() const;
+    std::string toJson() const;
 
-    private:
-        static String generateObservationId();
-        static String escapeJson(const String& value);
+private:
+    static std::string generateObservationId();
+    static std::string escapeJson(const std::string& value);
 };
 
-
-#endif 
+#endif
