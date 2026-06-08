@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from datetime import datetime, timezone
 import time
-from typing import Any, Dict, Optional
+from typing import Any, Callable, Dict, Optional
 
 import requests
 
@@ -13,6 +13,8 @@ from reader_core.observation import Observation
 from reader_core.sensor import Sensor
 from reader_core.serializer import SosaTTLSerializer
 from uuid import uuid4
+
+
 @dataclass
 class ReaderConfig:
     enable_bluetooth: bool = True
@@ -62,7 +64,6 @@ class ManagerClient:
             "deviceId": device_id,
             "readerId": reader_id,
         }
-        Logger.info("manager_observation_send_started", url=url, readerId=reader_id, deviceId=device_id)
 
         try:
             response = requests.post(
@@ -71,33 +72,14 @@ class ManagerClient:
                 headers=headers,
                 timeout=self.timeout_seconds,
             )
-        except requests.RequestException as error:
-            Logger.error("manager_observation_send_failed", url=url, readerId=reader_id, deviceId=device_id, error=str(error))
+        except requests.RequestException:
             raise
 
-        Logger.info(
-            "manager_observation_send_response",
-            url=url,
-            readerId=reader_id,
-            deviceId=device_id,
-            status=response.status_code,
-        )
-
         if not response.ok:
-            Logger.error(
-                "manager_observation_send_rejected",
-                url=url,
-                readerId=reader_id,
-                deviceId=device_id,
-                status=response.status_code,
-                body=response.text,
-            )
             raise RuntimeError(
                 f"Error HTTP comunicando con Manager. "
                 f"Status={response.status_code}. Body={response.text}"
             )
-
-        Logger.info("manager_observation_sent", readerId=reader_id, deviceId=device_id, status=response.status_code)
 
     def register_device(self, reader_id : str ,  device: Device) -> None:
         if reader_id is None: 
@@ -137,22 +119,33 @@ class ReaderCore:
         manager_url : Optional[str] = None, 
 
         config: Optional[ReaderConfig] = None,
+        allow_new_devices: bool = True,
+        allow_new_sensors: bool = True,
+        manager_client: Optional[ManagerClient] = None,
+        on_register_device: Optional[Callable[[str, Device], None]] = None,
+        on_send: Optional[Callable[[str, str, str], None]] = None,
     ) -> None:
         self.reader_id = reader_id or str(uuid4())
         self.devices: Dict[str, Device] = {}
         self.serializer = SosaTTLSerializer()
         self.config = config or ReaderConfig()
-        self.manager_client = ManagerClient(
+        self.allow_new_devices = allow_new_devices
+        self.allow_new_sensors = allow_new_sensors
+        self.manager_client = manager_client or ManagerClient(
             base_url=manager_url or self.config.manager_url,
             token=token or self.config.manager_token,
         )
+        self.on_register_device = on_register_device
+        self.on_send = on_send
+
 
     def register_device(self, device: Device) -> None:
         """
         Registra el dispositivo localmente y también en el Manager.
         """
         self.add_device(device)
-        self.manager_client.register_device(self.reader_id,   device)
+        register = self.on_register_device or self.manager_client.register_device
+        register(self.reader_id, device)
 
     def add_device(self, device: Device) -> None:
         if device is None:
@@ -165,26 +158,82 @@ class ReaderCore:
             raise ValueError(
                 f"Ya existe un dispositivo con id '{device.device_id}'"
             )
+
         #añadir el dispositivo
         self.devices[device.device_id] = device
 
-    def remove_device(self, device_id: str) -> None:
+    def remove_device(self, device_id: str) -> bool:
         if not device_id:
             raise ValueError("device_id no puede estar vacío")
 
         if device_id not in self.devices:
-            raise KeyError(f"No existe el dispositivo '{device_id}'")
+            return False
 
         del self.devices[device_id]
+        return True
 
-    def get_device(self, device_id: str) -> Device:
+    def get_device(self, device_id: str) -> Device | None :
         if not device_id:
             raise ValueError("device_id no puede estar vacío")
+        return self.devices.get(device_id, None)
+
+    def load_devices_from_config(self, config: dict, default_device_id: str | None = None) -> None:
+        for device_json in config.get("devices", []):
+            device = Device.fromJson(device_json, default_device_id=default_device_id or self.reader_id)
+            self.register_device(device)
+            Logger.info("configured_device_loaded", deviceId=device.device_id)
+
+        for sensor_json in config.get("sensors", []):
+            sensor = Sensor.fromJson(sensor_json)
+            device = self.get_device(sensor.device_id) if sensor.device_id else None
+            if device is None:
+                continue
+            device.add_sensor(sensor)
+            Logger.info(
+                "configured_sensor_loaded",
+                deviceId=sensor.device_id,
+                sensorId=sensor.sensor_id,
+                observableProperty=sensor.observable_property,
+            )
+
+    def handle_measurement_data(self, observation: Observation, send: bool = True) -> Observation | None:
+        if observation is None:
+            raise ValueError("observation no puede ser None")
+
+        device_id = observation.device_id or self.reader_id
+        sensor_id = observation.sensor_id or "unknown-sensor"
+
+        device = self.get_device(device_id)
+        if device is None:
+            if not self.allow_new_devices:
+                return None
+            device = Device(device_id=device_id, device_type="device")
+            self.register_device(device)
+
+        if not device.has_sensor(sensor_id):
+            if not self.allow_new_sensors:
+                return None
+            sensor = Sensor(
+                observable_property=observation.observable_property or "unknown",
+                procedure=observation.procedure or "unknown",
+                feature_of_interest=observation.feature_of_interest or "unknown",
+                sensor_id=sensor_id,
+                device_id=device_id,
+                unit=observation.unit,
+            )
+            device.add_sensor(sensor)
 
         try:
-            return self.devices[device_id]
-        except KeyError:
-            raise KeyError(f"No existe el dispositivo '{device_id}'")
+            ingested = self.ingest_raw_measurement(
+                device_id,
+                sensor_id,
+                observation.simple_result,
+                phenomenon_time=observation.phenomenon_time,
+                send=send,
+            )
+        except Exception as error:
+            raise
+        return ingested
 
     def ingest_raw_measurement(
         self,
@@ -199,6 +248,8 @@ class ReaderCore:
         construye una Observation y opcionalmente la envía al Manager.
         """
         device = self.get_device(device_id)
+        if device is None:
+            raise KeyError(f"No existe el dispositivo '{device_id}'")
         sensor = device.get_sensor(sensor_id)
 
         observation = sensor.build_observation(
@@ -216,21 +267,19 @@ class ReaderCore:
         observation: Observation,
        # device: Device,
     ) -> None:
-        """
-        Serializa una Observation en SOSA TTL y la manda al Manager.
-        """
-
+        """Serializa una Observation en SOSA TTL y la manda al Manager."""
         if observation is None:
             raise ValueError("observation no puede ser None")
 
         if not observation.device_id:
             raise ValueError("observation.device_id no puede estar vacío")
 
-        # Obtener el device por medio de la observación, únicamente comprobación.
-        self.get_device(observation.device_id)
+        if self.get_device(observation.device_id) is None:
+            raise KeyError(f"No existe el dispositivo '{observation.device_id}'")
 
         ttl = self.serializer.serialize(
             observation=observation,
         )
 
-        self.manager_client.send_observation_ttl(ttl, self.reader_id,  observation.device_id)
+        sender = self.on_send or self.manager_client.send_observation_ttl
+        sender(ttl, self.reader_id,  observation.device_id)

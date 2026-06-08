@@ -5,24 +5,17 @@ import asyncio
 import os
 import sys
 from pathlib import Path
-from typing import TYPE_CHECKING
 import json
 
 ROOT_DIR = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(ROOT_DIR / "libs/python"))
 
 from logger import Logger
-from reader_core.device import Device
 from reader_core.observation import Observation
-from reader_core.sensor import Sensor
-from reader_core.core import ReaderCore
+from reader_core.core import ManagerClient, ReaderCore
 
 from bluetooth_manager import BluetoothDeviceManager
 from serial_manager import SerialDeviceManager
-
-if TYPE_CHECKING:
-    from bluetooth_manager import BluetoothDeviceManager
-    from serial_manager import SerialDeviceManager
 
 
 class Reader:
@@ -42,23 +35,8 @@ class Reader:
         self.init_logger()
         Logger.info("reader_created", readerId=self.reader_id, configFile=config_file)
 
-        self.manager_token = self.env.get("API_TOKEN_MANAGER", "token_manager")
-        self.manager_url = self.env.get("INTERNAL_URL_MANAGER") or "http://127.0.0.1:3003"
-        Logger.info("manager_configured", managerUrl=self.manager_url)
-
-        self.core = ReaderCore(
-            reader_id=self.reader_id,
-            token=self.manager_token,
-            manager_url=self.manager_url,
-        )
-
-        self.devices: dict[str, Device] = {}
-        self.sensors: dict[str, Sensor] = {}
-
         self.config_file = config_file
 
-
-        #Cargar los dipositivos y los sensores
         config_path = Path(self.config_file)
         if not config_path.is_absolute() and not config_path.exists():
             config_path = Path(__file__).resolve().parent / config_path
@@ -69,8 +47,19 @@ class Reader:
             raise
         Logger.info("config_loaded", path=str(config_path), exists=config_path.exists())
 
+        self.static = self.static or self.config_bool(config, "static", False)
+        self.manager_token = self.env.get("API_TOKEN_MANAGER", "token_manager")
+        self.manager_url = self.env.get("INTERNAL_URL_MANAGER") or "http://127.0.0.1:3003"
+        self.manager_client = ManagerClient(base_url=self.manager_url, token=self.manager_token)
+        self.core = ReaderCore(
+            reader_id=self.reader_id,
+            manager_client=self.manager_client,
+            allow_new_devices=not self.static,
+            allow_new_sensors=not self.static,
+        )
+        Logger.info("manager_configured", managerUrl=self.manager_url)
 
-        self.factory(config) #Cargar dispositivos y sensores desde la configuración antes de iniciar nada más
+        self.core.load_devices_from_config(config, default_device_id=self.reader_id)
 
         self.bluetooth_manager = self.bluetooth_manager_from_config(config)
         self.serial_manager = self.serial_manager_from_config(config)
@@ -89,93 +78,11 @@ class Reader:
         await asyncio.gather(*(manager.start() for manager in managers))
 
 
-    def handle_bluetooth_data(self, observation : Observation) -> None:
-        self.handle_measurement_data(observation)
-
-    def handle_serial_data(self, observation : Observation) -> None:
-        self.handle_measurement_data(observation)
-
     def handle_measurement_data(self, observation: Observation) -> None:
-        device_id = observation.device_id or self.reader_id
-        sensor_id = observation.sensor_id or "unknown-sensor"
-        raw_value = observation.simple_result
+        self.core.handle_measurement_data(observation)
 
-
-        Logger.info(
-            "measurement_received",
-            deviceId=device_id,
-            sensorId=sensor_id,
-        )
-        device = self.devices.get(device_id)
-        if device is None:
-            if self.static:
-                Logger.info("device_not_created_due_to_static_configuration", deviceId=device_id)
-                return
-
-            device = Device(
-                device_id=device_id,
-                device_type="device",
-            )
-            self.devices[device_id] = device
-            self.core.register_device(device) # ENVIA AL MANAGER EL DISPOSITIVO CREADO
-            Logger.info("fallback_device_created", deviceId=device_id)
-
-        if not device.has_sensor(sensor_id):
-            if self.static:
-                Logger.info("sensor_not_created_due_to_static_configuration", deviceId=device_id, sensorId=sensor_id)
-                return
-
-            sensor = Sensor(
-                observable_property=observation.observable_property or "unknown",
-                procedure=observation.procedure or "unknown",
-                feature_of_interest=observation.feature_of_interest or "unknown",
-                sensor_id=sensor_id,
-                device_id=device_id,
-                unit=observation.unit,
-            )
-            self.sensors.setdefault(sensor_id, sensor)
-            device.add_sensor(sensor)
-            Logger.info(
-                "fallback_sensor_created",
-                deviceId=device_id,
-                sensorId=sensor_id,
-                observableProperty=sensor.observable_property,
-                procedure=sensor.procedure,
-                featureOfInterest=sensor.feature_of_interest,
-                unit=sensor.unit,
-            )
-        try:
-            self.core.ingest_raw_measurement(device_id, sensor_id, raw_value)
-        except Exception as error:
-            Logger.error("measurement_ingest_failed", deviceId=device_id, sensorId=sensor_id, error=str(error))
-            raise
-        Logger.info("measurement_ingested", deviceId=device_id, sensorId=sensor_id)
-    
-    def factory(self, config : dict): 
-        
-        devices_json = config.get("devices", None)
-        sensors_json = config.get("sensors", None) 
-        
-        if devices_json is not None:  
-            for device_json in devices_json:
-                device = Device.fromJson( device_json, default_device_id=self.reader_id, )
-                self.devices[device.device_id] = device
-                self.core.register_device(device) #ENVIA AL MANAGER EL NUEVO DISPOSITIVO
-                Logger.info("configured_device_loaded", deviceId=device.device_id)
-
-        if sensors_json is not None: 
-            for sensor_json in sensors_json:
-                sensor = Sensor.fromJson(sensor_json)
-                self.sensors[sensor.sensor_id] = sensor
-
-                if sensor.device_id and sensor.device_id in self.devices:
-                    self.devices[sensor.device_id].add_sensor(sensor)
-                    Logger.info(
-                        "configured_sensor_loaded",
-                        deviceId=sensor.device_id,
-                        sensorId=sensor.sensor_id,
-                        observableProperty=sensor.observable_property,
-                    )
+    handle_bluetooth_data = handle_measurement_data
+    handle_serial_data = handle_measurement_data
 
     def bluetooth_manager_from_config(self, config: dict) -> BluetoothDeviceManager | None:
 
@@ -188,7 +95,7 @@ class Reader:
         Logger.info("bluetooth_manager_configured")
 
         return BluetoothDeviceManager(
-            on_measurement=self.handle_bluetooth_data,
+            on_measurement=self.handle_measurement_data,
             scan_timeout_seconds=ble_json.get("scan_timeout_seconds", 2.0),
             sleep_seconds=ble_json.get("sleep_seconds", 0.5),
         )
@@ -211,7 +118,7 @@ class Reader:
         )
 
         return SerialDeviceManager(
-            on_measurement=self.handle_serial_data,
+            on_measurement=self.handle_measurement_data,
             port_glob=serial_json.get("glob", "/dev/rfcomm*"),
             ports=serial_json.get("ports", None),
             devices=serial_devices,
