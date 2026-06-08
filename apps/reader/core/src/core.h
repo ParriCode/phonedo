@@ -8,7 +8,7 @@
 #include "observation.h"
 
 #ifndef PHONENDO_MAX_DEVICES
-#define PHONENDO_MAX_DEVICES 4
+#define PHONENDO_MAX_DEVICES 16
 #endif
 
 struct ReaderPolicy {

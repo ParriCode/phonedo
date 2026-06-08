@@ -1,0 +1,13 @@
+{
+  "name": "PhonendoReaderCore",
+  "version": "0.1.0",
+  "description": "Portable C++ core for the Phonendo Reader",
+  "keywords": ["phonendo", "reader", "core"],
+  "authors": [
+    {
+      "name": "Jose Luis Parrilla"
+    }
+  ],
+  "frameworks": "*",
+  "platforms": "*"
+}

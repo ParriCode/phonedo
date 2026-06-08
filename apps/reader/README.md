@@ -1,6 +1,6 @@
 # Phonendo Reader
 
-Reader Linux de Phonendo. Lee mediciones desde puertos serie, las convierte en `Observation` del core C++ y las envía al Manager como RDF/Turtle SOSA.
+Reader de Phonendo. El core vive en C++ portable y los runtimes quedan separados por plataforma.
 
 El flujo actual está simplificado: la identidad va por `device_id`, no por MAC, y el `serial_manager` solo acepta un formato de mensaje.
 
@@ -8,15 +8,18 @@ El flujo actual está simplificado: la identidad va por `device_id`, no por MAC,
 
 ```text
 apps/reader/
-├── main.py
-├── cpp_reader_core.py
-├── devices_and_sensors.json
-├── bluetooth_manager/
-│   └── bluetooth_manager.py
-├── serial_manager/
-│   └── serial_manager.py
-└── cpp/
-    └── lib/PhonendoReader/
+├── core/
+│   ├── src/
+│   └── bindings/
+├── linux/
+│   ├── main.py
+│   ├── cpp_reader_core.py
+│   ├── devices_and_sensors.json
+│   ├── bluetooth_manager/
+│   └── serial_manager/
+└── arduino/
+    ├── platformio.ini
+    └── src/
 ```
 
 ## Flujo
@@ -262,25 +265,25 @@ Si el `Device` o el `Sensor` no existen y el Reader no está en modo `static`, s
 Desde la raíz del repo:
 
 ```bash
-python3 apps/reader/main.py
+python3 apps/reader/linux/main.py
 ```
 
 Con configuración explícita:
 
 ```bash
-python3 apps/reader/main.py --config apps/reader/devices_and_sensors.json
+python3 apps/reader/linux/main.py --config apps/reader/linux/devices_and_sensors.json
 ```
 
 Con identificador de Reader:
 
 ```bash
-python3 apps/reader/main.py --reader-id reader-1
+python3 apps/reader/linux/main.py --reader-id reader-1
 ```
 
 Modo estático:
 
 ```bash
-python3 apps/reader/main.py --static
+python3 apps/reader/linux/main.py --static
 ```
 
 En modo estático no se crean dispositivos ni sensores que no estén en la configuración.

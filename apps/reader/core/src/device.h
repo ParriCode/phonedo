@@ -7,7 +7,7 @@
 #include "sensor.h"
 
 #ifndef PHONENDO_MAX_SENSORS
-#define PHONENDO_MAX_SENSORS 8
+#define PHONENDO_MAX_SENSORS 16
 #endif
 
 class Device {
