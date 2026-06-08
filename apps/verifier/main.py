@@ -12,8 +12,8 @@ from dotenv import load_dotenv
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import padding
 
-ROOT_DIR = Path(__file__).resolve().parents[3]
-sys.path.insert(0, str(ROOT_DIR / "libs/python"))
+ROOT_DIR = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT_DIR / "libs"))
 
 from logger import Logger
 
@@ -84,7 +84,7 @@ def sign_with_verifier(message: dict) -> str:
     ).hex()
 
 
-load_dotenv(Path(__file__).resolve().parent.parent / "config.env")
+load_dotenv(Path(__file__).resolve().parent / "config.env")
 
 Logger.init(
     os.getenv("PHONENDO_LOGS_DIR", str(ROOT_DIR / "logs/services")),
@@ -95,7 +95,7 @@ Logger.init(
 )
 
 BASE_DIR = Path(__file__).resolve().parent
-KEYS_PATH = BASE_DIR.parent / "keys.json"
+KEYS_PATH = BASE_DIR / "keys.json"
 
 with open(KEYS_PATH, "r", encoding="utf-8") as f:
     keys = json.load(f)

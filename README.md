@@ -71,7 +71,7 @@
 
 The Phonendo architecture adopts a microservice event-driven approach, consisting of five key components: Reader, Manager, Storage, Verifier, and Publisher. The diagram below depicts the interconnectedness of these components and highlights their primary functions. This architectural design prioritizes flexibility, scalability, and adaptability across various applications.
 
-To facilitate rapid prototyping and leverage the extensive support within the developer community, we opted for the Node.js framework and JavaScript programming language in the development of Phonendo. HTTP was chosen as the communication protocol due to its simplicity in facilitating seamless data transfer between services.
+The current implementation keeps the services in Python. The Reader uses a single C++ core shared by the Linux runtime and the future Arduino runtime; the Linux version runs through the existing Python entrypoint and loads that C++ core.
 
 During the implementation phase, we employed the Pine Time smartwatch (available at [https://www.pine64.org/pinetime/](https://www.pine64.org/pinetime/)) as a reference device. This choice allowed us to ensure compatibility and evaluate the integration of Phonendo with a real-world wearable device. By doing so, we were able to validate the platform's functionality and its capacity to handle data from smartwatches, which are commonly used in healthcare and fitness applications.
 
@@ -82,16 +82,8 @@ It is essential to acknowledge that the current implementation of Phonendo serve
 
 ### Prerequisites
 
-This is an example of how to list things you need to use the software and how to install them.
-* npm
-  ```sh
-  npm install npm@latest -g
-  ```
-
-* pm2
-  ```sh
-  npm install -g pm2
-  ```
+* Python 3
+* g++ with C++17 support for the Reader core
 
 ### Installation
 
@@ -99,13 +91,13 @@ This is an example of how to list things you need to use the software and how to
    ```sh
    git clone https://github.com/sinbad2-ujaen/phonendo.git
    ```
-2. Install NPM packages
+2. Generate service configuration files
    ```sh
-   npm install
+   ./tools/generate_configs.sh
    ```
 3. Start project
    ```sh
-   npm run infra:up
+   ./tools/dev.sh
    ```
 
 
@@ -115,19 +107,7 @@ This is an example of how to list things you need to use the software and how to
 
 - To start the project
    ```sh
-   npm run infra:up
-   ```
-- To stop the project
-   ```sh
-   npm run infra:down
-   ```
-- To clean all resources
-   ```sh
-   npm run infra:clean
-   ```
-- To restart all services
-   ```sh
-   npm run infra:restart
+   ./tools/dev.sh
    ```
 
 Once all services are up, next step is to register a device using the Reader endpoint

@@ -12,6 +12,9 @@
 #define BT_BAUD 9600
 #define DHT_STARTUP_DELAY_MS 2000
 
+#define PIN_TRIG = 12
+#define PIN_ECHO = 13
+
 #define DEVICE_ID "prueba2"
 
 SoftwareSerial BT(11, 10); // RX, TX
@@ -29,6 +32,11 @@ int joyYState = -1;
 
 // Margen para evitar ruido en el joystick analógico
 const int JOY_EVENT_DELTA = 20;
+
+
+const float SOUND_SPEED = 343.0; // Velocidad del sonido en m/s
+
+float distance;
 
 void sendObservation(
     Print &out,
@@ -202,6 +210,8 @@ void setup() {
     pinMode(JOY_X_PIN, INPUT);
     pinMode(JOY_Y_PIN, INPUT);
     pinMode(JOY_BUTTON_PIN, INPUT_PULLUP);
+    PinMode(PIN_TRIG, OUTPUT);
+    PinMode(PIN_ECHO, INPUT);
 
     Serial.begin(9600);
     BT.begin(BT_BAUD);

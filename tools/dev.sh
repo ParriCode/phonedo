@@ -12,9 +12,6 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 SERVICES=(storage verifier manager reader) # publisher aún no implementado
 
-MODO_PYTHON=false
-MODO_JAVASCRIPT=false
-
 # Aquí guardamos los PIDs de los procesos lanzados en background
 PIDS=()
 
@@ -40,10 +37,8 @@ Uso: $0 [opciones]
 
 Opciones:
   --help         Muestra esta ayuda
-  --python       Ejecuta Phonendo en Python
-  --javascript   Ejecuta Phonendo en JavaScript
 
-Si no se especifica nada, se ejecuta en Python.
+Ejecuta Phonendo en Python.
 EOF
 }
 
@@ -95,23 +90,22 @@ cleanup() {
 # Para que cuando se haga ctrl+C se ejecute clean UP y muertan todos los procesos hijos
 trap cleanup EXIT INT TERM
 
-python_up() {
+service_up() {
     local service="$1"
 
-    print_info "Ejecutando servicio Python: $service"
+    print_info "Ejecutando servicio: $service"
 
     # Rutas del servicio
-    local service_dir="$ROOT_DIR/apps/$service/python"
+    local service_dir="$ROOT_DIR/apps/$service"
     local venv_dir="$service_dir/.venv"
     local activate_file="$venv_dir/bin/activate"
     local python_bin="$venv_dir/bin/python"
-    local pip_bin="$venv_dir/bin/pip"
     local req_file="$service_dir/requirements.txt"
     local py_file="$service_dir/main.py"
 
     # Comprobar que existe el directorio del servicio
     if [[ ! -d "$service_dir" ]]; then
-        print_error "No existe el directorio Python para $service en $service_dir"
+        print_error "No existe el directorio para $service en $service_dir"
         exit 1
     fi
 
@@ -132,7 +126,7 @@ python_up() {
     # Instalar dependencias si existe requirements.txt
     if [[ -f "$req_file" ]]; then
         print_info "Instalando dependencias para $service..."
-        "$pip_bin" install -r "$req_file" > /dev/null
+        "$python_bin" -m pip install -r "$req_file" > /dev/null
         print_ok "Dependencias instaladas para $service"
     else
         print_warn "No existe requirements.txt en $service_dir"
@@ -160,55 +154,11 @@ python_up() {
         "$python_bin $py_file"
 }
 
-javascript_up() {
-    local service="$1"
-
-    print_info "Ejecutando servicio JavaScript: $service"
-
-    local service_dir="$ROOT_DIR/apps/$service/js"
-    local main_file="$service_dir/index.js"
-
-    if [[ ! -d "$service_dir" ]]; then
-        print_error "No existe el directorio JavaScript para $service en $service_dir"
-        exit 1
-    fi
-
-    if [[ ! -f "$main_file" ]]; then
-        print_error "No existe el archivo index.js en $service_dir"
-        exit 1
-    fi
-
-    if [[ ! -d "$service_dir/node_modules" ]]; then
-        print_info "Instalando dependencias npm para $service..."
-        (
-            cd "$service_dir"
-            npm install > /dev/null
-        )
-        print_ok "Dependencias npm instaladas para $service"
-    fi
-
-    (
-        cd "$service_dir"
-        exec node "$main_file"
-    ) >/dev/null 2>&1 &
-
-    PIDS+=("$!")
-    print_ok "Servicio $service levantado con PID ${PIDS[-1]}"
-}
-
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --help)
             usage
             exit 0
-            ;;
-        --python)
-            MODO_PYTHON=true
-            shift
-            ;;
-        --javascript)
-            MODO_JAVASCRIPT=true
-            shift
             ;;
         *)
             print_error "Argumento desconocido: $1"
@@ -217,31 +167,10 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-# Si no se especifica modo, usamos Python por defecto
-if [[ "$MODO_PYTHON" == false && "$MODO_JAVASCRIPT" == false ]]; then
-    print_warn "No se especificó ningún modo; ejecutando en Python por defecto"
-    MODO_PYTHON=true
-fi
-
-# No permitimos ambos modos a la vez
-if [[ "$MODO_PYTHON" == true && "$MODO_JAVASCRIPT" == true ]]; then
-    print_error "No se pueden ejecutar Python y JavaScript al mismo tiempo"
-    exit 1
-fi
-
-if [[ "$MODO_PYTHON" == true ]]; then
-    print_info "Ejecutando Phonendo en Python..."
-    for service in "${SERVICES[@]}"; do
-        python_up "$service"
-    done
-fi
-
-if [[ "$MODO_JAVASCRIPT" == true ]]; then
-    print_info "Ejecutando Phonendo en JavaScript..."
-    for service in "${SERVICES[@]}"; do
-        javascript_up "$service"
-    done
-fi
+print_info "Ejecutando Phonendo..."
+for service in "${SERVICES[@]}"; do
+    service_up "$service"
+done
 
 print_ok "Todos los servicios han sido lanzados"
 print_info "Pulsa Ctrl+C para detenerlos"

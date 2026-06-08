@@ -9,12 +9,12 @@ import requests
 from dotenv import load_dotenv
 from flask import Flask, g, request
 
-ROOT_DIR = Path(__file__).resolve().parents[3]
-sys.path.insert(0, str(ROOT_DIR / "libs/python"))
+ROOT_DIR = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT_DIR / "libs"))
 
 from logger import Logger
 
-load_dotenv(Path(__file__).resolve().parent.parent / "config.env")
+load_dotenv(Path(__file__).resolve().parent / "config.env")
 
 
 def env_bool(name: str, default: bool) -> bool:

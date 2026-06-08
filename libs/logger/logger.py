@@ -17,6 +17,13 @@ class Logger:
     genera, un mensaje y campos adicionales opcionales.
     """
     _instance: Optional["Logger"] = None
+    _RESET = "\033[0m"
+    _LEVEL_COLORS = {
+        "DEBUG": "\033[36m",
+        "INFO": "\033[32m",
+        "WARNING": "\033[33m",
+        "ERROR": "\033[31m",
+    }
 
     def __init__(
         self,
@@ -111,14 +118,24 @@ class Logger:
 
         line = json.dumps(record, ensure_ascii=False, default=str)
         
-        # Mostrae en consola solo si verbose es true 
+        # Mostrar en consola solo si verbose es true
         if self.verbose:
             stream = sys.stderr if level in {"ERROR", "WARNING"} else sys.stdout
-            print(line, file=stream, flush=True)
+            print(self._color_console_level(line, level), file=stream, flush=True)
+
         # Guardar en archivo solo si logging es true
         if self.logging:
             target = self.logs_dir / f"{self.service}.log"
             with target.open("a", encoding="utf-8") as file:
                 file.write(line + "\n")
 
-  
+    def _color_console_level(self, line: str, level: str) -> str:
+        color = self._LEVEL_COLORS.get(level)
+        if not color:
+            return line
+
+        return line.replace(
+            f'"level": "{level}"',
+            f'"level": "{color}{level}{self._RESET}"',
+            1,
+        )

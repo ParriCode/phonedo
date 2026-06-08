@@ -13,8 +13,8 @@ from uuid import uuid4
 import requests
 
 
-ROOT_DIR = Path(__file__).resolve().parents[3]
-CPP_API = ROOT_DIR / "apps/reader/cpp/lib/PhonendoReader/python/reader_core_c_api.cpp"
+ROOT_DIR = Path(__file__).resolve().parents[2]
+CPP_API = ROOT_DIR / "apps/reader/cpp/lib/PhonendoReader/bindings/reader_core_c_api.cpp"
 CPP_SRC = ROOT_DIR / "apps/reader/cpp/lib/PhonendoReader/src"
 BUILD_DIR = Path(__file__).resolve().parent / ".cpp_build"
 LIB_PATH = BUILD_DIR / "libphonendo_reader_core.so"

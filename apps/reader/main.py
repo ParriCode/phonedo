@@ -7,8 +7,8 @@ import sys
 from pathlib import Path
 import json
 
-ROOT_DIR = Path(__file__).resolve().parents[3]
-sys.path.insert(0, str(ROOT_DIR / "libs/python"))
+ROOT_DIR = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT_DIR / "libs"))
 
 from logger import Logger
 from cpp_reader_core import ManagerClient, Observation, ReaderCore
@@ -30,7 +30,7 @@ class Reader:
         self.reader_id = id if id is not None else "reader"
         self.static = static
 
-        self.env = self.load_env(Path(__file__).resolve().parent.parent / "config.env")
+        self.env = self.load_env(Path(__file__).resolve().parent / "config.env")
         self.init_logger()
         Logger.info("reader_created", readerId=self.reader_id, configFile=config_file)
 

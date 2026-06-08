@@ -54,6 +54,10 @@ PHONENDO_DEV=false
 - `true`: imprime los logs por consola.
 - `false`: no imprime nada por consola.
 
+Cuando la consola está activa, solo el valor del campo `level` se colorea:
+`DEBUG` en cian, `INFO` en verde, `WARNING` en amarillo y `ERROR` en rojo.
+Los ficheros de log no incluyen colores y siguen siendo JSON Lines limpio.
+
 `logging` controla los archivos:
 
 - `true`: guarda los logs en archivo.
