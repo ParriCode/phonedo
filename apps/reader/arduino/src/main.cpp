@@ -5,26 +5,43 @@
 #include <device.h>
 #include <manager_client.h>
 #include <sensor.h>
-#include <serializer.h>
 
-
-#define PHONENDO_WIFI_SSID "CEATIC"
-#define PHONENDO_WIFI_PASS "Pd@CEATIC2k16"
-
-#define PHONENDO_MANAGER_URL "http://192.168.83.148:3003"
-
-#define PHONENDO_MANAGER_TOKEN "token_manager"
+#define WIFI_SSID "CEATIC"
+#define WIFI_PASS "Pd@CEATIC2k16"
+#define MANAGER_URL "http://192.168.83.148:3003"
+#define MANAGER_TOKEN "token_manager"
 
 #define PIR_PIN D1
+#define SEND_INTERVAL 1000
+#define WIFI_TIMEOUT 20000
 
-const unsigned long WIFI_CONNECT_TIMEOUT_MS = 20000;
-const unsigned long INTERVAL = 1000;
+ManagerClient manager(MANAGER_URL, MANAGER_TOKEN);
 
-ReaderCore reader("reader-esp8266-01");
+bool sendToManager(
+    const std::string& ttl,
+    const std::string& readerId,
+    const std::string& deviceId
+) {
+    bool ok = manager.sendObservationTTL(
+        String(ttl.c_str()),
+        String(readerId.c_str()),
+        String(deviceId.c_str())
+    );
 
-ManagerClient manager(
-    PHONENDO_MANAGER_URL,
-    PHONENDO_MANAGER_TOKEN
+    if (!ok) {
+        Serial.print("Error enviando al Manager: ");
+        Serial.println(manager.lastError);
+    }
+
+    return ok;
+}
+
+ReaderCore reader(
+    "reader-esp8266-01",
+    true,
+    true,
+    nullptr,
+    sendToManager
 );
 
 Device device(
@@ -40,62 +57,81 @@ Sensor pirSensor(
     "pir-motion-sensor-01"
 );
 
-bool deviceRegistered = false;
-unsigned long last_send = 0;
+unsigned long lastSend = 0;
+bool managerDeviceRegistered = false;
 
-
-//Conectar por wify
 bool connectWifi() {
-    if (WiFi.status() == WL_CONNECTED) {
-        return true;
-    }
+    if (WiFi.status() == WL_CONNECTED) return true;
 
     Serial.print("Conectando a WiFi");
     WiFi.mode(WIFI_STA);
-    WiFi.begin(PHONENDO_WIFI_SSID, PHONENDO_WIFI_PASS);
+    WiFi.begin(WIFI_SSID, WIFI_PASS);
+
+    unsigned long start = millis();
+
+    while (WiFi.status() != WL_CONNECTED && millis() - start < WIFI_TIMEOUT) {
+        Serial.print(".");
+        delay(500);
+    }
 
     Serial.println();
 
+    if (WiFi.status() != WL_CONNECTED) {
+        Serial.println("No se pudo conectar a WiFi");
+        return false;
+    }
+
     Serial.print("WiFi conectado. IP=");
     Serial.println(WiFi.localIP());
+
     return true;
 }
 
-bool publishMotion(int motion) {
-   
+bool setupReader() {
+    if (!device.hasSensor(pirSensor.sensorId)) {
+        device.addSensor(pirSensor);
+    }
+
+    if (!reader.hasDevice(device.deviceId)) {
+        return reader.registerDevice(device);
+    }
+
+    return true;
+}
+
+bool registerDeviceOnManager() {
+    if (managerDeviceRegistered) {
+        return true;
+    }
+
+    bool ok = manager.registerDevice(
+        String(reader.getReaderId().c_str()),
+        device
+    );
+
+    if (!ok) {
+        Serial.print("Error registrando device en Manager: ");
+        Serial.println(manager.lastError);
+        Serial.print("Respuesta Manager: ");
+        Serial.println(manager.lastResponseBody);
+        return false;
+    }
+
+    managerDeviceRegistered = true;
+    Serial.println("Device registrado en Manager.");
+    return true;
+}
+
+void publishMotion(int motion) {
     Observation observation;
-    const std::string rawValue = motion == HIGH ? "true" : "false";
-    const String millisText = String(millis());
-    const std::string phenomenonTime(millisText.c_str());
 
     reader.ingestRawMeasurement(
         device.deviceId,
         pirSensor.sensorId,
-        rawValue,
-        phenomenonTime,
+        motion == HIGH ? "true" : "false",
+        std::to_string(millis()),
         &observation
     );
-
-    const std::string ttl = serializeSosaTTL(observation);
-    if (!manager.sendObservationTTL(
-        String(ttl.c_str()),
-        String(reader.readerId.c_str()),
-        String(observation.deviceId.c_str())
-    )) {
-        Serial.print("Error enviando observacion al Manager: INICIANDO NUEVO REGISTRO ");
-        
-        if (reader.registerDevice(device)  && device.addSensor(pirSensor)) {
-
-            connectWifi();
-        } else {
-            Serial.println("Error registrando device o sensor en ReaderCore.");
-        }
-        Serial.println(manager.lastError);
-        return false;
-    }
-
-    Serial.println("Observacion enviada al Manager.");
-    return true;
 }
 
 void setup() {
@@ -106,28 +142,27 @@ void setup() {
 
     Serial.println("Iniciando sensor PIR...");
     Serial.println("Espera 30-60 segundos a que se estabilice.");
-    //Registrar dispositivo y sensores en el Reader
 
-    if (reader.registerDevice(device)  && device.addSensor(pirSensor)) {
-        connectWifi();
-    } else {
-        Serial.println("Error registrando device o sensor en ReaderCore.");
+    if (!setupReader()) {
+        Serial.println(reader.getLastError().c_str());
+    }
+
+    if (connectWifi()) {
+        registerDeviceOnManager();
     }
 }
 
 void loop() {
-    const int motion = digitalRead(PIR_PIN);
+    int motion = digitalRead(PIR_PIN);
 
-    if (motion == HIGH) {
-        Serial.println("Movimiento detectado");
-    } else {
-        Serial.println("Sin movimiento");
-    }
+    Serial.println(motion == HIGH ? "Movimiento detectado" : "Sin movimiento");
 
-    const unsigned long now = millis();
-    if (now - last_send >= INTERVAL) {
-        last_send = now;
-        publishMotion(motion);
+    if (millis() - lastSend >= SEND_INTERVAL) {
+        lastSend = millis();
+
+        if (connectWifi() && registerDeviceOnManager()) {
+            publishMotion(motion);
+        }
     }
 
     delay(500);
