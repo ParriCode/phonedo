@@ -416,4 +416,505 @@ Por este motivo, Phonendo adopta un enfoque híbrido: siempre que el mensaje rec
 
 En el caso de la MAC, si no se puede obtener la dirección física del dispositivo Bluetooth remoto, el Reader puede generar una MAC local administrada y pseudónima, por ejemplo con prefijo 02, derivada de información estable como el identificador del Reader y la fuente local del dato. Esto evita inventar una MAC de fabricante y permite mantener una identidad estable dentro del sistema.
 
-La política general de resolución de identidad y semántica será:Bien , entonces tendríamos que establer una política en el reader , 1 , atender a configuración 2 atender a sensores completos (si así se configura en el despliegue del reader ) , 3 atender datos raros que no entren dentro del conjunto 1  ni dentro del conjunto 2 , estos se pondrá , "raw" "unknow" , y de esto
+## Requisitos De La Configuracion Del Reader
+
+La configuracion del Reader debe permitir despliegues con distintos niveles de detalle. No todos los sensores, dispositivos o medios de entrada tienen por que conocerse antes de arrancar el sistema. Por eso, el Reader debe poder funcionar con configuracion completa, configuracion parcial o configuracion minima, siempre bajo politicas explicitas.
+
+### Modo Estatico, Dinamico O Hibrido
+
+El Reader debe poder configurarse como estatico, dinamico o hibrido.
+
+En modo estatico, el Reader solo acepta dispositivos y sensores declarados en la configuracion. Si llega un dato de un dispositivo o sensor no conocido, se descarta.
+
+En modo dinamico, el Reader puede crear dispositivos y sensores nuevos a partir de los datos recibidos o de los medios de entrada descubiertos.
+
+En modo hibrido, algunas partes pueden quedar cerradas y otras pueden ampliarse. Por ejemplo, un dispositivo puede estar fijado, pero permitir nuevos sensores asociados; o una entrada puede estar fijada, pero permitir sensores desconocidos si llegan con metadatos suficientes.
+
+Ejemplo de politica general:
+
+```json
+{
+  "policy": {
+    "allow_new_devices": true,
+    "allow_new_sensors": true,
+    "allow_unknown_inputs": true,
+    "allow_raw_observations": true
+  }
+}
+```
+
+### Dispositivos Detallados O No Detallados
+
+La configuracion puede declarar dispositivos de forma completa:
+
+```json
+{
+  "devices": [
+    {
+      "device_id": "arduino-1",
+      "device_type": "arduino",
+      "static": false
+    }
+  ]
+}
+```
+
+Pero tambien debe poder no declararlos. Si el Reader permite nuevos dispositivos, los podra crear cuando reciba datos con `device_id` o cuando pueda inferir una identidad estable desde el medio de entrada.
+
+Si no existe `device_id` en el mensaje ni en la configuracion, el Reader debe aplicar una politica de fallback. Por ejemplo, usar un identificador derivado del `reader_id`, del `input_id` y de la fuente local del dato.
+
+### Sensores Detallados O No Detallados
+
+Los sensores pueden estar completamente definidos:
+
+```json
+{
+  "sensors": [
+    {
+      "sensor_id": "temp1",
+      "device_id": "arduino-1",
+      "observable_property": "temperature",
+      "procedure": "thermistor-read",
+      "feature_of_interest": "patient-001",
+      "unit": "CELSIUS"
+    }
+  ]
+}
+```
+
+Tambien pueden estar parcialmente definidos:
+
+```json
+{
+  "sensor_id": "temp1",
+  "device_id": "arduino-1",
+  "unit": "CELSIUS"
+}
+```
+
+O no estar definidos. Si el Reader permite sensores nuevos, debe poder crear un sensor con valores de fallback:
+
+```text
+observable_property = "unknown"
+procedure = "unknown"
+feature_of_interest = "unknown"
+unit = null
+```
+
+Cuando el dato recibido no pueda interpretarse semanticamente, pero la politica permita conservarlo, se debe marcar de forma explicita como dato bruto:
+
+```text
+observable_property = "raw"
+procedure = "unknown"
+feature_of_interest = "unknown"
+```
+
+### Sensores Por Dispositivo
+
+La configuracion debe poder expresar si los sensores de un dispositivo estan cerrados o pueden ampliarse.
+
+Un dispositivo cerrado no acepta sensores nuevos:
+
+```json
+{
+  "device_id": "arduino-1",
+  "static": true
+}
+```
+
+Un dispositivo ampliable acepta sensores nuevos si la politica general o la politica del propio dispositivo lo permite:
+
+```json
+{
+  "device_id": "arduino-1",
+  "static": false
+}
+```
+
+Tambien debe permitirse definir sensores portables, es decir, sensores sin `device_id` fijo. Estos sensores pueden asociarse a un dispositivo en tiempo de ejecucion segun el medio de entrada o los metadatos recibidos.
+
+### Medios De Entrada Detallados O No Detallados
+
+La configuracion debe poder declarar los medios por los que entran datos:
+
+- Serial o RFCOMM.
+- BLE.
+- Sensores locales del sistema.
+- HTTP local.
+- Otros medios futuros como ficheros, sockets o colas.
+
+Ejemplo:
+
+```json
+{
+  "inputs": [
+    {
+      "id": "serial-rfcomm",
+      "type": "serial",
+      "enabled": true,
+      "config": {
+        "glob": "/dev/rfcomm*",
+        "baudrate": 9600
+      }
+    }
+  ]
+}
+```
+
+Tambien debe poder omitirse la configuracion detallada de entradas. En ese caso, el Reader puede usar valores por defecto de la plataforma, siempre que la politica lo permita.
+
+### Relacion Entre Entrada, Dispositivo Y Sensor
+
+Debe poder indicarse que una entrada concreta corresponde a un dispositivo o sensor por defecto. Esto permite usar sensores simples que solo envian un valor crudo.
+
+```json
+{
+  "inputs": [
+    {
+      "id": "arduino-port",
+      "type": "serial",
+      "config": {
+        "ports": ["/dev/rfcomm1"],
+        "baudrate": 9600
+      },
+      "routes": [
+        {
+          "match": {
+            "port": "/dev/rfcomm1"
+          },
+          "device_id": "arduino-1",
+          "sensor_id": "temp1"
+        }
+      ]
+    }
+  ]
+}
+```
+
+Con esta configuracion, un mensaje como:
+
+```text
+36.7
+```
+
+puede convertirse en una observacion completa usando la ruta configurada.
+
+### Mensajes Completos, Parciales O Crudos
+
+El Reader debe aceptar distintos niveles de mensaje.
+
+Mensaje completo:
+
+```json
+{
+  "device_id": "arduino-1",
+  "sensor_id": "temp1",
+  "value": "36.7",
+  "observable_property": "temperature",
+  "procedure": "thermistor-read",
+  "feature_of_interest": "patient-001",
+  "unit": "CELSIUS"
+}
+```
+
+Mensaje minimo:
+
+```json
+{
+  "value": "36.7"
+}
+```
+
+Valor crudo:
+
+```text
+36.7
+```
+
+La prioridad de resolucion debe ser:
+
+1. Usar la configuracion explicita estricta cuando exista.
+2. Usar los metadatos recibidos en el mensaje si la politica lo permite.
+3. Completar con configuracion parcial del sensor.
+4. Completar con configuracion parcial del dispositivo.
+5. Completar con configuracion de la entrada.
+6. Crear dispositivo o sensor dinamicamente si esta permitido.
+7. Marcar como `raw` y `unknown` si no hay semantica suficiente pero se permite conservar el dato.
+8. Descartar el dato si ninguna politica permite aceptarlo.
+
+### Politica De Conflictos
+
+La configuracion debe definir que ocurre cuando un mensaje contradice lo esperado.
+
+Por ejemplo, si `/dev/rfcomm1` esta asociado a `arduino-1`, pero llega un mensaje con otro `device_id`, el Reader debe decidir segun politica.
+
+Politicas posibles:
+
+```json
+{
+  "conflicts": {
+    "device_id": "reject",
+    "sensor_id": "reject",
+    "metadata": "prefer_config"
+  }
+}
+```
+
+Valores posibles:
+
+- `reject`: descarta la medicion.
+- `prefer_config`: usa la configuracion e ignora el valor recibido.
+- `prefer_message`: acepta el valor recibido.
+- `create_new`: crea un nuevo dispositivo o sensor si el Reader lo permite.
+
+### Trazabilidad
+
+El Reader debe registrar como se ha resuelto cada observacion:
+
+- Si venia completa en el mensaje.
+- Si se completo desde configuracion.
+- Si se resolvio por la entrada.
+- Si se creo dinamicamente.
+- Si se marco como `raw` o `unknown`.
+- Si se descarto por conflicto o por falta de politica.
+
+Esta trazabilidad debe quedar al menos en logs, aunque no siempre se publique dentro de la observacion final.
+
+### Regla General
+
+El flujo de resolucion del Reader debe ser:
+
+```text
+mensaje recibido
+  -> aplicar configuracion de entrada
+  -> resolver device
+  -> resolver sensor
+  -> validar conflictos
+  -> completar metadatos
+  -> aplicar fallback si falta informacion
+  -> construir Observation
+  -> registrar/enviar mediante ReaderCore
+```
+
+La regla general de prioridad es:
+
+```text
+1. Configuracion explicita estricta
+2. Datos completos recibidos desde el sensor
+3. Configuracion parcial de entrada, dispositivo o sensor
+4. Creacion dinamica si esta permitida
+5. Raw/unknown si esta permitido
+6. Descarte si ninguna politica lo permite
+```
+
+## Diagramas Propuestos Para La Configuracion Del Reader
+
+### Diagrama De Estados De Resolucion
+
+Este diagrama describe el ciclo de vida de una medicion desde que entra por un medio fisico o logico hasta que se convierte en una `Observation`, se descarta o queda marcada como dato bruto.
+
+```mermaid
+stateDiagram-v2
+    [*] --> ReaderArrancando
+
+    ReaderArrancando --> ConfiguracionCargada: cargar config/env
+    ConfiguracionCargada --> ManagersActivos: crear input managers
+    ManagersActivos --> EsperandoDato
+
+    EsperandoDato --> DatoRecibido: input recibe dato
+    DatoRecibido --> ParseandoDato
+
+    ParseandoDato --> DatoInvalido: formato no aceptado
+    DatoInvalido --> Descartado: politica no permite raw
+    DatoInvalido --> ResolverEntrada: politica permite raw
+
+    ParseandoDato --> ResolverEntrada: dato valido o valor crudo
+
+    ResolverEntrada --> ResolverDevice: input conocido
+    ResolverEntrada --> EntradaDesconocida: input no configurado
+
+    EntradaDesconocida --> ResolverDevice: allow_unknown_inputs
+    EntradaDesconocida --> Descartado: input no permitido
+
+    ResolverDevice --> ResolverSensor: device resuelto
+    ResolverDevice --> CrearDevice: device desconocido y allow_new_devices
+    ResolverDevice --> Descartado: device desconocido no permitido
+
+    CrearDevice --> ResolverSensor
+
+    ResolverSensor --> ValidarConflictos: sensor resuelto
+    ResolverSensor --> CrearSensor: sensor desconocido y allow_new_sensors
+    ResolverSensor --> RawUnknown: sensor desconocido y allow_raw_observations
+    ResolverSensor --> Descartado: sensor desconocido no permitido
+
+    CrearSensor --> ValidarConflictos
+
+    ValidarConflictos --> CompletarMetadatos: sin conflicto
+    ValidarConflictos --> ResolverConflicto: conflicto detectado
+
+    ResolverConflicto --> CompletarMetadatos: prefer_config o prefer_message
+    ResolverConflicto --> CrearDevice: create_new device
+    ResolverConflicto --> CrearSensor: create_new sensor
+    ResolverConflicto --> Descartado: reject
+
+    CompletarMetadatos --> ConstruirObservation: semantica suficiente
+    CompletarMetadatos --> RawUnknown: semantica insuficiente y raw permitido
+    CompletarMetadatos --> Descartado: semantica insuficiente
+
+    RawUnknown --> ConstruirObservation
+    ConstruirObservation --> EnviarCore
+    EnviarCore --> EsperandoDato: ReaderCore registra/envia
+
+    Descartado --> EsperandoDato: registrar motivo
+```
+
+### Diagrama De Clases Propuesto
+
+Este diagrama separa el arranque del Reader, la carga de configuracion, la creacion de managers de entrada y la resolucion semantica. La idea es que `main.py` quede como orquestador y que la complejidad de cada entrada no crezca dentro de el.
+
+```mermaid
+classDiagram
+    class Reader {
+        +reader_id: str
+        +run() None
+        +handle_raw_measurement(measurement) None
+        +handle_observation(observation) None
+    }
+
+    class ReaderConfig {
+        +policy: ReaderPolicy
+        +devices: list
+        +sensors: list
+        +inputs: list
+        +load(path) ReaderConfig
+        +core_config() dict
+        +input_configs() list
+    }
+
+    class ReaderPolicy {
+        +allow_new_devices: bool
+        +allow_new_sensors: bool
+        +allow_unknown_inputs: bool
+        +allow_raw_observations: bool
+        +conflicts: ConflictPolicy
+    }
+
+    class ConflictPolicy {
+        +device_id: str
+        +sensor_id: str
+        +metadata: str
+    }
+
+    class InputManagerFactory {
+        +create_all(config, on_measurement) list
+        +create(input_config, on_measurement) InputManager
+    }
+
+    class InputManager {
+        <<interface>>
+        +start() None
+        +stop() None
+    }
+
+    class SerialDeviceManager {
+        +start() None
+        +stop() None
+        +parse_serial_message(port, raw) RawMeasurement
+    }
+
+    class BluetoothDeviceManager {
+        +start() None
+        +stop() None
+        +parse_ble_advertisement(device_id, adv) RawMeasurement
+    }
+
+    class SystemMetricsManager {
+        +start() None
+        +stop() None
+        +emit(metric) RawMeasurement
+    }
+
+    class RawMeasurement {
+        +input_id: str
+        +source: str
+        +value: any
+        +device_id: str
+        +sensor_id: str
+        +observable_property: str
+        +procedure: str
+        +feature_of_interest: str
+        +unit: str
+        +metadata: dict
+    }
+
+    class ObservationResolver {
+        +resolve(measurement) Observation
+        +resolve_input(measurement) InputContext
+        +resolve_device(context) str
+        +resolve_sensor(context) str
+        +validate_conflicts(context) ResolutionDecision
+        +complete_metadata(context) Observation
+    }
+
+    class InputContext {
+        +input_id: str
+        +input_type: str
+        +source: str
+        +routes: list
+        +defaults: dict
+    }
+
+    class ResolutionDecision {
+        +accepted: bool
+        +reason: str
+        +trace: list
+    }
+
+    class ReaderCore {
+        +load_devices_from_config(config) None
+        +handle_measurement_data(observation) Observation
+        +send_observation(observation) None
+    }
+
+    class ManagerClient {
+        +register_device(reader_id, device) None
+        +send_observation_ttl(ttl, reader_id, device_id) None
+    }
+
+    class Observation {
+        +device_id: str
+        +sensor_id: str
+        +observable_property: str
+        +simple_result: any
+        +phenomenon_time: datetime
+        +feature_of_interest: str
+        +procedure: str
+        +unit: str
+    }
+
+    Reader --> ReaderConfig
+    Reader --> InputManagerFactory
+    Reader --> ObservationResolver
+    Reader --> ReaderCore
+    ReaderCore --> ManagerClient
+
+    ReaderConfig --> ReaderPolicy
+    ReaderPolicy --> ConflictPolicy
+
+    InputManagerFactory --> InputManager
+    InputManager <|.. SerialDeviceManager
+    InputManager <|.. BluetoothDeviceManager
+    InputManager <|.. SystemMetricsManager
+
+    SerialDeviceManager --> RawMeasurement
+    BluetoothDeviceManager --> RawMeasurement
+    SystemMetricsManager --> RawMeasurement
+
+    ObservationResolver --> ReaderConfig
+    ObservationResolver --> RawMeasurement
+    ObservationResolver --> InputContext
+    ObservationResolver --> ResolutionDecision
+    ObservationResolver --> Observation
+
+    ReaderCore --> Observation
+```

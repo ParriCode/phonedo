@@ -20,7 +20,9 @@ class ReaderCore {
 public:
     ReaderCore(
         const std::string& readerId = "",
-        ReaderPolicy policy = ReaderPolicy()
+        ReaderPolicy policy = ReaderPolicy(),
+        void (*on_register(std::string&, Device& )) = nullptr,
+        void (*on_measurement(std::string&, Device& )) = nullptr
     );
 
     ~ReaderCore();
@@ -28,6 +30,9 @@ public:
     std::string readerId;
     ReaderPolicy policy;
     std::string lastError;
+
+    void (*onRegister)(std::string&, Device& );
+    void (*onMeasurement)(std::string&, Device& );
 
     bool registerDevice(Device& device);
     bool addDevice(Device& device);

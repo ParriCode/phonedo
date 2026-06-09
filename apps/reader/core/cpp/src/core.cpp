@@ -4,7 +4,9 @@
 
 ReaderCore::ReaderCore(
     const std::string& readerId,
-    ReaderPolicy policy
+    ReaderPolicy policy,
+    void (*on_register(std::string&, Device& )), 
+    void (*on_measurement(std::string&, Device& ))
 )
     : readerId(readerId.empty() ? generateReaderId() : readerId),
       policy(policy),
@@ -65,7 +67,14 @@ bool ReaderCore::addDevicePointer(Device* device, bool owned) {
 }
 
 bool ReaderCore::registerDevice(Device& device) {
-    return addDevice(device);
+    addDevice(device);
+    if (onRegister != nullptr) {
+        onRegister(readerId, device);
+        return true;
+    }else{
+        lastError = "onRegister callback is not set";
+        return false;
+    }
 }
 
 bool ReaderCore::removeDevice(const std::string& deviceId) {

@@ -4,7 +4,7 @@
 
 #define LED_PIN 2
 #define DHT_PIN 3
-#define DHT_TYPE DHT11
+#define DHT_TYPE DHT11Y cua
 #define LIGHT_PIN A0
 #define JOY_BUTTON_PIN 4
 #define JOY_Y_PIN A1

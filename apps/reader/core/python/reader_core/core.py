@@ -16,8 +16,6 @@ class ReaderCore:
     def __init__(
         self,
         reader_id : Optional[str] = None, 
-        token: Optional[str] = None, 
-        manager_url : Optional[str] = None, 
 
         allow_new_devices: bool = True,
         allow_new_sensors: bool = True,

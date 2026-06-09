@@ -8,6 +8,10 @@
       "name": "Jose Luis Parrilla"
     }
   ],
+  "build": {
+    "srcDir": "cpp/src",
+    "includeDir": "cpp/include"
+  },
   "frameworks": "*",
   "platforms": "*"
 }
