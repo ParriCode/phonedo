@@ -1,41 +1,50 @@
-#ifndef PHONENDO_READER_CORE_H
-#define PHONENDO_READER_CORE_H
+#ifndef PHONENDO_CORE_H
+#define PHONENDO_CORE_H
 
 #include <cstdint>
 #include <string>
 
 #include "device.h"
+#include "sensor.h"
 #include "observation.h"
+#include "serializer.h"
 
 #ifndef PHONENDO_MAX_DEVICES
 #define PHONENDO_MAX_DEVICES 16
 #endif
 
-struct ReaderPolicy {
-    bool allowNewDevices = true;
-    bool allowNewSensors = true;
-};
+#ifndef PHONENDO_MAX_SENSORS
+#define PHONENDO_MAX_SENSORS 32
+#endif
+
+
+
 
 class ReaderCore {
 public:
+    using OnRegisterCallback = void (*)(const std::string& readerId, Device& device);
+    using OnSendCallback = bool (*)(
+        const std::string& ttl,
+        const std::string& readerId,
+        const std::string& deviceId
+    );
+
     ReaderCore(
         const std::string& readerId = "",
-        ReaderPolicy policy = ReaderPolicy(),
-        void (*on_register(std::string&, Device& )) = nullptr,
-        void (*on_measurement(std::string&, Device& )) = nullptr
+        bool allowNewDevices = true,
+        bool allowNewSensors = true,
+        OnRegisterCallback onRegister = nullptr,
+        OnSendCallback onSend = nullptr
     );
 
     ~ReaderCore();
 
-    std::string readerId;
-    ReaderPolicy policy;
-    std::string lastError;
+    static std::string generateReaderId();
 
-    void (*onRegister)(std::string&, Device& );
-    void (*onMeasurement)(std::string&, Device& );
+    bool addDevicePointer(Device* device, bool owned);
 
     bool registerDevice(Device& device);
-    bool addDevice(Device& device);
+
     bool removeDevice(const std::string& deviceId);
 
     Device* getDevice(const std::string& deviceId);
@@ -48,7 +57,7 @@ public:
         const std::string& deviceId,
         const std::string& sensorId,
         const std::string& rawValue,
-        const std::string& phenomenonTime = "",
+        const std::string& phenomenonTime,
         Observation* outputObservation = nullptr
     );
 
@@ -57,7 +66,20 @@ public:
         Observation* outputObservation = nullptr
     );
 
+    bool sendObservation(const Observation& observation);
+
+    const std::string& getReaderId() const;
+    const std::string& getLastError() const;
+
+    void setOnRegisterCallback(OnRegisterCallback callback);
+    void setOnSendCallback(OnSendCallback callback);
+
 private:
+    std::string readerId;
+    bool allowNewDevices;
+    bool allowNewSensors;
+    std::string lastError;
+
     Device* devices[PHONENDO_MAX_DEVICES];
     bool ownedDevices[PHONENDO_MAX_DEVICES];
     std::uint8_t devicesCount;
@@ -65,9 +87,9 @@ private:
     Sensor* ownedSensors[PHONENDO_MAX_SENSORS];
     std::uint8_t ownedSensorsCount;
 
-    bool addDevicePointer(Device* device, bool owned);
+    OnRegisterCallback onRegister;
+    OnSendCallback onSend;
 
-    static std::string generateReaderId();
 };
 
 #endif

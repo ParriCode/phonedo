@@ -84,23 +84,27 @@ class ReaderCore:
                 continue
             device.add_sensor(sensor)
            
-    def handle_measurement_data(self, observation: Observation, send: bool = True) -> Observation | None:
+    def handle_measurement_data(self, observation: Observation, send: bool = True) -> bool:
         if observation is None:
             raise ValueError("observation no puede ser None")
 
         device_id = observation.device_id or self.reader_id
         sensor_id = observation.sensor_id or "unknown-sensor"
 
+        #Añadir el device_id y el reader_id, a veces puede ocasionar errores sino viene con ellos
+        observation.device_id = device_id
+        observation.sensor_id = sensor_id
+
         device = self.get_device(device_id)
         if device is None:
             if not self.allow_new_devices:
-                return None
+                return False
             device = Device(device_id=device_id, device_type="device")
             self.register_device(device)
 
         if not device.has_sensor(sensor_id):
             if not self.allow_new_sensors:
-                return None
+                return False
             sensor = Sensor(
                 observable_property=observation.observable_property or "unknown",
                 procedure=observation.procedure or "unknown",
@@ -111,17 +115,11 @@ class ReaderCore:
             )
             device.add_sensor(sensor)
 
-        try:
-            ingested = self.ingest_raw_measurement(
-                device_id,
-                sensor_id,
-                observation.simple_result,
-                phenomenon_time=observation.phenomenon_time,
-                send=send,
-            )
-        except Exception as error:
-            raise
-        return ingested
+        if send:
+            self.send_observation(observation)
+
+        return True
+
 
     def ingest_raw_measurement(
         self,
@@ -129,7 +127,7 @@ class ReaderCore:
         sensor_id: str,
         raw_value: Any,
         phenomenon_time: Optional[datetime] = None,
-        send: bool = True,
+
     ) -> Observation:
         """
         Recibe una medición cruda, busca el dispositivo y sensor,
@@ -145,8 +143,7 @@ class ReaderCore:
             phenomenon_time=phenomenon_time or datetime.now(timezone.utc),
         )
 
-        if send:
-            self.send_observation(observation)
+        self.send_observation(observation)
 
         return observation
 
@@ -164,4 +161,3 @@ class ReaderCore:
         ttl = self.serializer.serialize(observation=observation,)
 
         self.on_send(ttl, self.reader_id,  observation.device_id)
-
