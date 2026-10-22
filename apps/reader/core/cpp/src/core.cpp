@@ -302,9 +302,9 @@ bool ReaderCore::sendObservation(const Observation& observation) {
         return false;
     }
 
-    std::string ttl = serializeSosaTTL(observation);
+    std::string observation_payload = observation.toJson();
 
-    if (!onSend(ttl, readerId, observation.deviceId)) {
+    if (!onSend(observation_payload, readerId, observation.deviceId)) {
         lastError = "onSend callback failed";
         return false;
     }

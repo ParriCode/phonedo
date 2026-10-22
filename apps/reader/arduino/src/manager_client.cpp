@@ -140,13 +140,13 @@ bool ManagerClient::postJson(const String& url, const String& body) {
     return true;
 }
 
-bool ManagerClient::sendObservationTTL(
-    const String& ttl,
+bool ManagerClient::sendObservationJSON(
+    const String& observation_payload,
     const String& readerId,
     const String& deviceId
 ) {
-    if (ttl.length() == 0) {
-        lastError = "ttl is empty";
+    if (observation_payload.length() == 0) {
+        lastError = "observation_payload is empty";
         return false;
     }
 
@@ -161,13 +161,15 @@ bool ManagerClient::sendObservationTTL(
     }
 
     String body;
-    body.reserve(ttl.length() + 260);
+    body.reserve(observation_payload.length() + 260);
 
     body += '{';
     appendJsonField(body, "token", token);
     appendJsonField(body, "eventType", "observation");
-    appendJsonField(body, "payloadFormat", "text/turtle");
-    appendJsonField(body, "payload", ttl);
+    appendJsonField(body, "payloadFormat", "application/json");
+    body += "\"payload\":";
+    body += observation_payload;
+    body += ',';
     appendJsonField(body, "deviceId", deviceId);
     appendJsonField(body, "readerId", readerId, false);
     body += '}';

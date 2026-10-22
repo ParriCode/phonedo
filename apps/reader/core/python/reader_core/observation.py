@@ -1,6 +1,7 @@
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
+from enum import Enum
 from uuid import uuid4
 
 @dataclass
@@ -18,11 +19,16 @@ class Observation:
 
 
     def to_dict(self) -> dict:
+        timestamp = self.phenomenon_time
+        if timestamp.tzinfo is None or timestamp.utcoffset() is None:
+            timestamp = timestamp.replace(tzinfo=timezone.utc)
         return {
             "observation_id": self.observation_id,
-            "observable_property": self.observable_property,
+            "device_id": self.device_id,
+            "sensor_id": self.sensor_id,
+            "observable_property": self.observable_property.value if isinstance(self.observable_property, Enum) else self.observable_property,
             "simple_result": self.simple_result,
-            "phenomenon_time": self.phenomenon_time.isoformat(),
+            "phenomenon_time": timestamp.isoformat(),
             "feature_of_interest": self.feature_of_interest,
             "procedure": self.procedure,
             "unit": self.unit,

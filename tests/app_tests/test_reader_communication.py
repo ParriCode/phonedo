@@ -79,8 +79,8 @@ def test_http_stream_without_manager(tmp_path):
                 assert await asyncio.wait_for(response.content.readline(), 1) == b"event: observation\n"
                 event = json.loads((await response.content.readline()).decode()[6:])
                 assert event["deviceId"] == "sensor-board"
-                assert "23" in event["payload"]
-                assert event["payloadFormat"] == "text/turtle"
+                assert event["payload"]["simple_result"] == 23
+                assert event["payloadFormat"] == "application/json"
             response = await client.get("/devices", headers=headers)
             assert (await response.json())[0]["sensors"] == ["temperature"]
             reader.stream.close()
@@ -115,7 +115,7 @@ def test_manager_delivery_does_not_block_stream(tmp_path):
             release.wait(2)
 
         reader.manager_client.register_device = register
-        reader.manager_client.send_observation_ttl = lambda *args: calls.append("send")
+        reader.manager_client.send_observation_json = lambda *args: calls.append("send")
         worker = asyncio.create_task(reader.manager_output.run())
         try:
             with reader.stream.subscribe() as stream:
@@ -139,7 +139,7 @@ def test_manager_can_send_without_registration(tmp_path):
             "manager": {"enabled": True, "register_devices": False},
         })))
         sent = []
-        reader.manager_client.send_observation_ttl = lambda *args: sent.append(args)
+        reader.manager_client.send_observation_json = lambda *args: sent.append(args)
         reader.manager_client.register_device = lambda *args: (_ for _ in ()).throw(
             AssertionError("Registration disabled"))
         reader.handle_measurement_data(observation())

@@ -18,9 +18,9 @@ class ManagerClient:
         self.send_observation_path = send_observation_path
         self.timeout_seconds = timeout_seconds
 
-    def send_observation_ttl(self, ttl: str, reader_id : str , device_id : str ) -> None:
-        if not ttl:
-            raise ValueError("ttl no puede estar vacío")
+    def send_observation_json(self, observation_payload: dict, reader_id : str , device_id : str ) -> None:
+        if not observation_payload:
+            raise ValueError("observation_payload no puede estar vacío")
 
         if not reader_id:
             raise ValueError("reader_id no puede estar vacío")
@@ -40,8 +40,8 @@ class ManagerClient:
         payload = {
             "token": self.token,
             "eventType": "observation",
-            "payloadFormat": "text/turtle",
-            "payload": ttl,
+            "payloadFormat": "application/json",
+            "payload": observation_payload,
             "deviceId": device_id,
             "readerId": reader_id,
         }

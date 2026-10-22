@@ -18,12 +18,12 @@
 ManagerClient manager(MANAGER_URL, MANAGER_TOKEN);
 
 bool sendToManager(
-    const std::string& ttl,
+    const std::string& observation_payload,
     const std::string& readerId,
     const std::string& deviceId
 ) {
-    bool ok = manager.sendObservationTTL(
-        String(ttl.c_str()),
+    bool ok = manager.sendObservationJSON(
+        String(observation_payload.c_str()),
         String(readerId.c_str()),
         String(deviceId.c_str())
     );

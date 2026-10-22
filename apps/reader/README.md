@@ -89,7 +89,7 @@ global del protocolo):
 | `GET /observations/stream` | Stream SSE de observaciones |
 
 Cada evento SSE `observation` contiene JSON con `readerId`, `deviceId`,
-`eventType`, `payloadFormat` y el `payload` Turtle. El payload conserva el
+`eventType`, `payloadFormat: "application/json"` y un objeto JSON en `payload`. El payload conserva el
 identificador de la observación. Cada consumidor recibe su propia copia.
 
 Para probar un reader autónomo con métricas locales:
@@ -439,3 +439,34 @@ O completa:
 ```
 
 El salto de línea importa porque la lectura se hace con `readline()`.
+
+## Formato de salida de las observaciones
+
+Python y C++ envían los mismos campos de observación en JSON. El cliente del
+Manager envía este objeto dentro de `payload`, sin convertirlo en una cadena:
+
+```json
+{
+  "eventType": "observation",
+  "readerId": "reader-1",
+  "deviceId": "prueba2",
+  "payloadFormat": "application/json",
+  "payload": {
+    "observation_id": "obs-1",
+    "device_id": "prueba2",
+    "sensor_id": "temp1",
+    "observable_property": "temperatura",
+    "simple_result": "36.7",
+    "phenomenon_time": "2026-10-22T10:00:00+00:00",
+    "feature_of_interest": "patient-001",
+    "procedure": "termorreceptor",
+    "unit": "CELSIUS"
+  }
+}
+```
+
+El cliente añade también el token del Manager. Los identificadores conservan su
+valor original. Python conserva el tipo de `simple_result`; en el modelo C++
+este campo es una cadena. Una unidad ausente es `null` en Python o una cadena
+vacía en C++. El callback del core Python recibe un diccionario; el de C++,
+una cadena JSON que el cliente Arduino inserta como objeto en la petición.

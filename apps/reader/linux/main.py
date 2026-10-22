@@ -91,13 +91,13 @@ class Reader:
                 stream_enabled=config_bool(server, "stream_enabled", True),
             )
 
-    def publish(self, ttl, reader_id, device_id):
+    def publish(self, observation_payload, reader_id, device_id):
         self.stream.publish({
             "eventType": "observation", "readerId": reader_id,
-            "deviceId": device_id, "payloadFormat": "text/turtle", "payload": ttl,
+            "deviceId": device_id, "payloadFormat": "application/json", "payload": observation_payload,
         })
         if self.manager_output:
-            self.manager_output.publish(ttl, reader_id, device_id)
+            self.manager_output.publish(observation_payload, reader_id, device_id)
 
     def handle_measurement_data(self, observation: Observation) -> bool:
         return self.core.handle_measurement_data(observation)
@@ -141,7 +141,7 @@ Qué hace:
   - Escucha puertos serie configurados, incluidos RFCOMM expuestos como /dev/rfcomm*.
   - Acepta mensajes serie en JSON, sensor:valor o valor plano.
   - Completa valores planos con la configuración del puerto y del sensor.
-  - Convierte cada medición en una observación SOSA/Turtle.
+  - Convierte cada medición en una observación JSON.
   - Publica por stream y/o envía al Manager según communication.
 
 Configuración de conflictos:

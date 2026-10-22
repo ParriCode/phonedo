@@ -27,8 +27,8 @@ public:
     String lastError;
     String lastResponseBody;
 
-    bool sendObservationTTL(
-        const String& ttl,
+    bool sendObservationJSON(
+        const String& observation_payload,
         const String& readerId,
         const String& deviceId
     );

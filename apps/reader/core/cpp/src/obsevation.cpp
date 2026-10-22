@@ -41,7 +41,16 @@ std::string Observation::escapeJson(const std::string& value) {
             case '\n': escaped += "\\n"; break;
             case '\r': escaped += "\\r"; break;
             case '\t': escaped += "\\t"; break;
-            default: escaped += c; break;
+            default:
+                if (static_cast<unsigned char>(c) < 0x20) {
+                    const char* hex = "0123456789abcdef";
+                    escaped += "\\u00";
+                    escaped += hex[(static_cast<unsigned char>(c) >> 4) & 0xf];
+                    escaped += hex[static_cast<unsigned char>(c) & 0xf];
+                } else {
+                    escaped += c;
+                }
+                break;
         }
     }
     return escaped;

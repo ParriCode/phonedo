@@ -130,16 +130,16 @@ def build_reader(config_path: Path, **kwargs) -> Reader:
 def capture_manager_send(reader: Reader) -> list[dict[str, str]]:
     sent_events = []
 
-    def capture_send(ttl: str, reader_id: str, device_id: str) -> None:
+    def capture_send(payload: dict, reader_id: str, device_id: str) -> None:
         sent_events.append(
             {
-                "ttl": ttl,
+                "payload": payload,
                 "reader_id": reader_id,
                 "device_id": device_id,
             }
         )
 
-    reader.manager_client.send_observation_ttl = capture_send
+    reader.manager_client.send_observation_json = capture_send
     return sent_events
 
 
@@ -164,19 +164,19 @@ def send_rfcomm_to_reader(reader: Reader, raw: bytes, port: str = "/dev/rfcomm1"
 def test_reader_processes_configured_json_value(tmp_path, capsys):
     # Descripción del test:
     # Simula un JSON mínimo recibido por RFCOMM y comprueba que el Reader usa la
-    # configuración local para device, sensor, semántica, unidad y envío TTL.
+    # configuración local para device, sensor, semántica, unidad y envío JSON.
     reader = build_reader(write_reader_config(tmp_path))
 
     event = send_rfcomm_to_reader(reader, b'{"value":"45.3"}\n')
 
     assert event["device_id"] == "prueba2"
-    assert "ph:prueba2 a sosa:Platform" in event["ttl"]
-    assert "ph:temp1" in event["ttl"]
-    assert "sosa:observes ph:temperatura" in event["ttl"]
-    assert "sosa:usedProcedure ph:termorreceptor" in event["ttl"]
-    assert "sosa:hasFeatureOfInterest ph:patient-001" in event["ttl"]
-    assert "qudt:value 45.3" in event["ttl"]
-    assert "qudt:hasUnit unit:CELSIUS" in event["ttl"]
+    assert event["payload"]["device_id"] == 'prueba2'
+    assert event["payload"]["sensor_id"] == 'temp1'
+    assert event["payload"]["observable_property"] == 'temperatura'
+    assert event["payload"]["procedure"] == 'termorreceptor'
+    assert event["payload"]["feature_of_interest"] == 'patient-001'
+    assert event["payload"]["simple_result"] == '45.3'
+    assert event["payload"]["unit"] == 'CELSIUS'
 
 
 def test_reader_processes_raw_configured_value(tmp_path):
@@ -187,8 +187,8 @@ def test_reader_processes_raw_configured_value(tmp_path):
     event = send_rfcomm_to_reader(reader, b"83.4\n")
 
     assert event["device_id"] == "prueba2"
-    assert "sosa:madeBySensor ph:temp1" in event["ttl"]
-    assert "qudt:value 83.4" in event["ttl"]
+    assert event["payload"]["sensor_id"] == 'temp1'
+    assert event["payload"]["simple_result"] == '83.4'
 
 
 def test_reader_processes_json_sensor_value(tmp_path):
@@ -200,8 +200,8 @@ def test_reader_processes_json_sensor_value(tmp_path):
     event = send_rfcomm_to_reader(reader, b'{"sensor_id":"temp1","value":"45.3"}\n')
 
     assert event["device_id"] == "prueba2"
-    assert "sosa:madeBySensor ph:temp1" in event["ttl"]
-    assert "sosa:observes ph:temperatura" in event["ttl"]
+    assert event["payload"]["sensor_id"] == 'temp1'
+    assert event["payload"]["observable_property"] == 'temperatura'
 
 
 def test_reader_processes_complete_json_rfcomm_message(tmp_path):
@@ -217,10 +217,10 @@ def test_reader_processes_complete_json_rfcomm_message(tmp_path):
 
     event = send_rfcomm_to_reader(reader, raw)
 
-    assert "ph:prueba2 a sosa:Platform" in event["ttl"]
-    assert "sosa:madeBySensor ph:temp1" in event["ttl"]
-    assert "sosa:observedProperty ph:temperatura" in event["ttl"]
-    assert "qudt:hasUnit unit:CELSIUS" in event["ttl"]
+    assert event["payload"]["device_id"] == 'prueba2'
+    assert event["payload"]["sensor_id"] == 'temp1'
+    assert event["payload"]["observable_property"] == 'temperatura'
+    assert event["payload"]["unit"] == 'CELSIUS'
 
 
 def test_json_value_without_configured_sensor_uses_fallback(tmp_path):
@@ -232,9 +232,9 @@ def test_json_value_without_configured_sensor_uses_fallback(tmp_path):
     event = send_rfcomm_to_reader(reader, b'{"value":"45.3"}\n')
 
     assert event["device_id"] == "prueba2"
-    assert "sosa:madeBySensor ph:dev-rfcomm1" in event["ttl"]
-    assert "sosa:observedProperty ph:unknown" in event["ttl"]
-    assert "sosa:hasSimpleResult \"45.3\"" in event["ttl"]
+    assert event["payload"]["sensor_id"] == '/dev/rfcomm1'
+    assert event["payload"]["observable_property"] == 'unknown'
+    assert event["payload"]["simple_result"] == '45.3'
 
 
 def test_unknown_rfcomm_port_uses_reader_fallback_device(tmp_path):
@@ -246,8 +246,8 @@ def test_unknown_rfcomm_port_uses_reader_fallback_device(tmp_path):
     event = send_rfcomm_to_reader(reader, b'{"value":"45.3"}\n', port="/dev/rfcomm9")
 
     assert event["device_id"] == "reader"
-    assert "sosa:madeBySensor ph:dev-rfcomm9" in event["ttl"]
-    assert "sosa:observedProperty ph:unknown" in event["ttl"]
+    assert event["payload"]["sensor_id"] == '/dev/rfcomm9'
+    assert event["payload"]["observable_property"] == 'unknown'
 
 
 def test_portable_sensor_without_device_id_can_arrive_on_any_rfcomm_port(tmp_path):
@@ -263,8 +263,8 @@ def test_portable_sensor_without_device_id_can_arrive_on_any_rfcomm_port(tmp_pat
     )
 
     assert event["device_id"] == "reader"
-    assert "sosa:madeBySensor ph:temp1" in event["ttl"]
-    assert "sosa:observedProperty ph:temperatura" in event["ttl"]
+    assert event["payload"]["sensor_id"] == 'temp1'
+    assert event["payload"]["observable_property"] == 'temperatura'
 
 
 def test_single_portable_sensor_accepts_raw_value_on_any_rfcomm_port(tmp_path):
@@ -276,8 +276,8 @@ def test_single_portable_sensor_accepts_raw_value_on_any_rfcomm_port(tmp_path):
     event = send_rfcomm_to_reader(reader, b"45.3\n", port="/dev/rfcomm9")
 
     assert event["device_id"] == "reader"
-    assert "sosa:madeBySensor ph:temp1" in event["ttl"]
-    assert "sosa:observedProperty ph:temperatura" in event["ttl"]
+    assert event["payload"]["sensor_id"] == 'temp1'
+    assert event["payload"]["observable_property"] == 'temperatura'
 
 
 def test_sensor_with_device_id_is_rejected_on_wrong_rfcomm_port(tmp_path):
@@ -376,7 +376,7 @@ def test_device_conflict_can_be_allowed(tmp_path):
     )
 
     assert event["device_id"] == "otro"
-    assert "ph:otro a sosa:Platform" in event["ttl"]
+    assert event["payload"]["device_id"] == 'otro'
 
 
 def test_sensor_conflict_can_be_allowed(tmp_path):
@@ -391,9 +391,9 @@ def test_sensor_conflict_can_be_allowed(tmp_path):
 
     event = send_rfcomm_to_reader(reader, raw)
 
-    assert "sosa:madeBySensor ph:temp2" in event["ttl"]
-    assert "sosa:observedProperty ph:presion" in event["ttl"]
-    assert "sosa:usedProcedure ph:barometro" in event["ttl"]
+    assert event["payload"]["sensor_id"] == 'temp2'
+    assert event["payload"]["observable_property"] == 'presion'
+    assert event["payload"]["procedure"] == 'barometro'
 
 
 def test_new_allowed_sensor_without_metadata_does_not_inherit_old_semantics(tmp_path):
@@ -404,9 +404,9 @@ def test_new_allowed_sensor_without_metadata_does_not_inherit_old_semantics(tmp_
 
     event = send_rfcomm_to_reader(reader, b'{"sensor_id":"temp2","value":"45.3"}\n')
 
-    assert "sosa:madeBySensor ph:temp2" in event["ttl"]
-    assert "sosa:observedProperty ph:unknown" in event["ttl"]
-    assert "sosa:usedProcedure ph:unknown" in event["ttl"]
+    assert event["payload"]["sensor_id"] == 'temp2'
+    assert event["payload"]["observable_property"] == 'unknown'
+    assert event["payload"]["procedure"] == ''
 
 
 def test_new_allowed_sensor_with_json_uses_received_metadata(tmp_path):
@@ -421,51 +421,44 @@ def test_new_allowed_sensor_with_json_uses_received_metadata(tmp_path):
 
     event = send_rfcomm_to_reader(reader, raw)
 
-    assert "sosa:madeBySensor ph:temp2" in event["ttl"]
-    assert "sosa:observedProperty ph:presion" in event["ttl"]
-    assert "sosa:usedProcedure ph:barometro" in event["ttl"]
+    assert event["payload"]["sensor_id"] == 'temp2'
+    assert event["payload"]["observable_property"] == 'presion'
+    assert event["payload"]["procedure"] == 'barometro'
 
 
-def test_unit_generates_qudt_result(tmp_path):
+def test_json_preserves_configured_unit(tmp_path):
     # Descripción del test:
-    # Comprueba que una unidad configurada genera sosa:hasResult con QUDT en vez
-    # de perder la unidad en hasSimpleResult.
+    # Comprueba que el JSON conserva la unidad configurada.
     reader = build_reader(write_reader_config(tmp_path, unit="CELSIUS"))
 
     event = send_rfcomm_to_reader(reader, b'{"value":"45.3"}\n')
 
-    assert "@prefix qudt:" in event["ttl"]
-    assert "sosa:hasResult [" in event["ttl"]
-    assert "qudt:value 45.3" in event["ttl"]
-    assert "qudt:hasUnit unit:CELSIUS" in event["ttl"]
+    assert event["payload"]["simple_result"] == '45.3'
+    assert event["payload"]["unit"] == 'CELSIUS'
 
 
 def test_missing_unit_generates_simple_result(tmp_path):
     # Descripción del test:
     # Comprueba que cuando no hay unidad configurada se mantiene el resultado
-    # simple SOSA.
+    # simple en JSON.
     reader = build_reader(write_reader_config(tmp_path, unit=None))
 
     event = send_rfcomm_to_reader(reader, b'{"value":"45.3"}\n')
 
-    assert "@prefix qudt:" not in event["ttl"]
-    assert "sosa:hasSimpleResult \"45.3\"" in event["ttl"]
+    assert event["payload"]["unit"] in (None, "", "UNKNOWN", "unknown")
+    assert event["payload"]["simple_result"] == '45.3'
 
 
-def test_rdf_identifiers_use_ph_prefix_without_extra_resource_prefixes(tmp_path):
+def test_json_preserves_identifiers(tmp_path):
     # Descripción del test:
-    # Comprueba que los identificadores RDF usan ph:valor y no prefijos
-    # inventados como ph:device-valor o ph:sensor-valor.
+    # Comprueba que el JSON conserva los identificadores originales.
     reader = build_reader(write_reader_config(tmp_path, unit=None))
 
     event = send_rfcomm_to_reader(reader, b'{"value":"45.3"}\n')
 
-    assert "ph:prueba2 a sosa:Platform" in event["ttl"]
-    assert "sosa:madeBySensor ph:temp1" in event["ttl"]
-    assert "ph:temperatura a sosa:ObservableProperty" in event["ttl"]
-    assert "ph:device-" not in event["ttl"]
-    assert "ph:sensor-" not in event["ttl"]
-    assert "ph:property-" not in event["ttl"]
+    assert event["payload"]["device_id"] == 'prueba2'
+    assert event["payload"]["sensor_id"] == 'temp1'
+    assert event["payload"]["observable_property"] == 'temperatura'
 
 
 def test_help_does_not_start_reader(monkeypatch, capsys):
@@ -647,12 +640,12 @@ def test_multiple_configured_sensors_same_device_are_selected_by_sensor_id(tmp_p
         ),
     )
 
-    assert "sosa:madeBySensor ph:temp1" in temp_event["ttl"]
-    assert "sosa:observedProperty ph:temperatura" in temp_event["ttl"]
-    assert "sosa:usedProcedure ph:termorreceptor" in temp_event["ttl"]
-    assert "sosa:madeBySensor ph:hr1" in hr_event["ttl"]
-    assert "sosa:observedProperty ph:frecuencia-cardiaca" in hr_event["ttl"]
-    assert "sosa:usedProcedure ph:pulsometro" in hr_event["ttl"]
+    assert temp_event["payload"]["sensor_id"] == 'temp1'
+    assert temp_event["payload"]["observable_property"] == 'temperatura'
+    assert temp_event["payload"]["procedure"] == 'termorreceptor'
+    assert hr_event["payload"]["sensor_id"] == 'hr1'
+    assert hr_event["payload"]["observable_property"] == 'frecuencia-cardiaca'
+    assert hr_event["payload"]["procedure"] == 'pulsometro'
 
 
 def test_adding_new_sensor_is_not_treated_as_conflict_when_reader_is_dynamic(tmp_path):
@@ -673,8 +666,8 @@ def test_adding_new_sensor_is_not_treated_as_conflict_when_reader_is_dynamic(tmp
     )
 
     assert reader.core.get_device("prueba2").has_sensor("temp2")
-    assert "sosa:madeBySensor ph:temp2" in event["ttl"]
-    assert "sosa:observedProperty ph:frecuencia-cardiaca" in event["ttl"]
+    assert event["payload"]["sensor_id"] == 'temp2'
+    assert event["payload"]["observable_property"] == 'frecuencia-cardiaca'
 
 
 def test_static_device_rejects_new_sensor_even_if_conflicts_are_allowed(tmp_path):

@@ -20,9 +20,9 @@ class ManagerOutput:
         if self.register:
             self._enqueue(("register", device.device_id))
 
-    def publish(self, ttl, reader_id, device_id):
+    def publish(self, observation_payload, reader_id, device_id):
         if self.send:
-            self._enqueue(("observation", (ttl, reader_id, device_id)))
+            self._enqueue(("observation", (observation_payload, reader_id, device_id)))
 
     def _enqueue(self, item):
         try:
@@ -41,9 +41,9 @@ class ManagerOutput:
         if kind == "register":
             self._ensure_registered(value)
         else:
-            ttl, reader_id, device_id = value
+            observation_payload, reader_id, device_id = value
             self._ensure_registered(device_id)
-            self.client.send_observation_ttl(ttl, reader_id, device_id)
+            self.client.send_observation_json(observation_payload, reader_id, device_id)
 
     async def deliver_next(self):
         item = await self.queue.get()

@@ -7,7 +7,6 @@
 #include "device.h"
 #include "sensor.h"
 #include "observation.h"
-#include "serializer.h"
 
 #ifndef PHONENDO_MAX_DEVICES
 #define PHONENDO_MAX_DEVICES 16
@@ -24,7 +23,7 @@ class ReaderCore {
 public:
     using OnRegisterCallback = void (*)(const std::string& readerId, Device& device);
     using OnSendCallback = bool (*)(
-        const std::string& ttl,
+        const std::string& observation_payload,
         const std::string& readerId,
         const std::string& deviceId
     );

@@ -7,7 +7,6 @@ from typing import Any, Callable, Dict, Optional
 from reader_core.device import Device
 from reader_core.observation import Observation
 from reader_core.sensor import Sensor
-from reader_core.serializer import SosaTTLSerializer
 from uuid import uuid4
 
 
@@ -22,11 +21,10 @@ class ReaderCore:
 
 
         on_register_device: Optional[Callable[[str, Device], None]] = None,
-        on_send: Optional[Callable[[str, str, str], None]] = None,
+        on_send: Optional[Callable[[dict, str, str], None]] = None,
     ) -> None:
         self.reader_id = reader_id or str(uuid4())
         self.devices: Dict[str, Device] = {}
-        self.serializer = SosaTTLSerializer()
         self.allow_new_devices = allow_new_devices
         self.allow_new_sensors = allow_new_sensors
 
@@ -149,7 +147,7 @@ class ReaderCore:
         return observation
 
     def send_observation( self, observation: Observation) -> None:
-        """Serializa una Observation en SOSA TTL y notifica a la salida."""
+        """Serializa una Observation en JSON y notifica a la salida."""
         if observation is None:
             raise ValueError("observation no puede ser None")
 
@@ -159,7 +157,7 @@ class ReaderCore:
         if self.get_device(observation.device_id) is None:
             raise KeyError(f"No existe el dispositivo '{observation.device_id}'")
 
-        ttl = self.serializer.serialize(observation=observation,)
+        observation_payload = observation.to_dict()
 
         if self.on_send is not None:
-            self.on_send(ttl, self.reader_id, observation.device_id)
+            self.on_send(observation_payload, self.reader_id, observation.device_id)

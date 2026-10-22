@@ -41,7 +41,7 @@ class ReaderServer:
         return web.json_response({
             "readerId": self.core.reader_id,
             "capabilities": {"stream": self.stream_enabled},
-            "payloadFormats": ["text/turtle"],
+            "payloadFormats": ["application/json"],
         })
 
     async def devices(self, request):
