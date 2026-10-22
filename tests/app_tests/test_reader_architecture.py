@@ -39,7 +39,7 @@ for module in ('aiohttp', 'requests', 'serial', 'bleak', 'logger', 'implementati
     assert module not in sys.modules, module
 '''
     subprocess.run([sys.executable, '-I', '-S', '-c', code,
-                    str(READER / 'core/python'), str(READER / 'server/python')],
+                    str(READER / 'python/core'), str(READER / 'python/server')],
                    cwd=tmp_path, check=True, capture_output=True, text=True)
 
 
@@ -130,13 +130,13 @@ def test_runtime_source_failure_cancels_worker_and_stops_server():
 def compile_cpp(tmp_path, code, *, server=False):
     source = tmp_path / 'test.cpp'
     source.write_text(code)
-    core = READER / 'core/cpp'
+    core = READER / 'cpp/core'
     binary = tmp_path / 'test'
     # Defining ARDUINO must not pull Arduino.h into the portable libraries.
     command = ['g++', '-std=c++17', '-Wall', '-Wextra', '-Werror', '-DARDUINO',
                '-I', str(core / 'include'), str(source), *map(str, sorted((core / 'src').glob('*.cpp')))]
     if server:
-        layer = READER / 'server/cpp'
+        layer = READER / 'cpp/server'
         command += ['-I', str(layer / 'include'), *map(str, sorted((layer / 'src').glob('*.cpp')))]
     subprocess.run([*command, '-o', str(binary)], check=True, capture_output=True, text=True)
     subprocess.run([str(binary)], check=True)

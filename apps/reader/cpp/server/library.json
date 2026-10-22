@@ -2,8 +2,13 @@
   "name": "PhonendoReaderServer",
   "version": "0.1.0",
   "description": "Portable Reader application ports and JSON serialization",
-  "build": {"srcDir": "cpp/src", "includeDir": "cpp/include"},
-  "dependencies": {"PhonendoReaderCore": "*"},
+  "build": {
+    "srcDir": "src",
+    "includeDir": "include"
+  },
+  "dependencies": {
+    "PhonendoReaderCore": "*"
+  },
   "frameworks": "*",
   "platforms": "*"
 }

@@ -6,7 +6,7 @@ from pathlib import Path
 
 READER_DIR = Path(__file__).resolve().parents[2]
 ROOT_DIR = READER_DIR.parents[1]
-for path in (ROOT_DIR / "libs", READER_DIR, READER_DIR / "core/python", READER_DIR / "server/python"):
+for path in (ROOT_DIR / "libs", READER_DIR, READER_DIR / "python/core", READER_DIR / "python/server"):
     sys.path.insert(0, str(path))
 
 import os

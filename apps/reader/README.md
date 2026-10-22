@@ -9,12 +9,12 @@ El flujo actual está simplificado: la identidad va por `device_id`, no por MAC,
 
 ```text
 apps/reader/
-├── core/
-│   ├── python/reader_core/     # ReaderCore, Device, Sensor, Observation
-│   └── cpp/{include,src}/      # El mismo modelo en C++
-├── server/
-│   ├── python/reader_server/  # Fachada, contratos, ciclo de vida, stream y JSON
-│   └── cpp/{include,src}/     # Fachada, puertos de salida y JSON
+├── python/
+│   ├── core/reader_core/      # ReaderCore, Device, Sensor, Observation
+│   └── server/reader_server/  # Servidor, servicio, stream y serialización
+├── cpp/
+│   ├── core/                 # include/, src/ y library.json
+│   └── server/               # include/, src/ y library.json
 └── implementations/
     ├── linux/
     │   ├── main.py            # CLI y composición explícita
@@ -533,7 +533,7 @@ se admite un `default_device_id` explícito.
 Uso del core Python sin Linux ni servidor:
 
 ```sh
-PYTHONPATH=apps/reader/core/python python3 -c 'from reader_core import ReaderCore; print(ReaderCore("example").reader_id)'
+PYTHONPATH=apps/reader/python/core python3 -c 'from reader_core import ReaderCore; print(ReaderCore("example").reader_id)'
 ```
 
 Pruebas de contrato, independencia de capas y transportes:

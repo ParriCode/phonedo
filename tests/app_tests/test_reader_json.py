@@ -8,7 +8,7 @@ import sys
 import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(ROOT / 'apps/reader/core/python'))
+sys.path.insert(0, str(ROOT / 'apps/reader/python/core'))
 sys.path.insert(0, str(ROOT / 'apps/reader'))
 from reader_core.observation import Observation
 from reader_server.serialization import observation_to_dict
@@ -17,7 +17,7 @@ from implementations.linux.communication.manager_client import ManagerClient
 
 
 def test_cpp_and_python_json_preserve_values(tmp_path):
-    cpp = ROOT / 'apps/reader/core/cpp'
+    cpp = ROOT / 'apps/reader/cpp/core'
     source = tmp_path / 'json_test.cpp'
     source.write_text(r'''
 #include "observation.h"
@@ -33,8 +33,8 @@ int main() {
     binary = tmp_path / 'json_test'
     subprocess.run(['g++', '-std=c++17', '-Wall', '-Wextra', '-I', str(cpp / 'include'),
                     str(source), *map(str, sorted((cpp / 'src').glob('*.cpp'))),
-                    '-I', str(ROOT / 'apps/reader/server/cpp/include'),
-                    *map(str, sorted((ROOT / 'apps/reader/server/cpp/src').glob('*.cpp'))),
+                    '-I', str(ROOT / 'apps/reader/cpp/server/include'),
+                    *map(str, sorted((ROOT / 'apps/reader/cpp/server/src').glob('*.cpp'))),
                     '-o', str(binary)], check=True, capture_output=True, text=True)
     actual = json.loads(subprocess.check_output([str(binary)], text=True))
     observation = Observation(
@@ -117,7 +117,7 @@ def test_core_config_requires_explicit_default_device():
 
 
 def test_cpp_core_emits_observation_without_rebuilding(tmp_path):
-    cpp = ROOT / 'apps/reader/core/cpp'
+    cpp = ROOT / 'apps/reader/cpp/core'
     source = tmp_path / 'core_test.cpp'
     source.write_text(r'''
 #include "core.h"
@@ -160,7 +160,7 @@ int main() {
     binary = tmp_path / 'core_test'
     subprocess.run(['g++', '-std=c++17', '-Wall', '-Wextra', '-I', str(cpp / 'include'),
                     str(source), *map(str, sorted((cpp / 'src').glob('*.cpp'))),
-                    '-I', str(ROOT / 'apps/reader/server/cpp/include'),
-                    *map(str, sorted((ROOT / 'apps/reader/server/cpp/src').glob('*.cpp'))),
+                    '-I', str(ROOT / 'apps/reader/cpp/server/include'),
+                    *map(str, sorted((ROOT / 'apps/reader/cpp/server/src').glob('*.cpp'))),
                     '-o', str(binary)], check=True, capture_output=True, text=True)
     subprocess.run([str(binary)], check=True)
