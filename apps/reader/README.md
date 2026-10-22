@@ -1,6 +1,7 @@
 # Phonendo Reader
 
-Reader de Phonendo. El core vive en C++ portable y los runtimes quedan separados por plataforma.
+Reader de Phonendo. El runtime Linux utiliza actualmente el core Python.
+También se conserva el core C++ y el runtime Arduino.
 
 El flujo actual está simplificado: la identidad va por `device_id`, no por MAC, y el `serial_manager` solo acepta un formato de mensaje.
 
@@ -9,14 +10,23 @@ El flujo actual está simplificado: la identidad va por `device_id`, no por MAC,
 ```text
 apps/reader/
 ├── core/
-│   ├── src/
-│   └── bindings/
+│   ├── cpp/
+│   └── python/
 ├── linux/
 │   ├── main.py
-│   ├── cpp_reader_core.py
+│   ├── config.py
 │   ├── devices_and_sensors.json
-│   ├── bluetooth_manager/
-│   └── serial_manager/
+│   ├── stream.example.json
+│   ├── sources/
+│   │   ├── base.py
+│   │   ├── bluetooth.py
+│   │   ├── serial.py
+│   │   └── local_metrics.py
+│   └── communication/
+│       ├── server.py
+│       ├── stream.py
+│       ├── manager_client.py
+│       └── manager_output.py
 └── arduino/
     ├── platformio.ini
     └── src/
@@ -28,11 +38,80 @@ apps/reader/
 2. Crea `ReaderCore`.
 3. Carga `devices_and_sensors.json`.
 4. Registra los `Device` y `Sensor` configurados.
-5. Arranca los managers activos.
-6. `SerialDeviceManager` detecta puertos y lee líneas.
+5. Arranca las fuentes y los transportes habilitados.
+6. `SerialSource` detecta puertos y lee líneas.
 7. Cada línea JSON válida se convierte en `Observation`.
 8. `Reader` busca o crea el `Device` y `Sensor`.
-9. `ReaderCore` genera la observación final y la envía al Manager.
+9. `ReaderCore` serializa la observación y notifica su salida mediante un callback.
+10. El runtime la distribuye al stream y/o al cliente de manager configurado.
+
+El core no necesita manager ni HTTP. Las fuentes entregan objetos
+`Observation` y ofrecen métodos asíncronos `start()` y `stop()`.
+Para añadir una fuente, implementa ese contrato y añade su construcción en
+`linux/sources/__init__.py`. Las dependencias de hardware se cargan solo al
+habilitar la fuente correspondiente.
+
+## Comunicación y fuentes configurables
+
+El JSON admite bloques `sources` y `communication`. Las fuentes pueden ser
+`serial`, `bluetooth.ble` y `local_metrics`. Cada una se habilita con
+`enabled`; sus parámetros quedan en el mismo bloque.
+Se siguen aceptando las claves antiguas `serial` y `bluetooth` en la raíz.
+Las opciones de `sources` sustituyen al bloque antiguo correspondiente.
+
+La comunicación se configura independientemente:
+
+- `communication.server.enabled`: habilita el servidor HTTP.
+- `communication.server.stream_enabled`: habilita el stream SSE.
+- `communication.server.host` y `port`: escucha local por defecto en 127.0.0.1:3002.
+- `communication.server.token`: token Bearer; alternativamente `API_TOKEN_READER`.
+  Si ambos están vacíos, el servidor permite acceso sin autenticación.
+- `communication.manager.enabled`: habilita la salida hacia un manager.
+- `communication.manager.url` y `token`: destino y credenciales; por defecto
+  usa `INTERNAL_URL_MANAGER` y `API_TOKEN_MANAGER`.
+- `communication.manager.register_devices` y `send_observations`: activan
+  por separado el registro de dispositivos y el envío.
+
+Si no existe `communication`, se conserva el envío al manager de la configuración
+anterior. Si existe, servidor y manager están deshabilitados salvo activación
+explícita. Ambos pueden funcionar simultáneamente. El registro remoto se ejecuta
+en el worker de comunicación, no durante la construcción del Reader.
+Las variables del entorno del proceso prevalecen sobre `config.env`.
+
+Endpoints iniciales del servidor (contrato local, pendiente de especificación
+global del protocolo):
+
+| Método y ruta | Resultado |
+| --- | --- |
+| `GET /health` | Estado del servicio |
+| `GET /metadata` | Identidad y capacidad de streaming |
+| `GET /devices` | Dispositivos conocidos y sus identificadores de sensores |
+| `GET /observations/stream` | Stream SSE de observaciones |
+
+Cada evento SSE `observation` contiene JSON con `readerId`, `deviceId`,
+`eventType`, `payloadFormat` y el `payload` Turtle. El payload conserva el
+identificador de la observación. Cada consumidor recibe su propia copia.
+
+Para probar un reader autónomo con métricas locales:
+
+```sh
+python3 -m pip install -r apps/reader/linux/requirements.txt
+python3 apps/reader/linux/main.py --config stream.example.json
+curl -N http://127.0.0.1:3002/observations/stream
+```
+
+El stream es en vivo: no persiste eventos ni permite recuperar los perdidos
+durante una desconexión. Cada consumidor tiene una cola limitada por
+`server.queue_size` (256 por defecto); si se llena, se descarta su cola y se
+cierra esa suscripción con el evento `stream_closed`. Los demás continúan.
+
+La salida al manager utiliza otra cola y ejecuta HTTP fuera del bucle de
+captura. Registra cada dispositivo antes de enviar sus observaciones cuando
+el registro está habilitado. Los errores de entrega y los desbordamientos
+quedan en el log; no hay persistencia ni reintento de observaciones fallidas.
+Una inscripción fallida se vuelve a intentar al enviar la siguiente observación.
+Al detener el reader se cierran las fuentes y el servidor; los eventos
+pendientes en memoria no se conservan.
 
 ## Configuración
 

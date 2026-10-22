@@ -10,10 +10,10 @@ from typing import Awaitable, Callable
 import serial
 
 from logger import Logger
-from cpp_reader_core import Observation
+from reader_core.observation import Observation
 
 
-class SerialDeviceManager:
+class SerialSource:
     def __init__(
         self,
         on_measurement: Callable[[Observation], None | Awaitable[None]],

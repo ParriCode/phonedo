@@ -36,10 +36,11 @@ class ReaderCore:
 
     def register_device(self, device: Device) -> None:
         """
-        Registra el dispositivo localmente y también en el Manager.
+        Registra el dispositivo localmente y notifica al adaptador configurado.
         """
         self.add_device(device)
-        self.on_register_device(self.reader_id, device)
+        if self.on_register_device is not None:
+            self.on_register_device(self.reader_id, device)
 
 
     def add_device(self, device: Device) -> None:
@@ -148,7 +149,7 @@ class ReaderCore:
         return observation
 
     def send_observation( self, observation: Observation) -> None:
-        """Serializa una Observation en SOSA TTL y la manda al Manager."""
+        """Serializa una Observation en SOSA TTL y notifica a la salida."""
         if observation is None:
             raise ValueError("observation no puede ser None")
 
@@ -160,4 +161,5 @@ class ReaderCore:
 
         ttl = self.serializer.serialize(observation=observation,)
 
-        self.on_send(ttl, self.reader_id,  observation.device_id)
+        if self.on_send is not None:
+            self.on_send(ttl, self.reader_id, observation.device_id)

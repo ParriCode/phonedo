@@ -1,18 +1,8 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-
 import requests
 import time 
-
-
-@dataclass
-class ReaderConfig:
-    enable_bluetooth: bool = True
-    enable_http: bool = True
-    enable_local: bool = True
-    manager_url: str = ""
-    manager_token: str = ""
+from reader_core.device import Device
 
 
 class ManagerClient:

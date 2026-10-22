@@ -4,254 +4,131 @@ import argparse
 import asyncio
 import os
 import sys
-import types
 from pathlib import Path
-import json
 
 ROOT_DIR = Path(__file__).resolve().parents[3]
-CORE_DIR = ROOT_DIR / "apps" / "reader" / "core" / "python"
-INPUTS_MANAGER_DIR = Path(__file__).resolve().parent / "inputs_manager"
 sys.path.insert(0, str(ROOT_DIR / "libs"))
-sys.path.insert(0, str(CORE_DIR))
-sys.path.insert(0, str(INPUTS_MANAGER_DIR))
+sys.path.insert(0, str(ROOT_DIR / "apps/reader/core/python"))
+sys.path.insert(0, str(ROOT_DIR / "apps/reader"))
 
 from logger import Logger
-from manager_client import ManagerClient
 from reader_core.core import ReaderCore
-from reader_core.device import Device
 from reader_core.observation import Observation
-from reader_core.sensor import Sensor
-
-cpp_reader_core = types.ModuleType("cpp_reader_core")
-cpp_reader_core.Device = Device
-cpp_reader_core.ManagerClient = ManagerClient
-cpp_reader_core.Observation = Observation
-cpp_reader_core.ReaderCore = ReaderCore
-cpp_reader_core.Sensor = Sensor
-sys.modules.setdefault("cpp_reader_core", cpp_reader_core)
-
-from bluetooth_manager import BluetoothDeviceManager
-from serial_manager import SerialDeviceManager
+from linux.config import config_bool, load_config, load_env
+from linux.sources import build_sources
+from linux.communication.manager_client import ManagerClient
+from linux.communication.manager_output import ManagerOutput
+from linux.communication.stream import ObservationStream
 
 
 class Reader:
-    def __init__(
-            self,
-            id : str | None = None,
-            config_file: str = "devices_and_sensors.json",
-            verbose: bool | None = None,
-            static: bool | False = False 
-            ):
+    """Compose acquisition sources, the data model, and optional transports."""
 
-        self.verbose = verbose
-        self.reader_id = id if id is not None else "reader"
-        self.static = static
-
-        self.env = self.load_env(Path(__file__).resolve().parent.parent / "config.env")
-        self.init_logger()
-        Logger.info("reader_created", readerId=self.reader_id, configFile=config_file)
-
+    def __init__(self, id: str | None = None,
+                 config_file: str = "devices_and_sensors.json",
+                 verbose: bool | None = None, static: bool = False):
         self.config_file = config_file
-
-        config_path = Path(self.config_file)
-        if not config_path.is_absolute() and not config_path.exists():
-            config_path = Path(__file__).resolve().parent / config_path
-        try:
-            config = self.load_config(config_path) if config_path.exists() else {}
-        except Exception as error:
-            Logger.error("config_load_failed", path=str(config_path), error=str(error))
-            raise
-        Logger.info("config_loaded", path=str(config_path), exists=config_path.exists())
-
-        self.static = self.static or self.config_bool(config, "static", False)
-        self.manager_token = self.env.get("API_TOKEN_MANAGER", "token_manager")
-        self.manager_url = self.env.get("INTERNAL_URL_MANAGER") or "http://127.0.0.1:3003"
-        
-        self.manager_client = ManagerClient(base_url=self.manager_url, token=self.manager_token)
-      
+        path = Path(config_file)
+        if not path.is_absolute() and not path.exists():
+            path = Path(__file__).resolve().parent / path
+        config = load_config(path)
+        self.config = config
+        self.env = {**load_env(Path(__file__).resolve().parent.parent / "config.env"),
+                    **os.environ}
+        self.reader_id = id or config.get("reader_id") or "reader"
+        self.static = static or config_bool(config, "static", False)
+        config = {**config, "static": self.static}
+        Logger.init(
+            self.env.get("PHONENDO_LOGS_DIR", str(ROOT_DIR / "logs/services")),
+            service="reader",
+            verbose=verbose if verbose is not None else config_bool(self.env, "PHONENDO_VERBOSE", False),
+            logging=config_bool(self.env, "PHONENDO_LOGGING", True),
+            dev=config_bool(self.env, "PHONENDO_DEV", False),
+        )
+        communication = config.get("communication", {})
+        # Without this block preserve legacy delivery; otherwise opt in.
+        legacy = "communication" not in config
+        manager = communication.get("manager", {})
+        server = communication.get("server", {})
+        self.stream = ObservationStream(server.get("queue_size", 256))
+        self.manager_client = None
+        self.manager_output = None
+        if config_bool(manager, "enabled", legacy):
+            self.manager_client = ManagerClient(
+                base_url=manager.get("url") or self.env.get("INTERNAL_URL_MANAGER")
+                         or "http://127.0.0.1:3003",
+                token=manager.get("token", self.env.get("API_TOKEN_MANAGER", "token_manager")),
+                timeout_seconds=manager.get("timeout_seconds", 10),
+            )
+            self.manager_output = ManagerOutput(
+                self.manager_client,
+                register=config_bool(manager, "register_devices", True),
+                send=config_bool(manager, "send_observations", True),
+                queue_size=manager.get("queue_size", 256),
+            )
         self.core = ReaderCore(
             reader_id=self.reader_id,
             allow_new_devices=not self.static,
             allow_new_sensors=not self.static,
-            on_register_device=self.manager_client.register_device,
-            on_send=self.manager_client.send_observation_ttl,
+            on_register_device=(self.manager_output.register_device
+                                if self.manager_output else None),
+            on_send=self.publish,
         )
-        self.core.manager_client = self.manager_client
-        Logger.info("manager_configured", managerUrl=self.manager_url)
-
         self.core.load_devices_from_config(config, default_device_id=self.reader_id)
+        self.sources = build_sources(config, self.handle_measurement_data)
+        self.serial_manager = next((s for s in self.sources
+                                    if type(s).__name__ == "SerialSource"), None)
+        self.bluetooth_manager = next((s for s in self.sources
+                                       if type(s).__name__ == "BluetoothSource"), None)
+        self.server = None
+        if config_bool(server, "enabled", False):
+            from linux.communication.server import ReaderServer
+            self.server = ReaderServer(
+                self.core, self.stream,
+                host=server.get("host", "127.0.0.1"),
+                port=server.get("port", 3002),
+                token=server.get("token", self.env.get("API_TOKEN_READER", "")),
+                stream_enabled=config_bool(server, "stream_enabled", True),
+            )
 
-        self.bluetooth_manager = self.bluetooth_manager_from_config(config)
-        self.serial_manager = self.serial_manager_from_config(config)
+    def publish(self, ttl, reader_id, device_id):
+        self.stream.publish({
+            "eventType": "observation", "readerId": reader_id,
+            "deviceId": device_id, "payloadFormat": "text/turtle", "payload": ttl,
+        })
+        if self.manager_output:
+            self.manager_output.publish(ttl, reader_id, device_id)
 
-    async def run(self) -> None:
-        Logger.info("service_starting", readerId=self.reader_id)
-        managers = [
-            manager
-            for manager in (self.bluetooth_manager, self.serial_manager)
-            if manager is not None
-        ]
-
-        if not managers:
-            raise RuntimeError("No hay managers activos. Configura serial o bluetooth BLE.")
-
-        await asyncio.gather(*(manager.start() for manager in managers))
-
-
-    def handle_measurement_data(self, observation: Observation) -> None:
-        self.core.handle_measurement_data(observation)
+    def handle_measurement_data(self, observation: Observation) -> bool:
+        return self.core.handle_measurement_data(observation)
 
     handle_bluetooth_data = handle_measurement_data
     handle_serial_data = handle_measurement_data
 
-
-    def bluetooth_manager_from_config(self, config: dict) -> BluetoothDeviceManager | None:
-
-        bluetooth_json = config.get("bluetooth", {})
-        ble_json = bluetooth_json.get("ble", {})
-
-        if not ble_json.get("enabled", False):
-            return None
-
-        Logger.info("bluetooth_manager_configured")
-
-        return BluetoothDeviceManager(
-            on_measurement=self.handle_measurement_data,
-            scan_timeout_seconds=ble_json.get("scan_timeout_seconds", 2.0),
-            sleep_seconds=ble_json.get("sleep_seconds", 0.5),
-        )
-
-    def serial_manager_from_config(self, config: dict) -> SerialDeviceManager | None:
-        serial_json = config.get("serial", {})
-        if not serial_json and not any(
-            device_json.get("comm") or device_json.get("com")
-            for device_json in config.get("devices", [])
-        ):
-            return None
-
-        serial_devices, serial_sensors = self.serial_config_from_config(config)
-        serial_devices.update(serial_json.get("devices", {}))
-        Logger.info(
-            "serial_manager_configured",
-            ports=serial_json.get("ports", None),
-            devices=list(serial_devices.keys()),
-            sensors=list(serial_sensors.keys()),
-        )
-
-        return SerialDeviceManager(
-            on_measurement=self.handle_measurement_data,
-            port_glob=serial_json.get("glob", "/dev/rfcomm*"),
-            ports=serial_json.get("ports", None),
-            devices=serial_devices,
-            sensors=serial_sensors,
-            baudrate=serial_json.get("baudrate", 9600),
-            read_timeout=serial_json.get("read_timeout", 1.0),
-            poll_seconds=serial_json.get("poll_seconds", 1.0),
-            reconnect_seconds=serial_json.get("reconnect_seconds", 2.0),
-        )
-
-    def serial_config_from_config(self, config: dict) -> tuple[dict[str, dict], dict[str, dict]]:
-        serial_devices = {}
-        serial_sensors = {}
-        devices_by_id = {}
-        reader_static = self.config_bool(config, "static", False)
-        sensors_json = config.get("sensors", [])
-
-        for device_json in config.get("devices", []):
-            comm = device_json.get("comm") or device_json.get("com")
-            if not comm:
-                continue
-
-            device_id = device_json.get("device_id", None)
-            metadata = {
-                "port": comm,
-                "device_id": device_id,
-                "allow_conflicts": self.config_bool(device_json, "allow_conflicts", False),
-                "static": self.config_bool(device_json, "static", False),
-                "reader_static": reader_static,
-            }
-
-            serial_devices[comm] = metadata
-            if device_id:
-                devices_by_id[device_id] = metadata
-
-        for sensor_json in sensors_json:
-            sensor_id = sensor_json.get("sensor_id")
-            if not sensor_id:
-                continue
-
-            device_id = sensor_json.get("device_id")
-            device = devices_by_id.get(device_id, {})
-            metadata = {
-                "sensor_id": sensor_id,
-                "observable_property": sensor_json.get("observable_property", "unknown"),
-                "procedure": sensor_json.get("procedure", "configured-measurement"),
-                "feature_of_interest": sensor_json.get("feature_of_interest", "unknown-feature"),
-                "unit": sensor_json.get("unit", None),
-                "sensor_allow_conflicts": self.config_bool(sensor_json, "allow_conflicts", False),
-                "reader_static": reader_static,
-            }
-
-            if device_id:
-                metadata.update(device_id=device_id, allow_conflicts=device.get("allow_conflicts", False), static=device.get("static", False), port=device.get("port"))
-                if device and sum(1 for sensor in sensors_json if sensor.get("device_id") == device_id) == 1:
-                    device.update(metadata)
-
-            serial_sensors[sensor_id] = metadata
-
-        return serial_devices, serial_sensors
-
-    @staticmethod
-    def load_config(path : Path) -> dict[ str : dict ]: 
-        """
-        Read the file devies_and_sensors.json and load it to dict.
-        This file contains the configuration to understand devices and sensors entry data
-        """
+    async def run(self):
+        if not self.sources and self.server is None:
+            raise RuntimeError("No hay fuentes ni servidor activos.")
+        Logger.info("service_starting", readerId=self.reader_id)
+        tasks = []
         try:
-            with open(path, "r") as  file_: 
-                return  json.load(file_)
-        except FileNotFoundError: 
-            #Sino existe el archivo y SE HA ESPECIFICADO , debe de mostrar error
-            raise FileNotFoundError(f"No existe el archivo: {path}")
-        except json.JSONDecodeError as error:
-            raise ValueError(f"Error al cargar el json: {error}")
-
-    @staticmethod
-    def load_env(path: Path) -> dict[str, str]:
-        values: dict[str, str] = {}
-
-        if not path.exists():
-            return values
-
-        for line in path.read_text(encoding="utf-8").splitlines():
-            line = line.strip()
-             
-
-            if not line or line.startswith("#") or "=" not in line:
-                continue
-
-            key, value = line.split("=", 1)
-            values[key.strip()] = value.strip()
-
-        return values
-
-    def init_logger(self) -> None:
-        Logger.init(
-            os.getenv("PHONENDO_LOGS_DIR", self.env.get("PHONENDO_LOGS_DIR", str(ROOT_DIR / "logs/services"))),
-            service="reader",
-            verbose=self.verbose if self.verbose is not None else self.config_bool(self.env, "PHONENDO_VERBOSE", False),
-            logging=self.config_bool(self.env, "PHONENDO_LOGGING", True),
-            dev=self.config_bool(self.env, "PHONENDO_DEV", False),
-        )
-
-    @staticmethod
-    def config_bool(json_data: dict, key: str, default: bool) -> bool:
-        value = json_data.get(key, default)
-        if isinstance(value, bool):
-            return value
-        if isinstance(value, str):
-            return value.strip().lower() in {"1", "true", "yes", "si", "sí"}
-        return bool(value)
+            if self.server:
+                await self.server.start()
+            if self.manager_output:
+                tasks.append(asyncio.create_task(self.manager_output.run()))
+            tasks.extend(asyncio.create_task(source.start()) for source in self.sources)
+            if tasks:
+                await asyncio.gather(*tasks)
+            else:
+                await asyncio.Event().wait()
+        finally:
+            for task in tasks:
+                task.cancel()
+            await asyncio.gather(*tasks, return_exceptions=True)
+            await asyncio.gather(*(source.stop() for source in self.sources),
+                                 return_exceptions=True)
+            self.stream.close()
+            if self.server:
+                await self.server.stop()
 
 
 def parse_args() -> argparse.Namespace:
@@ -265,7 +142,7 @@ Qué hace:
   - Acepta mensajes serie en JSON, sensor:valor o valor plano.
   - Completa valores planos con la configuración del puerto y del sensor.
   - Convierte cada medición en una observación SOSA/Turtle.
-  - Envía la observación al Manager en /newEvent.
+  - Publica por stream y/o envía al Manager según communication.
 
 Configuración de conflictos:
   - En devices[] y sensors[] se puede poner "allow_conflicts": true o false.
@@ -278,7 +155,7 @@ Ejemplos:
   python3 main.py --reader-id reader-1
 """,
     )
-    parser.add_argument("--reader-id", dest="reader_id", default=None, help="Identificador lógico del Reader. Si no se indica, usa 'reader'.")
+    parser.add_argument("--reader-id", dest="reader_id", default=None, help="Identificador lógico del Reader. Por defecto usa reader_id del JSON o 'reader'.")
     parser.add_argument("--config", default="devices_and_sensors.json", help="Ruta al JSON de configuración de dispositivos, sensores y comunicaciones.")
     parser.add_argument("--verbose", action="store_true", default=None, help="Habilitar salida detallada para depuración.")
     parser.add_argument("--static", action="store_true", help="No descubrir dispositivos o sensores fuera de la configuración.")

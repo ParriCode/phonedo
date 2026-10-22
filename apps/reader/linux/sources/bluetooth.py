@@ -7,10 +7,10 @@ from typing import Awaitable, Callable
 from bleak import BleakScanner
 
 from logger import Logger
-from cpp_reader_core import Observation
+from reader_core.observation import Observation
 
 
-class BluetoothDeviceManager:
+class BluetoothSource:
     def __init__(
         self,
         on_measurement: Callable[[Observation], None | Awaitable[None]],

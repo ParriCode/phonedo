@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import asyncio
 import sys
 import types
 from pathlib import Path
@@ -39,8 +40,11 @@ fake_bleak = types.ModuleType("bleak")
 fake_bleak.BleakScanner = object
 sys.modules.setdefault("bleak", fake_bleak)
 
-from main import Reader, parse_args
-from cpp_reader_core import Device, ManagerClient, ReaderCore, Sensor
+from linux.main import Reader, parse_args
+from linux.communication.manager_client import ManagerClient
+from reader_core.device import Device
+from reader_core.core import ReaderCore
+from reader_core.sensor import Sensor
 
 
 @pytest.fixture(autouse=True)
@@ -135,7 +139,7 @@ def capture_manager_send(reader: Reader) -> list[dict[str, str]]:
             }
         )
 
-    reader.core.manager_client.send_observation_ttl = capture_send
+    reader.manager_client.send_observation_ttl = capture_send
     return sent_events
 
 
@@ -149,6 +153,10 @@ def send_rfcomm_to_reader(reader: Reader, raw: bytes, port: str = "/dev/rfcomm1"
     observation = parse_rfcomm(reader, raw, port)
     assert observation is not None
     reader.handle_serial_data(observation)
+    async def flush():
+        while not reader.manager_output.queue.empty():
+            await reader.manager_output.deliver_next()
+    asyncio.run(flush())
     assert len(sent_events) == 1
     return sent_events[0]
 
@@ -511,7 +519,7 @@ def test_reader_core_rejects_duplicate_device():
     # Descripción del test:
     # Añade dos veces el mismo device al core y comprueba que se rechaza el
     # duplicado.
-    core = ReaderCore(reader_id="reader-test", manager_url="http://127.0.0.1:3003")
+    core = ReaderCore(reader_id="reader-test")
     device = Device("device-1", "device")
 
     core.add_device(device)

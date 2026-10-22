@@ -1,11 +1,15 @@
 import asyncio
 import psutil
 from datetime import datetime, timezone
+from reader_core.observation import Observation
 
-class SystemMetricsManager:
-    def __init__(self, on_measurement, interval_seconds=2):
+class LocalMetricsSource:
+    def __init__(self, on_measurement, interval_seconds=2, device_id="local_pc"):
+        if interval_seconds <= 0:
+            raise ValueError("interval_seconds must be positive")
         self.on_measurement = on_measurement
         self.interval_seconds = interval_seconds
+        self.device_id = device_id
         self.running = False
 
     async def start(self):
@@ -29,16 +33,16 @@ class SystemMetricsManager:
             await asyncio.sleep(self.interval_seconds)
 
     async def emit(self, sensor_id, value, unit, timestamp):
-        obs = {
-            "device_id": "local_pc",
-            "sensor_id": sensor_id,
-            "value": value,
-            "unit": unit,
-            "timestamp": timestamp.isoformat(),
-            "observable_property": sensor_id,
-            "procedure": "linux-system-read",
-            "feature_of_interest": "host-system",
-        }
+        obs = Observation(
+            device_id=self.device_id,
+            sensor_id=sensor_id,
+            simple_result=value,
+            unit=unit,
+            phenomenon_time=timestamp,
+            observable_property=sensor_id,
+            procedure="linux-system-read",
+            feature_of_interest="host-system",
+        )
 
         result = self.on_measurement(obs)
 
