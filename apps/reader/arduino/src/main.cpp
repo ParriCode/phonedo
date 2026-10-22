@@ -17,15 +17,14 @@
 
 ManagerClient manager(MANAGER_URL, MANAGER_TOKEN);
 
-bool sendToManager(
-    const std::string& observation_payload,
-    const std::string& readerId,
-    const std::string& deviceId
-) {
+extern ReaderCore reader;
+
+bool sendToManager(const Observation& observation) {
+    const std::string observation_payload = observation.toJson();
     bool ok = manager.sendObservationJSON(
         String(observation_payload.c_str()),
-        String(readerId.c_str()),
-        String(deviceId.c_str())
+        String(reader.getReaderId().c_str()),
+        String(observation.deviceId.c_str())
     );
 
     if (!ok) {
@@ -125,13 +124,15 @@ bool registerDeviceOnManager() {
 void publishMotion(int motion) {
     Observation observation;
 
-    reader.ingestRawMeasurement(
+    if (reader.createObservation(
         device.deviceId,
         pirSensor.sensorId,
         motion == HIGH ? "true" : "false",
         std::to_string(millis()),
         &observation
-    );
+    )) {
+        reader.ingest(observation);
+    }
 }
 
 void setup() {

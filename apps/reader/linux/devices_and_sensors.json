@@ -8,6 +8,7 @@
     "devices":[
         {
             "comm": "/dev/rfcomm0",
+            "device_id": "prueba1",
             "allow_conflicts": false
         },
         {

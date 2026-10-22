@@ -237,47 +237,27 @@ def test_json_value_without_configured_sensor_uses_fallback(tmp_path):
     assert event["payload"]["simple_result"] == '45.3'
 
 
-def test_unknown_rfcomm_port_uses_reader_fallback_device(tmp_path):
-    # Descripción del test:
-    # Simula una lectura por un puerto no configurado y comprueba que el Reader
-    # crea un device fallback y semántica unknown.
-    reader = build_reader(write_reader_config(tmp_path))
+@pytest.mark.parametrize("portable,raw", [
+    (False, b'{"value":"45.3"}\n'),
+    (True, b'{"sensor_id":"temp1","value":"45.3"}\n'),
+    (True, b"45.3\n"),
+])
+def test_unconfigured_port_requires_explicit_device_id(tmp_path, portable, raw):
+    reader = build_reader(write_reader_config(tmp_path, sensor_has_device_id=not portable))
+    with pytest.raises(ValueError, match="device_id"):
+        send_rfcomm_to_reader(reader, raw, port="/dev/rfcomm9")
+    assert reader.core.get_device(reader.reader_id) is None
 
-    event = send_rfcomm_to_reader(reader, b'{"value":"45.3"}\n', port="/dev/rfcomm9")
 
-    assert event["device_id"] == "reader"
-    assert event["payload"]["sensor_id"] == '/dev/rfcomm9'
-    assert event["payload"]["observable_property"] == 'unknown'
-
-
-def test_portable_sensor_without_device_id_can_arrive_on_any_rfcomm_port(tmp_path):
-    # Descripción del test:
-    # Un sensor configurado sin device_id no queda ligado al puerto de ningún
-    # device y se puede resolver por sensor_id aunque llegue por otro rfcomm.
+def test_portable_sensor_with_explicit_device_can_use_other_port(tmp_path):
     reader = build_reader(write_reader_config(tmp_path, sensor_has_device_id=False))
-
     event = send_rfcomm_to_reader(
-        reader,
-        b'{"sensor_id":"temp1","value":"45.3"}\n',
+        reader, b'{"device_id":"portable","sensor_id":"temp1","value":"45.3"}\n',
         port="/dev/rfcomm9",
     )
-
-    assert event["device_id"] == "reader"
-    assert event["payload"]["sensor_id"] == 'temp1'
-    assert event["payload"]["observable_property"] == 'temperatura'
-
-
-def test_single_portable_sensor_accepts_raw_value_on_any_rfcomm_port(tmp_path):
-    # Descripción del test:
-    # Si solo hay un sensor portable configurado, un valor crudo puede usar esa
-    # configuración aunque el rfcomm asignado por el sistema cambie.
-    reader = build_reader(write_reader_config(tmp_path, sensor_has_device_id=False))
-
-    event = send_rfcomm_to_reader(reader, b"45.3\n", port="/dev/rfcomm9")
-
-    assert event["device_id"] == "reader"
-    assert event["payload"]["sensor_id"] == 'temp1'
-    assert event["payload"]["observable_property"] == 'temperatura'
+    assert event["device_id"] == "portable"
+    assert event["payload"]["sensor_id"] == "temp1"
+    assert event["payload"]["observable_property"] == "temperatura"
 
 
 def test_sensor_with_device_id_is_rejected_on_wrong_rfcomm_port(tmp_path):

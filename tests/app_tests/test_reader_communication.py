@@ -37,7 +37,7 @@ def reader_config(tmp_path, communication):
 
 def test_core_without_communication():
     core = ReaderCore(reader_id="standalone")
-    assert core.handle_measurement_data(observation())
+    assert core.ingest(observation())
     assert core.get_device("sensor-board").has_sensor("temperature")
 
 
@@ -74,7 +74,7 @@ def test_http_stream_without_manager(tmp_path):
             for response in (first, second):
                 assert await response.content.readline() == b": connected\n"
                 assert await response.content.readline() == b"\n"
-            reader.handle_measurement_data(observation())
+            reader.ingest(observation())
             for response in (first, second):
                 assert await asyncio.wait_for(response.content.readline(), 1) == b"event: observation\n"
                 event = json.loads((await response.content.readline()).decode()[6:])
@@ -119,7 +119,7 @@ def test_manager_delivery_does_not_block_stream(tmp_path):
         worker = asyncio.create_task(reader.manager_output.run())
         try:
             with reader.stream.subscribe() as stream:
-                reader.handle_measurement_data(observation())
+                reader.ingest(observation())
                 assert await asyncio.wait_for(asyncio.to_thread(started.wait, 1), 2)
                 assert (await asyncio.wait_for(stream.get(), 0.2))["deviceId"] == "sensor-board"
                 assert calls == ["register"]
@@ -142,7 +142,7 @@ def test_manager_can_send_without_registration(tmp_path):
         reader.manager_client.send_observation_json = lambda *args: sent.append(args)
         reader.manager_client.register_device = lambda *args: (_ for _ in ()).throw(
             AssertionError("Registration disabled"))
-        reader.handle_measurement_data(observation())
+        reader.ingest(observation())
         await reader.manager_output.deliver_next()
         assert len(sent) == 1
     asyncio.run(check())

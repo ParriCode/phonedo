@@ -70,12 +70,11 @@ class Reader:
             reader_id=self.reader_id,
             allow_new_devices=not self.static,
             allow_new_sensors=not self.static,
-            on_register_device=(self.manager_output.register_device
-                                if self.manager_output else None),
-            on_send=self.publish,
+            on_register_device=self.register_device_output,
+            on_observation=self.publish,
         )
-        self.core.load_devices_from_config(config, default_device_id=self.reader_id)
-        self.sources = build_sources(config, self.handle_measurement_data)
+        self.core.load_devices_from_config(config, default_device_id=config.get("default_device_id"))
+        self.sources = build_sources(config, self.ingest)
         self.serial_manager = next((s for s in self.sources
                                     if type(s).__name__ == "SerialSource"), None)
         self.bluetooth_manager = next((s for s in self.sources
@@ -91,7 +90,14 @@ class Reader:
                 stream_enabled=config_bool(server, "stream_enabled", True),
             )
 
-    def publish(self, observation_payload, reader_id, device_id):
+    def register_device_output(self, device):
+        if self.manager_output:
+            self.manager_output.register_device(self.reader_id, device)
+
+    def publish(self, observation: Observation):
+        observation_payload = observation.to_dict()
+        reader_id = self.reader_id
+        device_id = observation.device_id
         self.stream.publish({
             "eventType": "observation", "readerId": reader_id,
             "deviceId": device_id, "payloadFormat": "application/json", "payload": observation_payload,
@@ -99,11 +105,11 @@ class Reader:
         if self.manager_output:
             self.manager_output.publish(observation_payload, reader_id, device_id)
 
-    def handle_measurement_data(self, observation: Observation) -> bool:
-        return self.core.handle_measurement_data(observation)
+    def ingest(self, observation: Observation) -> bool:
+        return self.core.ingest(observation)
 
-    handle_bluetooth_data = handle_measurement_data
-    handle_serial_data = handle_measurement_data
+    handle_bluetooth_data = ingest
+    handle_serial_data = ingest
 
     async def run(self):
         if not self.sources and self.server is None:

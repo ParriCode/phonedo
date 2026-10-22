@@ -1,6 +1,5 @@
 # reader_core.py
 
-from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, Callable, Dict, Optional
 
@@ -14,14 +13,15 @@ from uuid import uuid4
 class ReaderCore:
     def __init__(
         self,
-        reader_id : Optional[str] = None, 
+        reader_id: Optional[str] = None,
+        *,
 
         allow_new_devices: bool = True,
         allow_new_sensors: bool = True,
 
 
-        on_register_device: Optional[Callable[[str, Device], None]] = None,
-        on_send: Optional[Callable[[dict, str, str], None]] = None,
+        on_register_device: Optional[Callable[[Device], None]] = None,
+        on_observation: Optional[Callable[[Observation], None]] = None,
     ) -> None:
         self.reader_id = reader_id or str(uuid4())
         self.devices: Dict[str, Device] = {}
@@ -29,7 +29,7 @@ class ReaderCore:
         self.allow_new_sensors = allow_new_sensors
 
         self.on_register_device = on_register_device
-        self.on_send = on_send
+        self.on_observation = on_observation
 
 
     def register_device(self, device: Device) -> None:
@@ -38,7 +38,7 @@ class ReaderCore:
         """
         self.add_device(device)
         if self.on_register_device is not None:
-            self.on_register_device(self.reader_id, device)
+            self.on_register_device(device)
 
 
     def add_device(self, device: Device) -> None:
@@ -73,7 +73,7 @@ class ReaderCore:
 
     def load_devices_from_config(self, config: dict, default_device_id: str | None = None) -> None:
         for device_json in config.get("devices", []):
-            device = Device.fromJson(device_json, default_device_id=default_device_id or self.reader_id)
+            device = Device.fromJson(device_json, default_device_id=default_device_id)
             self.register_device(device)
 
         for sensor_json in config.get("sensors", []):
@@ -83,16 +83,13 @@ class ReaderCore:
                 continue
             device.add_sensor(sensor)
            
-    def handle_measurement_data(self, observation: Observation, send: bool = True) -> bool:
+    def ingest(self, observation: Observation, send: bool = True) -> bool:
         if observation is None:
             raise ValueError("observation no puede ser None")
 
-        device_id = observation.device_id or self.reader_id
-        sensor_id = observation.sensor_id or "unknown-sensor"
-
-        #Añadir el device_id y el reader_id, a veces puede ocasionar errores sino viene con ellos
-        observation.device_id = device_id
-        observation.sensor_id = sensor_id
+        self._validate_identity(observation)
+        device_id = observation.device_id
+        sensor_id = observation.sensor_id
 
         device = self.get_device(device_id)
         if device is None:
@@ -105,9 +102,9 @@ class ReaderCore:
             if not self.allow_new_sensors:
                 return False
             sensor = Sensor(
-                observable_property=observation.observable_property or "unknown",
-                procedure=observation.procedure or "unknown",
-                feature_of_interest=observation.feature_of_interest or "unknown",
+                observable_property=observation.observable_property,
+                procedure=observation.procedure,
+                feature_of_interest=observation.feature_of_interest,
                 sensor_id=sensor_id,
                 device_id=device_id,
                 unit=observation.unit,
@@ -120,17 +117,17 @@ class ReaderCore:
         return True
 
 
-    def ingest_raw_measurement(
+    def create_observation(
         self,
         device_id: str,
         sensor_id: str,
-        raw_value: Any,
+        value: Any,
         phenomenon_time: Optional[datetime] = None,
 
     ) -> Observation:
         """
         Recibe una medición cruda, busca el dispositivo y sensor,
-        construye una Observation y opcionalmente la envía al Manager.
+        construye una Observation sin emitirla.
         """
         device = self.get_device(device_id)
         if device is None:
@@ -138,26 +135,27 @@ class ReaderCore:
         sensor = device.get_sensor(sensor_id)
 
         observation = sensor.build_observation(
-            raw_value=raw_value,
+            raw_value=value,
             phenomenon_time=phenomenon_time or datetime.now(timezone.utc),
         )
-
-        self.send_observation(observation)
 
         return observation
 
     def send_observation( self, observation: Observation) -> None:
-        """Serializa una Observation en JSON y notifica a la salida."""
-        if observation is None:
-            raise ValueError("observation no puede ser None")
-
-        if not observation.device_id:
-            raise ValueError("observation.device_id no puede estar vacío")
+        """Emite la observación sin serializarla."""
+        self._validate_identity(observation)
 
         if self.get_device(observation.device_id) is None:
             raise KeyError(f"No existe el dispositivo '{observation.device_id}'")
 
-        observation_payload = observation.to_dict()
+        if self.on_observation is not None:
+            self.on_observation(observation)
 
-        if self.on_send is not None:
-            self.on_send(observation_payload, self.reader_id, observation.device_id)
+    @staticmethod
+    def _validate_identity(observation: Observation) -> None:
+        if observation is None:
+            raise ValueError("observation no puede ser None")
+        for field in ("device_id", "sensor_id"):
+            value = getattr(observation, field)
+            if not isinstance(value, str) or not value.strip():
+                raise ValueError(f"observation.{field} no puede estar vacío")

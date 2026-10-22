@@ -11,7 +11,7 @@ ReaderCore::ReaderCore(
     bool allowNewDevices,
     bool allowNewSensors,
     OnRegisterCallback onRegister,
-    OnSendCallback onSend
+    OnObservationCallback onObservation
 )
     : readerId(readerId.empty() ? generateReaderId() : readerId),
       allowNewDevices(allowNewDevices),
@@ -20,7 +20,7 @@ ReaderCore::ReaderCore(
       devicesCount(0),
       ownedSensorsCount(0),
       onRegister(onRegister),
-      onSend(onSend) {
+      onObservation(onObservation) {
     for (std::uint8_t i = 0; i < PHONENDO_MAX_DEVICES; i++) {
         devices[i] = nullptr;
         ownedDevices[i] = false;
@@ -90,7 +90,7 @@ bool ReaderCore::registerDevice(Device& device) {
     }
 
     if (onRegister != nullptr) {
-        onRegister(readerId, device);
+        onRegister(device);
     }
 
     return true;
@@ -172,7 +172,7 @@ Device* ReaderCore::deviceAt(std::uint8_t index) {
     return devices[index];
 }
 
-bool ReaderCore::ingestRawMeasurement(
+bool ReaderCore::createObservation(
     const std::string& deviceId,
     const std::string& sensorId,
     const std::string& rawValue,
@@ -198,22 +198,22 @@ bool ReaderCore::ingestRawMeasurement(
         *outputObservation = observation;
     }
 
-    return sendObservation(observation);
+    return true;
 }
 
-bool ReaderCore::handleMeasurementData(
+bool ReaderCore::ingest(
     const Observation& measurement,
     Observation* outputObservation
 ) {
     lastError.clear();
 
-    std::string deviceId = measurement.deviceId.empty()
-        ? readerId
-        : measurement.deviceId;
-
-    std::string sensorId = measurement.sensorId.empty()
-        ? "unknown-sensor"
-        : measurement.sensorId;
+    if (measurement.deviceId.find_first_not_of(" \t\r\n") == std::string::npos ||
+        measurement.sensorId.find_first_not_of(" \t\r\n") == std::string::npos) {
+        lastError = "deviceId and sensorId are required";
+        return false;
+    }
+    const std::string& deviceId = measurement.deviceId;
+    const std::string& sensorId = measurement.sensorId;
 
     Device* device = getDevice(deviceId);
 
@@ -233,7 +233,7 @@ bool ReaderCore::handleMeasurementData(
         device = newDevice;
 
         if (onRegister != nullptr) {
-            onRegister(readerId, *device);
+            onRegister(*device);
         }
     }
 
@@ -249,17 +249,11 @@ bool ReaderCore::handleMeasurementData(
         }
 
         Sensor* sensor = new Sensor(
-            measurement.observableProperty.empty()
-                ? "unknown"
-                : measurement.observableProperty,
+            measurement.observableProperty,
 
-            measurement.procedure.empty()
-                ? "unknown"
-                : measurement.procedure,
+            measurement.procedure,
 
-            measurement.featureOfInterest.empty()
-                ? "unknown"
-                : measurement.featureOfInterest,
+            measurement.featureOfInterest,
 
             sensorId,
             measurement.unit,
@@ -276,20 +270,18 @@ bool ReaderCore::handleMeasurementData(
         ownedSensorsCount++;
     }
 
-    return ingestRawMeasurement(
-        deviceId,
-        sensorId,
-        measurement.simpleResult,
-        measurement.phenomenonTime,
-        outputObservation
-    );
+    if (outputObservation != nullptr) {
+        *outputObservation = measurement;
+    }
+    return sendObservation(measurement);
 }
 
 bool ReaderCore::sendObservation(const Observation& observation) {
     lastError.clear();
 
-    if (observation.deviceId.empty()) {
-        lastError = "observation.deviceId is empty";
+    if (observation.deviceId.find_first_not_of(" \t\r\n") == std::string::npos ||
+        observation.sensorId.find_first_not_of(" \t\r\n") == std::string::npos) {
+        lastError = "deviceId and sensorId are required";
         return false;
     }
 
@@ -297,15 +289,12 @@ bool ReaderCore::sendObservation(const Observation& observation) {
         return false;
     }
 
-    if (onSend == nullptr) {
-        lastError = "onSend callback is not set";
-        return false;
+    if (onObservation == nullptr) {
+        return true;
     }
 
-    std::string observation_payload = observation.toJson();
-
-    if (!onSend(observation_payload, readerId, observation.deviceId)) {
-        lastError = "onSend callback failed";
+    if (!onObservation(observation)) {
+        lastError = "onObservation callback failed";
         return false;
     }
 
@@ -324,6 +313,6 @@ void ReaderCore::setOnRegisterCallback(OnRegisterCallback callback) {
     onRegister = callback;
 }
 
-void ReaderCore::setOnSendCallback(OnSendCallback callback) {
-    onSend = callback;
+void ReaderCore::setOnObservationCallback(OnObservationCallback callback) {
+    onObservation = callback;
 }

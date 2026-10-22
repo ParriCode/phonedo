@@ -42,7 +42,7 @@ apps/reader/
 6. `SerialSource` detecta puertos y lee líneas.
 7. Cada línea JSON válida se convierte en `Observation`.
 8. `Reader` busca o crea el `Device` y `Sensor`.
-9. `ReaderCore` serializa la observación y notifica su salida mediante un callback.
+9. `ReaderCore.ingest()` valida la identidad y emite la `Observation` mediante `on_observation`.
 10. El runtime la distribuye al stream y/o al cliente de manager configurado.
 
 El core no necesita manager ni HTTP. Las fuentes entregan objetos
@@ -330,7 +330,7 @@ Para sensores pasa lo mismo con `allow_conflicts` dentro del sensor configurado.
 Si falta `device_id` en el mensaje:
 
 1. Se usa el `device_id` configurado para el puerto.
-2. Si no hay configuración, `Reader` usa su `reader_id`.
+2. Si no hay dispositivo configurado, el mensaje debe incluir `device_id`; nunca se sustituye por `reader_id`.
 
 Si falta `sensor_id`:
 
@@ -468,5 +468,31 @@ Manager envía este objeto dentro de `payload`, sin convertirlo en una cadena:
 El cliente añade también el token del Manager. Los identificadores conservan su
 valor original. Python conserva el tipo de `simple_result`; en el modelo C++
 este campo es una cadena. Una unidad ausente es `null` en Python o una cadena
-vacía en C++. El callback del core Python recibe un diccionario; el de C++,
-una cadena JSON que el cliente Arduino inserta como objeto en la petición.
+vacía en C++. Los callbacks del core reciben `Observation` (en C++, `const Observation&`).
+Linux y Arduino convierten la observación a JSON en sus adaptadores de salida.
+
+## API del core
+
+`ingest(observation)` registra dispositivos/sensores nuevos cuando lo permiten
+`allow_new_devices` y `allow_new_sensors`, y emite la observación original.
+`device_id` y `sensor_id` son obligatorios: el core no inventa identidades ni
+sustituye metadatos vacíos por `unknown`. Las fuentes completan los metadatos
+que conozcan antes de llamar al core.
+
+```python
+core = ReaderCore(reader_id="reader-01", on_observation=output)
+core.register_device(device)
+observation = core.create_observation(
+    device_id=device.device_id, sensor_id="temp1", value=24.6,
+)
+core.ingest(observation)
+```
+
+`create_observation()` solo construye; `ingest()` emite. El callback
+`on_register_device` recibe únicamente `Device`. La salida añade el `reader_id`
+y realiza la serialización. Sin callbacks, el core también funciona.
+En C++, los equivalentes son `createObservation(..., &observation)`,
+`ingest(observation)` y `setOnObservationCallback(callback)`.
+El puntero de observación del callback C++ solo es válido durante la llamada;
+una salida asíncrona debe copiarla. Para configuración sin `device_id`, solo
+se admite un `default_device_id` explícito.

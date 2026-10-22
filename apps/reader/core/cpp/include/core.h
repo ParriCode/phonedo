@@ -21,11 +21,9 @@
 
 class ReaderCore {
 public:
-    using OnRegisterCallback = void (*)(const std::string& readerId, Device& device);
-    using OnSendCallback = bool (*)(
-        const std::string& observation_payload,
-        const std::string& readerId,
-        const std::string& deviceId
+    using OnRegisterCallback = void (*)(Device& device);
+    using OnObservationCallback = bool (*)(
+        const Observation& observation
     );
 
     ReaderCore(
@@ -33,7 +31,7 @@ public:
         bool allowNewDevices = true,
         bool allowNewSensors = true,
         OnRegisterCallback onRegister = nullptr,
-        OnSendCallback onSend = nullptr
+        OnObservationCallback onObservation = nullptr
     );
 
     ~ReaderCore();
@@ -52,7 +50,7 @@ public:
     std::uint8_t deviceCount() const;
     Device* deviceAt(std::uint8_t index);
 
-    bool ingestRawMeasurement(
+    bool createObservation(
         const std::string& deviceId,
         const std::string& sensorId,
         const std::string& rawValue,
@@ -60,7 +58,7 @@ public:
         Observation* outputObservation = nullptr
     );
 
-    bool handleMeasurementData(
+    bool ingest(
         const Observation& measurement,
         Observation* outputObservation = nullptr
     );
@@ -71,7 +69,7 @@ public:
     const std::string& getLastError() const;
 
     void setOnRegisterCallback(OnRegisterCallback callback);
-    void setOnSendCallback(OnSendCallback callback);
+    void setOnObservationCallback(OnObservationCallback callback);
 
 private:
     std::string readerId;
@@ -87,7 +85,7 @@ private:
     std::uint8_t ownedSensorsCount;
 
     OnRegisterCallback onRegister;
-    OnSendCallback onSend;
+    OnObservationCallback onObservation;
 
 };
 
