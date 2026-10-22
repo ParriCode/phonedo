@@ -17,11 +17,10 @@ apps/reader/
 │   └── cpp/{include,src}/     # Fachada, puertos de salida y JSON
 └── implementations/
     ├── linux/
-    │   ├── main.py            # CLI y preparación de rutas
-    │   ├── application.py     # Composición Linux
+    │   ├── main.py            # CLI y composición explícita
     │   ├── config.py          # Archivos, entorno y construcción de modelos
     │   ├── sources/           # Serial, Bluetooth y métricas del sistema
-    │   └── communication/    # aiohttp/SSE y cliente/worker del Manager
+    │   └── communication/    # Cliente/worker del Manager
     └── arduino/
         ├── platformio.ini
         └── src/               # WiFi, GPIO y cliente/salida HTTP del Manager
@@ -37,7 +36,7 @@ flowchart LR
     Core -->|Observation| Service[ReaderService]
     Service --> Output[Salida de plataforma]
     Output --> JSON[JSON / Manager / SSE]
-    HTTP[Servidor aiohttp de Linux] --> Service
+    HTTP[Servidor aiohttp] --> Service
 ```
 
 | Capa | Responsabilidad |
@@ -62,8 +61,8 @@ una implementación ESP32 puede reutilizar core/server y aportar sus adaptadores
 
 ## Flujo Linux
 
-1. `main.py` procesa los argumentos y crea `LinuxReader`.
-2. `application.py` carga configuración/entorno e inicializa el logger.
+1. `main.py` ejecuta `load_settings()`, `build_app()` y `run_app()`.
+2. `load_settings()` resuelve JSON/entorno; `build_app()` conecta fuentes, core y comunicaciones.
 3. Compone `ReaderCore`, `ReaderService`, las salidas y las fuentes habilitadas.
 4. `config.py` construye y registra dispositivos/sensores en el core.
 5. Las fuentes entregan `Observation` a `ingest()`.
@@ -285,7 +284,7 @@ Esto significa:
 Cuando llega una línea:
 
 ```text
-bytes -> JSON -> Observation -> LinuxReader.ingest()
+bytes -> JSON -> Observation -> reader.core.ingest()
 ```
 
 ## Sensores Portables Y Conflictos
@@ -548,3 +547,34 @@ Las pruebas C++ usan `g++` y también compilan el core con `ARDUINO` definido
 sin proporcionar ningún SDK. La compilación PlatformIO verifica los adaptadores
 reales de ESP8266, sin flashear el dispositivo. Python conserva tipos JSON nativos
 en los valores; el modelo C++ conserva su representación de valores como cadenas.
+
+
+### Composición y lifecycle
+
+Linux utiliza `load_settings(args)`, `build_app(settings)` y `run_app(app)`.
+Las dataclasses `LinuxReaderSettings` y `LinuxReaderApp` contienen ajustes y
+componentes explícitos. No hay contenedor `Reader`, ni búsquedas de tipos de
+fuentes en el bootstrap. El core se crea directamente y se entrega al servidor.
+Los outputs se conectan antes de registrar dispositivos para conservar su envío
+al Manager.
+
+`ReaderServer(core, ServerConfig(...), outputs=...)` conserva ReaderService como
+distribuidor de objetos Observation. Con `stream_enabled=False`, no crea stream
+ni StreamOutput; las rutas HTTP de metadatos, salud y dispositivos siguen disponibles.
+Con `enabled=False`, `start()` no inicia transporte y `running` permanece falso;
+acceder a `app` produce un RuntimeError explícito.
+
+El ciclo soportado es crear → arrancar → parar → desechar. Las llamadas repetidas
+a start antes del cierre y a stop son idempotentes. Reiniciar una instancia HTTP
+cerrada produce un error: debe crearse otra instancia. ObservationStream.close()
+desconecta sus suscriptores, aunque por sí solo no marca el stream permanentemente
+cerrado. El servidor no ofrece restart.
+
+`reader.py` solo era utilizado por el montaje Linux y una prueba; ambos se han
+sustituido por composición explícita. Los tests anteriores de LinuxReader ahora
+construyen la aplicación mediante load_settings/build_app y usan sus componentes.
+El antiguo application.py ya no forma parte del árbol.
+
+El flujo de datos es fuente → Observation → core.ingest → callback on_observation
+→ ReaderService → StreamOutput/ManagerOutput. Las rutas HTTP actuales consultan
+ReaderService; no se añade una nueva ruta de ingestión HTTP.

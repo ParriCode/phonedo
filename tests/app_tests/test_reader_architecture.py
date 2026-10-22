@@ -197,3 +197,86 @@ int main() {
     assert(service.core().deviceCount() == 0);
 }
 ''', server=True)
+
+
+
+@pytest.mark.parametrize('stream_enabled', [True, False])
+def test_server_lifecycle_and_http(stream_enabled):
+    from aiohttp import ClientSession
+    from reader_server import ReaderServer, ServerConfig
+
+    async def check():
+        core = ReaderCore('lifecycle')
+        server = ReaderServer(core, ServerConfig(enabled=True, port=0,
+                                                 stream_enabled=stream_enabled))
+        assert (server.stream is not None) == stream_enabled
+        assert len(server.service.outputs) == int(stream_enabled)
+        assert not server.running
+        await server.start()
+        runner = server.transport.runner
+        await server.start()
+        assert server.transport.runner is runner
+        assert server.status()['running']
+        port = runner.addresses[0][1]
+        try:
+            async with ClientSession() as client:
+                async with client.get(f'http://127.0.0.1:{port}/metadata') as response:
+                    assert response.status == 200
+                    assert (await response.json())['capabilities']['stream'] == stream_enabled
+                if not stream_enabled:
+                    async with client.get(f'http://127.0.0.1:{port}/observations/stream') as response:
+                        assert response.status == 404
+            assert core.ingest(observation())
+        finally:
+            await server.stop()
+        await server.stop()
+        assert not server.running
+        assert server.transport.runner is None
+        with pytest.raises(RuntimeError, match='disposed'):
+            await server.start()
+    asyncio.run(check())
+
+
+def test_disabled_server_and_no_outputs():
+    from reader_server import ReaderServer, ServerConfig
+    core = ReaderCore('disabled')
+    server = ReaderServer(core, ServerConfig(stream_enabled=False))
+    assert server.stream is None
+    assert server.service.outputs == ()
+    assert core.ingest(observation())
+    with pytest.raises(RuntimeError, match='disabled'):
+        _ = server.app
+    async def check():
+        await server.start()
+        await server.start()
+        assert not server.running
+        await server.stop()
+        await server.stop()
+    asyncio.run(check())
+
+
+def test_linux_bootstrap_uses_generic_sources(tmp_path, monkeypatch):
+    import argparse
+    import json
+    from implementations.linux import main
+    source = object()
+    callbacks = []
+    def build_sources(config, callback):
+        callbacks.append(callback)
+        return [source]
+    monkeypatch.setattr(main, 'build_sources', build_sources)
+    path = tmp_path / 'config.json'
+    path.write_text(json.dumps({'communication': {'manager': {'enabled': True},
+                                                 'server': {'stream_enabled': False}}}))
+    settings = main.load_settings(argparse.Namespace(config=str(path), reader_id='test',
+                                                     static=False, verbose=False))
+    app = main.build_app(settings)
+    assert isinstance(app.core, ReaderCore)
+    assert app.server.core is app.core
+    assert app.sources == [source]
+    assert callbacks == [app.core.ingest]
+    assert app.server.service.outputs == (app.manager_output,)
+    assert not hasattr(app, 'serial_manager')
+    assert not hasattr(app, 'bluetooth_manager')
+    assert app.core.ingest(observation())
+    assert app.manager_output.queue.qsize() == 2

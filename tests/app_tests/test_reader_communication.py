@@ -9,7 +9,14 @@ import threading
 from aiohttp.test_utils import TestClient, TestServer
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "apps/reader"))
-from implementations.linux.application import LinuxReader as Reader
+from argparse import Namespace
+from implementations.linux.main import load_settings, build_app, run_app
+
+
+def Reader(id=None, config_file="devices_and_sensors.json", verbose=None, static=False):
+    return build_app(load_settings(Namespace(
+        reader_id=id, config=config_file, verbose=verbose, static=static)))
+
 from reader_server.stream import ObservationStream
 from implementations.linux.sources.local_metrics import LocalMetricsSource
 from reader_core.core import ReaderCore
@@ -62,7 +69,7 @@ def test_http_stream_without_manager(tmp_path):
         reader = Reader(config_file=str(reader_config(tmp_path, {
             "server": {"enabled": True, "token": "test-token"},
         })))
-        assert reader.manager_client is None
+        assert reader.manager_output is None
         async with TestClient(TestServer(reader.server.app)) as client:
             response = await client.get("/metadata")
             assert response.status == 401
@@ -74,7 +81,7 @@ def test_http_stream_without_manager(tmp_path):
             for response in (first, second):
                 assert await response.content.readline() == b": connected\n"
                 assert await response.content.readline() == b"\n"
-            reader.ingest(observation())
+            reader.core.ingest(observation())
             for response in (first, second):
                 assert await asyncio.wait_for(response.content.readline(), 1) == b"event: observation\n"
                 event = json.loads((await response.content.readline()).decode()[6:])
@@ -83,7 +90,7 @@ def test_http_stream_without_manager(tmp_path):
                 assert event["payloadFormat"] == "application/json"
             response = await client.get("/devices", headers=headers)
             assert (await response.json())[0]["sensors"] == ["temperature"]
-            reader.stream.close()
+            reader.server.stream.close()
             first.close()
             second.close()
     asyncio.run(check())
@@ -114,12 +121,12 @@ def test_manager_delivery_does_not_block_stream(tmp_path):
             started.set()
             release.wait(2)
 
-        reader.manager_client.register_device = register
-        reader.manager_client.send_observation_json = lambda *args: calls.append("send")
+        reader.manager_output.client.register_device = register
+        reader.manager_output.client.send_observation_json = lambda *args: calls.append("send")
         worker = asyncio.create_task(reader.manager_output.run())
         try:
-            with reader.stream.subscribe() as stream:
-                reader.ingest(observation())
+            with reader.server.stream.subscribe() as stream:
+                reader.core.ingest(observation())
                 assert await asyncio.wait_for(asyncio.to_thread(started.wait, 1), 2)
                 assert (await asyncio.wait_for(stream.get(), 0.2))["deviceId"] == "sensor-board"
                 assert calls == ["register"]
@@ -139,10 +146,10 @@ def test_manager_can_send_without_registration(tmp_path):
             "manager": {"enabled": True, "register_devices": False},
         })))
         sent = []
-        reader.manager_client.send_observation_json = lambda *args: sent.append(args)
-        reader.manager_client.register_device = lambda *args: (_ for _ in ()).throw(
+        reader.manager_output.client.send_observation_json = lambda *args: sent.append(args)
+        reader.manager_output.client.register_device = lambda *args: (_ for _ in ()).throw(
             AssertionError("Registration disabled"))
-        reader.ingest(observation())
+        reader.core.ingest(observation())
         await reader.manager_output.deliver_next()
         assert len(sent) == 1
     asyncio.run(check())
@@ -176,7 +183,7 @@ def test_runtime_cancellation_stops_sources(tmp_path):
                 stopped.append(True)
 
         reader.sources = [FakeSource()]
-        task = asyncio.create_task(reader.run())
+        task = asyncio.create_task(run_app(reader))
         await asyncio.wait_for(started.wait(), 1)
         task.cancel()
         await asyncio.gather(task, return_exceptions=True)

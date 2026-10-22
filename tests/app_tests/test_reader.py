@@ -40,8 +40,16 @@ fake_bleak = types.ModuleType("bleak")
 fake_bleak.BleakScanner = object
 sys.modules.setdefault("bleak", fake_bleak)
 
-from implementations.linux.application import LinuxReader as Reader
+from argparse import Namespace
+from implementations.linux.main import load_settings, build_app, run_app
+
+
+def Reader(id=None, config_file="devices_and_sensors.json", verbose=None, static=False):
+    return build_app(load_settings(Namespace(
+        reader_id=id, config=config_file, verbose=verbose, static=static)))
+
 from implementations.linux.main import parse_args
+from implementations.linux.sources.serial import SerialSource
 from implementations.linux.communication.manager_client import ManagerClient
 from reader_core.device import Device
 from reader_core.core import ReaderCore
@@ -140,12 +148,12 @@ def capture_manager_send(reader: Reader) -> list[dict[str, str]]:
             }
         )
 
-    reader.manager_client.send_observation_json = capture_send
+    reader.manager_output.client.send_observation_json = capture_send
     return sent_events
 
 
 def parse_rfcomm(reader: Reader, raw: bytes, port: str = "/dev/rfcomm1"):
-    observations = reader.serial_manager.parse_serial_message(port, raw)
+    observations = next(source for source in reader.sources if isinstance(source, SerialSource)).parse_serial_message(port, raw)
     return observations[0] if observations else None
 
 
@@ -153,7 +161,7 @@ def send_rfcomm_to_reader(reader: Reader, raw: bytes, port: str = "/dev/rfcomm1"
     sent_events = capture_manager_send(reader)
     observation = parse_rfcomm(reader, raw, port)
     assert observation is not None
-    reader.ingest(observation)
+    reader.core.ingest(observation)
     async def flush():
         while not reader.manager_output.queue.empty():
             await reader.manager_output.deliver_next()
@@ -247,7 +255,7 @@ def test_unconfigured_port_requires_explicit_device_id(tmp_path, portable, raw):
     reader = build_reader(write_reader_config(tmp_path, sensor_has_device_id=not portable))
     with pytest.raises(ValueError, match="device_id"):
         send_rfcomm_to_reader(reader, raw, port="/dev/rfcomm9")
-    assert reader.core.get_device(reader.reader_id) is None
+    assert reader.core.get_device(reader.core.reader_id) is None
 
 
 def test_portable_sensor_with_explicit_device_can_use_other_port(tmp_path):
@@ -267,7 +275,7 @@ def test_sensor_with_device_id_is_rejected_on_wrong_rfcomm_port(tmp_path):
     # llega identificado por otro rfcomm, se descarta como conflicto de puerto.
     reader = build_reader(write_reader_config(tmp_path))
 
-    observations = reader.serial_manager.parse_serial_message(
+    observations = next(source for source in reader.sources if isinstance(source, SerialSource)).parse_serial_message(
         "/dev/rfcomm9",
         b'{"sensor_id":"temp1","value":"45.3"}\n',
     )
@@ -281,7 +289,7 @@ def test_device_id_conflict_is_discarded(tmp_path):
     # permitir conflictos, el parser descarta la medición.
     reader = build_reader(write_reader_config(tmp_path))
 
-    observations = reader.serial_manager.parse_serial_message(
+    observations = next(source for source in reader.sources if isinstance(source, SerialSource)).parse_serial_message(
         "/dev/rfcomm1",
         b'{"device_id":"otro","sensor_id":"temp1","value":"45.3"}\n',
     )
@@ -295,7 +303,7 @@ def test_sensor_id_conflict_is_discarded(tmp_path):
     # allow_conflicts es false.
     reader = build_reader(write_reader_config(tmp_path))
 
-    observations = reader.serial_manager.parse_serial_message(
+    observations = next(source for source in reader.sources if isinstance(source, SerialSource)).parse_serial_message(
         "/dev/rfcomm1",
         b'{"sensor_id":"temp2","value":"45.3"}\n',
     )
@@ -309,7 +317,7 @@ def test_observable_property_conflict_is_discarded(tmp_path):
     # medición no se acepta.
     reader = build_reader(write_reader_config(tmp_path))
 
-    observations = reader.serial_manager.parse_serial_message(
+    observations = next(source for source in reader.sources if isinstance(source, SerialSource)).parse_serial_message(
         "/dev/rfcomm1",
         b'{"sensor_id":"temp1","value":"45.3","observable_property":"presion"}\n',
     )
@@ -323,7 +331,7 @@ def test_procedure_conflict_is_discarded(tmp_path):
     # descarta el mensaje.
     reader = build_reader(write_reader_config(tmp_path))
 
-    observations = reader.serial_manager.parse_serial_message(
+    observations = next(source for source in reader.sources if isinstance(source, SerialSource)).parse_serial_message(
         "/dev/rfcomm1",
         b'{"sensor_id":"temp1","value":"45.3","procedure":"otro-procedimiento"}\n',
     )
@@ -337,7 +345,7 @@ def test_unit_conflict_is_discarded(tmp_path):
     # medición.
     reader = build_reader(write_reader_config(tmp_path))
 
-    observations = reader.serial_manager.parse_serial_message(
+    observations = next(source for source in reader.sources if isinstance(source, SerialSource)).parse_serial_message(
         "/dev/rfcomm1",
         b'{"sensor_id":"temp1","value":"45.3","unit":"KELVIN"}\n',
     )
@@ -521,7 +529,7 @@ def test_rfcomm_parser_ignores_empty_lines(tmp_path):
     # observaciones.
     reader = build_reader(write_reader_config(tmp_path))
 
-    assert reader.serial_manager.parse_serial_message("/dev/rfcomm1", b"\n") == []
+    assert next(source for source in reader.sources if isinstance(source, SerialSource)).parse_serial_message("/dev/rfcomm1", b"\n") == []
 
 
 def test_rfcomm_parser_rejects_camel_case_json(tmp_path):
@@ -529,7 +537,7 @@ def test_rfcomm_parser_rejects_camel_case_json(tmp_path):
     # Envía JSON con claves camelCase y comprueba que el parser lo descarta.
     reader = build_reader(write_reader_config(tmp_path))
 
-    observations = reader.serial_manager.parse_serial_message(
+    observations = next(source for source in reader.sources if isinstance(source, SerialSource)).parse_serial_message(
         "/dev/rfcomm1",
         (
             b'{"deviceId":"prueba2","sensorId":"temp1","value":"45.3",'
@@ -677,7 +685,7 @@ def test_static_device_rejects_new_sensor_even_if_conflicts_are_allowed(tmp_path
     }
     reader = build_reader(write_config_data(tmp_path, config))
 
-    observations = reader.serial_manager.parse_serial_message(
+    observations = next(source for source in reader.sources if isinstance(source, SerialSource)).parse_serial_message(
         "/dev/rfcomm1",
         b'{"device_id":"prueba2","sensor_id":"temp2","value":"80"}\n',
     )
@@ -712,7 +720,7 @@ def test_static_reader_rejects_new_devices_even_if_conflicts_are_allowed(tmp_pat
     }
     reader = build_reader(write_config_data(tmp_path, config))
 
-    observations = reader.serial_manager.parse_serial_message(
+    observations = next(source for source in reader.sources if isinstance(source, SerialSource)).parse_serial_message(
         "/dev/rfcomm1",
         b'{"device_id":"otro-device","sensor_id":"temp1","value":"45.3"}\n',
     )
