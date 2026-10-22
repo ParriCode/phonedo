@@ -71,18 +71,6 @@ class ReaderCore:
             raise ValueError("device_id no puede estar vacío")
         return self.devices.get(device_id, None)
 
-    def load_devices_from_config(self, config: dict, default_device_id: str | None = None) -> None:
-        for device_json in config.get("devices", []):
-            device = Device.fromJson(device_json, default_device_id=default_device_id)
-            self.register_device(device)
-
-        for sensor_json in config.get("sensors", []):
-            sensor = Sensor.fromJson(sensor_json)
-            device = self.get_device(sensor.device_id) if sensor.device_id else None
-            if device is None:
-                continue
-            device.add_sensor(sensor)
-           
     def ingest(self, observation: Observation, send: bool = True) -> bool:
         if observation is None:
             raise ValueError("observation no puede ser None")

@@ -31,20 +31,6 @@ class Sensor:
         self.unit = unit
         self.device_id = device_id
 
-    @staticmethod
-    def fromJson(json_data: dict, default_device_id: str | None = None) -> "Sensor":
-        if not isinstance(json_data, dict):
-            raise ValueError("La configuración de un sensor debe ser un objeto JSON")
-
-        return Sensor(
-            observable_property=json_data.get("observable_property", "unknown"),
-            procedure=json_data.get("procedure", "configured-measurement"),
-            feature_of_interest=json_data.get("feature_of_interest", "unknown-feature"),
-            sensor_id=json_data.get("sensor_id", "unknown"),
-            device_id=json_data.get("device_id", default_device_id),
-            unit=json_data.get("unit", None),
-        )
-
     def build_observation(
         self,
         raw_value: Any,

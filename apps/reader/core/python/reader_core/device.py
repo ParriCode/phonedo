@@ -22,29 +22,6 @@ class Device:
 
         self._sensors: Dict[str, Sensor] = {}
 
-    @staticmethod
-    def fromJson(
-        json_data: dict,
-        default_device_id: str | None = None,
-    ) -> "Device":
-        if not isinstance(json_data, dict):
-            raise ValueError("La configuración de un device debe ser un objeto JSON")
-
-        device_id = json_data.get("device_id") or default_device_id
-        if not device_id:
-            raise ValueError("device_id no puede estar vacío")
-
-        device_type = json_data.get("device_type") or json_data.get("deviceType") or "device"
-        platform = json_data.get("platform")
-
-        device = Device(
-            device_id=str(device_id),
-            device_type=str(device_type),
-            platform=str(platform) if platform is not None else None,
-        )
-        device.comm = json_data.get("comm") or json_data.get("com")
-        return device
-
     def add_sensor(self, sensor: Sensor) -> None:
         if sensor is None:
             raise ValueError("sensor no puede ser None")

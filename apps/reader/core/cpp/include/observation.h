@@ -27,11 +27,9 @@ public:
     std::string unit;
     std::string observationId;
 
-    std::string toJson() const;
 
 private:
     static std::string generateObservationId();
-    static std::string escapeJson(const std::string& value);
 };
 
 #endif

@@ -40,8 +40,9 @@ fake_bleak = types.ModuleType("bleak")
 fake_bleak.BleakScanner = object
 sys.modules.setdefault("bleak", fake_bleak)
 
-from linux.main import Reader, parse_args
-from linux.communication.manager_client import ManagerClient
+from implementations.linux.application import LinuxReader as Reader
+from implementations.linux.main import parse_args
+from implementations.linux.communication.manager_client import ManagerClient
 from reader_core.device import Device
 from reader_core.core import ReaderCore
 from reader_core.sensor import Sensor
@@ -152,7 +153,7 @@ def send_rfcomm_to_reader(reader: Reader, raw: bytes, port: str = "/dev/rfcomm1"
     sent_events = capture_manager_send(reader)
     observation = parse_rfcomm(reader, raw, port)
     assert observation is not None
-    reader.handle_serial_data(observation)
+    reader.ingest(observation)
     async def flush():
         while not reader.manager_output.queue.empty():
             await reader.manager_output.deliver_next()

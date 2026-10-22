@@ -66,7 +66,7 @@ get_service_dir() {
     local service="$1"
 
     if [[ "$service" == "reader" ]]; then
-        echo "$ROOT_DIR/apps/reader/linux"
+        echo "$ROOT_DIR/apps/reader/implementations/linux"
     else
         echo "$ROOT_DIR/apps/$service"
     fi

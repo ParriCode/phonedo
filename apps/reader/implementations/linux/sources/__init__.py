@@ -1,7 +1,7 @@
 """Build enabled sources without importing unused hardware dependencies."""
 from logger import Logger
 from ..config import config_bool, serial_config_from_config
-from .base import Source
+from reader_server.contracts import Source
 
 def bluetooth_manager_from_config(config: dict, on_measurement):
 

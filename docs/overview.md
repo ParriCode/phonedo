@@ -1,3 +1,7 @@
+> Estado del Reader: este documento contiene propuestas históricas. La arquitectura
+> implementada de core/server/implementations y sus instrucciones de ejecución
+> están en [Reader](../apps/reader/README.md#arquitectura).
+
 # PHONENDO 
 
 - `author`: Jose Luis Parrilla Fuentes 
@@ -871,14 +875,14 @@ classDiagram
     }
 
     class ReaderCore {
-        +load_devices_from_config(config) None
-        +handle_measurement_data(observation) Observation
+        +register_device(device) None
+        +ingest(observation) bool
         +send_observation(observation) None
     }
 
     class ManagerClient {
         +register_device(reader_id, device) None
-        +send_observation_ttl(ttl, reader_id, device_id) None
+        +send_observation_json(payload, reader_id, device_id) None
     }
 
     class Observation {
@@ -896,7 +900,7 @@ classDiagram
     Reader --> InputManagerFactory
     Reader --> ObservationResolver
     Reader --> ReaderCore
-    ReaderCore --> ManagerClient
+    Reader --> ManagerClient
 
     ReaderConfig --> ReaderPolicy
     ReaderPolicy --> ConflictPolicy

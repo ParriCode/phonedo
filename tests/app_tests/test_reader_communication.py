@@ -9,9 +9,9 @@ import threading
 from aiohttp.test_utils import TestClient, TestServer
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "apps/reader"))
-from linux.main import Reader
-from linux.communication.stream import ObservationStream
-from linux.sources.local_metrics import LocalMetricsSource
+from implementations.linux.application import LinuxReader as Reader
+from reader_server.stream import ObservationStream
+from implementations.linux.sources.local_metrics import LocalMetricsSource
 from reader_core.core import ReaderCore
 from reader_core.observation import Observation
 

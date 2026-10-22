@@ -6,10 +6,10 @@ import json
 from aiohttp import web
 
 
-class ReaderServer:
-    def __init__(self, core, stream, *, host="127.0.0.1", port=3002, token="",
+class AiohttpReaderServer:
+    def __init__(self, service, stream, *, host="127.0.0.1", port=3002, token="",
                  stream_enabled=True):
-        self.core = core
+        self.service = service
         self.stream = stream
         self.host = host
         self.port = int(port)
@@ -38,21 +38,10 @@ class ReaderServer:
         return web.json_response({"status": "ok"})
 
     async def metadata(self, request):
-        return web.json_response({
-            "readerId": self.core.reader_id,
-            "capabilities": {"stream": self.stream_enabled},
-            "payloadFormats": ["application/json"],
-        })
+        return web.json_response(self.service.metadata(stream_enabled=self.stream_enabled))
 
     async def devices(self, request):
-        return web.json_response([
-            {
-                "deviceId": device.device_id,
-                "deviceType": device.device_type,
-                "sensors": [sensor.sensor_id for sensor in device.list_sensors()],
-            }
-            for device in self.core.devices.values()
-        ])
+        return web.json_response(self.service.devices())
 
     async def observations(self, request):
         response = web.StreamResponse(headers={

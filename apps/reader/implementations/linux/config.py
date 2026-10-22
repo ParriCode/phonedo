@@ -1,6 +1,7 @@
 """Configuration loading shared by the Linux runtime and source factory."""
 from pathlib import Path
 import json
+from reader_core import Device, Sensor
 
 def config_bool(json_data: dict, key: str, default: bool) -> bool:
     value = json_data.get(key, default)
@@ -56,7 +57,7 @@ def serial_config_from_config(config: dict) -> tuple[dict[str, dict], dict[str, 
         if not comm:
             continue
 
-        device_id = device_json.get("device_id", None)
+        device_id = device_json.get("device_id") or config.get("default_device_id")
         metadata = {
             "port": comm,
             "device_id": device_id,
@@ -94,3 +95,53 @@ def serial_config_from_config(config: dict) -> tuple[dict[str, dict], dict[str, 
         serial_sensors[sensor_id] = metadata
 
     return serial_devices, serial_sensors
+
+
+def device_from_config(
+    json_data: dict,
+    default_device_id: str | None = None,
+) -> "Device":
+    if not isinstance(json_data, dict):
+        raise ValueError("La configuración de un device debe ser un objeto JSON")
+
+    device_id = json_data.get("device_id") or default_device_id
+    if not device_id:
+        raise ValueError("device_id no puede estar vacío")
+
+    device_type = json_data.get("device_type") or json_data.get("deviceType") or "device"
+    platform = json_data.get("platform")
+
+    device = Device(
+        device_id=str(device_id),
+        device_type=str(device_type),
+        platform=str(platform) if platform is not None else None,
+    )
+    return device
+
+
+def sensor_from_config(json_data: dict, default_device_id: str | None = None) -> "Sensor":
+    if not isinstance(json_data, dict):
+        raise ValueError("La configuración de un sensor debe ser un objeto JSON")
+
+    return Sensor(
+        observable_property=json_data.get("observable_property", "unknown"),
+        procedure=json_data.get("procedure", "configured-measurement"),
+        feature_of_interest=json_data.get("feature_of_interest", "unknown-feature"),
+        sensor_id=json_data.get("sensor_id", "unknown"),
+        device_id=json_data.get("device_id", default_device_id),
+        unit=json_data.get("unit", None),
+    )
+
+
+def load_devices_from_config(core, config: dict, default_device_id: str | None = None) -> None:
+    for device_json in config.get("devices", []):
+        device = device_from_config(device_json, default_device_id=default_device_id)
+        core.register_device(device)
+
+    for sensor_json in config.get("sensors", []):
+        sensor = sensor_from_config(sensor_json)
+        device = core.get_device(sensor.device_id) if sensor.device_id else None
+        if device is None:
+            continue
+        device.add_sensor(sensor)
+

@@ -1,7 +1,8 @@
 #include <Arduino.h>
 #include <ESP8266WiFi.h>
 
-#include <core.h>
+#include <reader_service.h>
+#include "manager_output.h"
 #include <device.h>
 #include <manager_client.h>
 #include <sensor.h>
@@ -17,31 +18,9 @@
 
 ManagerClient manager(MANAGER_URL, MANAGER_TOKEN);
 
-extern ReaderCore reader;
-
-bool sendToManager(const Observation& observation) {
-    const std::string observation_payload = observation.toJson();
-    bool ok = manager.sendObservationJSON(
-        String(observation_payload.c_str()),
-        String(reader.getReaderId().c_str()),
-        String(observation.deviceId.c_str())
-    );
-
-    if (!ok) {
-        Serial.print("Error enviando al Manager: ");
-        Serial.println(manager.lastError);
-    }
-
-    return ok;
-}
-
-ReaderCore reader(
-    "reader-esp8266-01",
-    true,
-    true,
-    nullptr,
-    sendToManager
-);
+ManagerOutput managerOutput(manager);
+ReaderService service("reader-esp8266-01", {&managerOutput});
+ReaderCore& reader = service.core();
 
 Device device(
     "esp8266-device-01",
@@ -57,7 +36,6 @@ Sensor pirSensor(
 );
 
 unsigned long lastSend = 0;
-bool managerDeviceRegistered = false;
 
 bool connectWifi() {
     if (WiFi.status() == WL_CONNECTED) return true;
@@ -98,29 +76,6 @@ bool setupReader() {
     return true;
 }
 
-bool registerDeviceOnManager() {
-    if (managerDeviceRegistered) {
-        return true;
-    }
-
-    bool ok = manager.registerDevice(
-        String(reader.getReaderId().c_str()),
-        device
-    );
-
-    if (!ok) {
-        Serial.print("Error registrando device en Manager: ");
-        Serial.println(manager.lastError);
-        Serial.print("Respuesta Manager: ");
-        Serial.println(manager.lastResponseBody);
-        return false;
-    }
-
-    managerDeviceRegistered = true;
-    Serial.println("Device registrado en Manager.");
-    return true;
-}
-
 void publishMotion(int motion) {
     Observation observation;
 
@@ -131,7 +86,10 @@ void publishMotion(int motion) {
         std::to_string(millis()),
         &observation
     )) {
-        reader.ingest(observation);
+        if (!service.ingest(observation)) {
+            Serial.println(reader.getLastError().c_str());
+            Serial.println(manager.lastError);
+        }
     }
 }
 
@@ -148,9 +106,7 @@ void setup() {
         Serial.println(reader.getLastError().c_str());
     }
 
-    if (connectWifi()) {
-        registerDeviceOnManager();
-    }
+    connectWifi();
 }
 
 void loop() {
@@ -161,7 +117,7 @@ void loop() {
     if (millis() - lastSend >= SEND_INTERVAL) {
         lastSend = millis();
 
-        if (connectWifi() && registerDeviceOnManager()) {
+        if (connectWifi()) {
             publishMotion(motion);
         }
     }

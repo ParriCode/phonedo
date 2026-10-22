@@ -2,6 +2,7 @@
 import asyncio
 
 from logger import Logger
+from reader_server.serialization import observation_to_dict
 
 
 class ManagerOutput:
@@ -20,7 +21,9 @@ class ManagerOutput:
         if self.register:
             self._enqueue(("register", device.device_id))
 
-    def publish(self, observation_payload, reader_id, device_id):
+    def publish(self, reader_id, observation):
+        observation_payload = observation_to_dict(observation)
+        device_id = observation.device_id
         if self.send:
             self._enqueue(("observation", (observation_payload, reader_id, device_id)))
 

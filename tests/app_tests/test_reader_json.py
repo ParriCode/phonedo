@@ -11,7 +11,9 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / 'apps/reader/core/python'))
 sys.path.insert(0, str(ROOT / 'apps/reader'))
 from reader_core.observation import Observation
-from linux.communication.manager_client import ManagerClient
+from reader_server.serialization import observation_to_dict
+from implementations.linux.config import load_devices_from_config
+from implementations.linux.communication.manager_client import ManagerClient
 
 
 def test_cpp_and_python_json_preserve_values(tmp_path):
@@ -19,17 +21,20 @@ def test_cpp_and_python_json_preserve_values(tmp_path):
     source = tmp_path / 'json_test.cpp'
     source.write_text(r'''
 #include "observation.h"
+#include "reader_serialization.h"
 #include <iostream>
 int main() {
     Observation observation("temperatura", "36.7", "2026-10-22T10:00:00+00:00",
         "patient-001", "termorreceptor", "Board A/ñ", "sensor\"\\\n\r\t\001",
         "CELSIUS", "obs-1");
-    std::cout << observation.toJson();
+    std::cout << observationToJson(observation);
 }
 ''')
     binary = tmp_path / 'json_test'
     subprocess.run(['g++', '-std=c++17', '-Wall', '-Wextra', '-I', str(cpp / 'include'),
                     str(source), *map(str, sorted((cpp / 'src').glob('*.cpp'))),
+                    '-I', str(ROOT / 'apps/reader/server/cpp/include'),
+                    *map(str, sorted((ROOT / 'apps/reader/server/cpp/src').glob('*.cpp'))),
                     '-o', str(binary)], check=True, capture_output=True, text=True)
     actual = json.loads(subprocess.check_output([str(binary)], text=True))
     observation = Observation(
@@ -39,7 +44,7 @@ int main() {
         device_id='Board A/ñ', sensor_id='sensor"\\\n\r\t\x01',
         unit='CELSIUS', observation_id='obs-1',
     )
-    assert actual == observation.to_dict()
+    assert actual == observation_to_dict(observation)
 
 
 @pytest.mark.parametrize('value', [23, 36.7, True, '36.7', {'values': [1, 2]}])
@@ -57,9 +62,9 @@ def test_manager_sends_json_object(monkeypatch, value):
         captured.update(json.loads(json.dumps(kwargs['json'])))
         return Response()
 
-    monkeypatch.setattr('linux.communication.manager_client.requests.post', post)
+    monkeypatch.setattr('implementations.linux.communication.manager_client.requests.post', post)
     ManagerClient('http://manager', token='test').send_observation_json(
-        observation.to_dict(), 'reader', 'board')
+        observation_to_dict(observation), 'reader', 'board')
     assert captured['payloadFormat'] == 'application/json'
     assert captured['payload']['simple_result'] == value
     assert captured['payload']['device_id'] == 'board'
@@ -75,7 +80,7 @@ def test_core_emits_original_observation_without_serializing(monkeypatch):
                       on_register_device=registered.append)
     observation = Observation('temperature', 24.6, datetime.now(timezone.utc),
                               '', '', device_id='board', sensor_id='temp')
-    monkeypatch.setattr(Observation, 'to_dict', lambda self: pytest.fail('core serialized'))
+    assert not hasattr(Observation, 'to_dict')
     assert core.ingest(observation)
     assert sent[0] is observation
     assert registered[0] is core.get_device('board')
@@ -105,8 +110,8 @@ def test_core_config_requires_explicit_default_device():
     from reader_core.core import ReaderCore
     core = ReaderCore(reader_id='reader')
     with pytest.raises(ValueError, match='device_id'):
-        core.load_devices_from_config({'devices': [{}]})
-    core.load_devices_from_config({'devices': [{}]}, default_device_id='board')
+        load_devices_from_config(core, {'devices': [{}]})
+    load_devices_from_config(core, {'devices': [{}]}, default_device_id='board')
     assert core.get_device('board') is not None
     assert core.get_device('reader') is None
 
@@ -155,5 +160,7 @@ int main() {
     binary = tmp_path / 'core_test'
     subprocess.run(['g++', '-std=c++17', '-Wall', '-Wextra', '-I', str(cpp / 'include'),
                     str(source), *map(str, sorted((cpp / 'src').glob('*.cpp'))),
+                    '-I', str(ROOT / 'apps/reader/server/cpp/include'),
+                    *map(str, sorted((ROOT / 'apps/reader/server/cpp/src').glob('*.cpp'))),
                     '-o', str(binary)], check=True, capture_output=True, text=True)
     subprocess.run([str(binary)], check=True)

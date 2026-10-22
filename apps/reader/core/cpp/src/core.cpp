@@ -1,10 +1,6 @@
 #include "core.h"
 
-#ifdef ARDUINO
-#include <Arduino.h>
-#else
 #include <chrono>
-#endif
 
 ReaderCore::ReaderCore(
     const std::string& readerId,
@@ -48,13 +44,9 @@ ReaderCore::~ReaderCore() {
 }
 
 std::string ReaderCore::generateReaderId() {
-#ifdef ARDUINO
-    return "reader-" + std::to_string(millis());
-#else
     auto now = std::chrono::system_clock::now().time_since_epoch();
     auto micros = std::chrono::duration_cast<std::chrono::microseconds>(now).count();
     return "reader-" + std::to_string(micros);
-#endif
 }
 
 bool ReaderCore::addDevicePointer(Device* device, bool owned) {
@@ -80,6 +72,10 @@ bool ReaderCore::addDevicePointer(Device* device, bool owned) {
     devicesCount++;
 
     return true;
+}
+
+bool ReaderCore::addDevice(Device& device) {
+    return addDevicePointer(&device, false);
 }
 
 bool ReaderCore::registerDevice(Device& device) {

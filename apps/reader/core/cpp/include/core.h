@@ -2,6 +2,7 @@
 #define PHONENDO_CORE_H
 
 #include <cstdint>
+#include <functional>
 #include <string>
 
 #include "device.h"
@@ -21,10 +22,8 @@
 
 class ReaderCore {
 public:
-    using OnRegisterCallback = void (*)(Device& device);
-    using OnObservationCallback = bool (*)(
-        const Observation& observation
-    );
+    using OnRegisterCallback = std::function<void(Device&)>;
+    using OnObservationCallback = std::function<bool(const Observation&)>;
 
     ReaderCore(
         const std::string& readerId = "",
@@ -35,11 +34,14 @@ public:
     );
 
     ~ReaderCore();
+    ReaderCore(const ReaderCore&) = delete;
+    ReaderCore& operator=(const ReaderCore&) = delete;
 
     static std::string generateReaderId();
 
     bool addDevicePointer(Device* device, bool owned);
 
+    bool addDevice(Device& device);
     bool registerDevice(Device& device);
 
     bool removeDevice(const std::string& deviceId);

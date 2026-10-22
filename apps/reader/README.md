@@ -1,55 +1,79 @@
 # Phonendo Reader
 
-Reader de Phonendo. El runtime Linux utiliza actualmente el core Python.
+Reader de Phonendo. La implementación Linux utiliza el core Python y la capa de servidor portable.
 También se conserva el core C++ y el runtime Arduino.
 
 El flujo actual está simplificado: la identidad va por `device_id`, no por MAC, y el `serial_manager` solo acepta un formato de mensaje.
 
-## Estructura
+## Arquitectura
 
 ```text
 apps/reader/
 ├── core/
-│   ├── cpp/
-│   └── python/
-├── linux/
-│   ├── main.py
-│   ├── config.py
-│   ├── devices_and_sensors.json
-│   ├── stream.example.json
-│   ├── sources/
-│   │   ├── base.py
-│   │   ├── bluetooth.py
-│   │   ├── serial.py
-│   │   └── local_metrics.py
-│   └── communication/
-│       ├── server.py
-│       ├── stream.py
-│       ├── manager_client.py
-│       └── manager_output.py
-└── arduino/
-    ├── platformio.ini
-    └── src/
+│   ├── python/reader_core/     # ReaderCore, Device, Sensor, Observation
+│   └── cpp/{include,src}/      # El mismo modelo en C++
+├── server/
+│   ├── python/reader_server/  # Fachada, contratos, ciclo de vida, stream y JSON
+│   └── cpp/{include,src}/     # Fachada, puertos de salida y JSON
+└── implementations/
+    ├── linux/
+    │   ├── main.py            # CLI y preparación de rutas
+    │   ├── application.py     # Composición Linux
+    │   ├── config.py          # Archivos, entorno y construcción de modelos
+    │   ├── sources/           # Serial, Bluetooth y métricas del sistema
+    │   └── communication/    # aiohttp/SSE y cliente/worker del Manager
+    └── arduino/
+        ├── platformio.ini
+        └── src/               # WiFi, GPIO y cliente/salida HTTP del Manager
 ```
 
-## Flujo
+Las dependencias van desde las implementaciones hacia `server` y desde `server`
+hacia `core`. El core puede utilizarse solo. Ningún archivo del core importa
+la capa de servidor, librerías HTTP, SDK Arduino ni módulos de la plataforma.
 
-1. `Reader` carga `config.env`.
-2. Crea `ReaderCore`.
-3. Carga `devices_and_sensors.json`.
-4. Registra los `Device` y `Sensor` configurados.
-5. Arranca las fuentes y los transportes habilitados.
-6. `SerialSource` detecta puertos y lee líneas.
-7. Cada línea JSON válida se convierte en `Observation`.
-8. `Reader` busca o crea el `Device` y `Sensor`.
-9. `ReaderCore.ingest()` valida la identidad y emite la `Observation` mediante `on_observation`.
-10. El runtime la distribuye al stream y/o al cliente de manager configurado.
+```mermaid
+flowchart LR
+    Source[Fuente de plataforma] -->|Observation| Core[ReaderCore.ingest]
+    Core -->|Observation| Service[ReaderService]
+    Service --> Output[Salida de plataforma]
+    Output --> JSON[JSON / Manager / SSE]
+    HTTP[Servidor aiohttp de Linux] --> Service
+```
 
-El core no necesita manager ni HTTP. Las fuentes entregan objetos
-`Observation` y ofrecen métodos asíncronos `start()` y `stop()`.
-Para añadir una fuente, implementa ese contrato y añade su construcción en
-`linux/sources/__init__.py`. Las dependencias de hardware se cargan solo al
-habilitar la fuente correspondiente.
+| Capa | Responsabilidad |
+| --- | --- |
+| `core` | Registro de dispositivos/sensores, creación, validación y emisión de `Observation`. Solo biblioteca estándar. |
+| `server` | Fachada `ReaderService`, contratos de fuentes/servidores/salidas, ciclo de vida Python, distribución de eventos y conversión JSON opcional. |
+| `implementations/linux` | Configuración, entorno, logging, adquisición y transportes concretos. |
+| `implementations/arduino` | Configuración de placa, GPIO, WiFi y entrega HTTP. |
+
+`ReaderService` conecta los callbacks del core con salidas que reciben objetos
+`Observation`. En Python se le entrega un core sin callbacks; en C++ lo construye
+y lo expone mediante `core()`. Las salidas C++ deben vivir más que el servicio;
+una salida asíncrona copia los datos que necesita.
+
+`ReaderRuntime` organiza fuentes (`start/stop`), servidores (`start/stop`) y
+workers (`run`). Cancela tareas y libera recursos también ante un fallo parcial
+de arranque. No conoce aiohttp, puertos ni tipos de fuente. En C++, `ReaderServer`
+define `start/poll/stop` para que cada plataforma gestione su bucle de eventos.
+El firmware actual usa la fachada y la salida Manager; no ofrece un servidor
+HTTP entrante. La configuración de placa existente es **ESP8266 ESP-12E**;
+una implementación ESP32 puede reutilizar core/server y aportar sus adaptadores.
+
+## Flujo Linux
+
+1. `main.py` procesa los argumentos y crea `LinuxReader`.
+2. `application.py` carga configuración/entorno e inicializa el logger.
+3. Compone `ReaderCore`, `ReaderService`, las salidas y las fuentes habilitadas.
+4. `config.py` construye y registra dispositivos/sensores en el core.
+5. Las fuentes entregan `Observation` a `ingest()`.
+6. El core valida identidades, aplica la política de descubrimiento y emite el objeto.
+7. El servicio distribuye el objeto; las salidas convierten a JSON y entregan por
+   stream o Manager. El worker del Manager evita bloquear la adquisición.
+
+Para añadir una fuente Linux, implementa el contrato `Source` y añade su
+construcción en `implementations/linux/sources/__init__.py`. Las dependencias de
+hardware se cargan solo cuando se habilita la fuente correspondiente.
 
 ## Comunicación y fuentes configurables
 
@@ -95,8 +119,8 @@ identificador de la observación. Cada consumidor recibe su propia copia.
 Para probar un reader autónomo con métricas locales:
 
 ```sh
-python3 -m pip install -r apps/reader/linux/requirements.txt
-python3 apps/reader/linux/main.py --config stream.example.json
+python3 -m pip install -r apps/reader/implementations/linux/requirements.txt
+python3 apps/reader/implementations/linux/main.py --config stream.example.json
 curl -N http://127.0.0.1:3002/observations/stream
 ```
 
@@ -261,7 +285,7 @@ Esto significa:
 Cuando llega una línea:
 
 ```text
-bytes -> JSON -> Observation -> Reader.handle_serial_data()
+bytes -> JSON -> Observation -> LinuxReader.ingest()
 ```
 
 ## Sensores Portables Y Conflictos
@@ -344,25 +368,25 @@ Si el `Device` o el `Sensor` no existen y el Reader no está en modo `static`, s
 Desde la raíz del repo:
 
 ```bash
-python3 apps/reader/linux/main.py
+python3 apps/reader/implementations/linux/main.py
 ```
 
 Con configuración explícita:
 
 ```bash
-python3 apps/reader/linux/main.py --config apps/reader/linux/devices_and_sensors.json
+python3 apps/reader/implementations/linux/main.py --config apps/reader/implementations/linux/devices_and_sensors.json
 ```
 
 Con identificador de Reader:
 
 ```bash
-python3 apps/reader/linux/main.py --reader-id reader-1
+python3 apps/reader/implementations/linux/main.py --reader-id reader-1
 ```
 
 Modo estático:
 
 ```bash
-python3 apps/reader/linux/main.py --static
+python3 apps/reader/implementations/linux/main.py --static
 ```
 
 En modo estático no se crean dispositivos ni sensores que no estén en la configuración.
@@ -496,3 +520,31 @@ En C++, los equivalentes son `createObservation(..., &observation)`,
 El puntero de observación del callback C++ solo es válido durante la llamada;
 una salida asíncrona debe copiarla. Para configuración sin `device_id`, solo
 se admite un `default_device_id` explícito.
+
+## Migración y comprobaciones
+
+- El arranque Linux está en `implementations/linux/main.py`; `tools/dev.sh` ya usa esa ruta.
+- Las fuentes usan `ingest()`; se han eliminado `handle_serial_data` y `handle_bluetooth_data`.
+- La carga de modelos está en `implementations/linux/config.py`, fuera del core.
+- La serialización está en `reader_server.serialization.observation_to_dict()`
+  y `observationToJson()` (`reader_serialization.h`), fuera de `Observation`.
+- `apps/reader/config.env` conserva su ubicación. Las rutas relativas de JSON se
+  resuelven desde el directorio actual o desde la implementación Linux.
+
+Uso del core Python sin Linux ni servidor:
+
+```sh
+PYTHONPATH=apps/reader/core/python python3 -c 'from reader_core import ReaderCore; print(ReaderCore("example").reader_id)'
+```
+
+Pruebas de contrato, independencia de capas y transportes:
+
+```sh
+python3 -m pytest tests/app_tests/test_reader*.py -q
+pio run -d apps/reader/implementations/arduino
+```
+
+Las pruebas C++ usan `g++` y también compilan el core con `ARDUINO` definido
+sin proporcionar ningún SDK. La compilación PlatformIO verifica los adaptadores
+reales de ESP8266, sin flashear el dispositivo. Python conserva tipos JSON nativos
+en los valores; el modelo C++ conserva su representación de valores como cadenas.
