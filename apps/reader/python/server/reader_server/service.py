@@ -1,4 +1,6 @@
 """Transport-independent facade over ReaderCore and its observation outputs."""
+import time
+
 from reader_core import ReaderCore, Device, Observation
 from typing import Protocol
 
@@ -42,3 +44,14 @@ class ReaderService:
              "sensors": [sensor.sensor_id for sensor in device.list_sensors()]}
             for device in self.core.devices.values()
         ]
+    def device(self, device_id: str) -> dict | None:
+        device = self.core.devices.get(device_id)
+        if device is None:
+            return None
+        return {
+            'schemaVersion': 'phonendo.device.v1',
+            'readerId': self.core.reader_id,
+            'deviceId': device.device_id, 'deviceType': device.device_type,
+            'creationDatetime': device.creation_datetime,
+            'sensors': [sensor.sensor_id for sensor in device.list_sensors()]
+        }

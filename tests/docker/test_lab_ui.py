@@ -56,6 +56,23 @@ def test_ui_pause_stop_and_resume(monkeypatch):
         app.send('list')
         wait(lambda: not app.busy)
         assert len(app.device_table.get_children()) == 1
+        previous = app.selected()
+        app.delete_selected()
+        wait(lambda: not app.busy)
+        assert not app.instances and not app.session.instances
+        assert not app.table.get_children()
+        assert not previous.exists()
+        assert not Path(previous.directory.name).exists()
+        # The same name and host port can be reused immediately.
+        app.start()
+        wait(lambda: not app.busy and bool(app.instances))
+        replacement = app.selected()
+        assert replacement.name == previous.name and replacement.port == previous.port
+        app.delete_all()
+        wait(lambda: not app.busy)
+        assert not app.instances and not app.session.instances
+        assert not app.table.get_children()
+        assert not replacement.exists()
     finally:
         app.session.close()
         root.destroy()

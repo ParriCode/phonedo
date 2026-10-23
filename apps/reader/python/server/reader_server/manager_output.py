@@ -37,7 +37,8 @@ class ManagerOutput:
 
     def register_device(self, reader_id, device):
         return self._send('/registerDevice', {
-            'schemaVersion': 'phonendo.device.v1', 'readerId': reader_id,
+            'schemaVersion': 'phonendo.device.v1',
+            'readerId': reader_id,
             'deviceId': device.device_id, 'deviceType': device.device_type,
             'creationDatetime': int(time.time() * 1000),
         })

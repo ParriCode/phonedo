@@ -56,6 +56,11 @@ class Lab:
         ttk.Button(controls, text='Abrir en navegador', command=lambda: self.safe(self.open_url)).pack(side='left', padx=3)
         self.status = tk.StringVar(value='Preparado · necesita Docker en ejecución')
         ttk.Label(controls, textvariable=self.status).pack(side='right', padx=8)
+        deletion = ttk.Frame(root, padding=(8, 2))
+        deletion.pack(fill='x')
+        ttk.Button(deletion, text='Eliminar seleccionado', command=lambda: self.safe(self.delete_selected)).pack(side='left', padx=3)
+        ttk.Button(deletion, text='Eliminar todos (laboratorio)', command=lambda: self.safe(self.delete_all)).pack(side='left', padx=3)
+        ttk.Label(deletion, text='Eliminar borra el contenedor y sus datos temporales.').pack(side='left', padx=10)
         self.table = ttk.Treeview(root, columns=('service','port','internal','url','state'), show='tree headings', height=5)
         self.table.heading('#0', text='Instancia')
         for key, label in [('service','Servicio'),('port','Puerto local'),('internal','Puerto contenedor'),('url','URL Docker'),('state','Estado')]:
@@ -200,6 +205,36 @@ class Lab:
         instance = self.selected()
         self.task(action + ': ' + instance.name + '…', getattr(instance, action))
 
+    def clear_instance(self, name):
+        self.instances.pop(name, None)
+        if self.table.exists(name):
+            self.table.delete(name)
+        self.device_table.delete(*self.device_table.get_children())
+        self.reader_form.configure(text='Selecciona un Reader para gestionar dispositivos')
+
+    def delete_selected(self):
+        instance = self.selected()
+        # Keep the edited JSON and the previous name/port for easy recreation.
+        edited = self.config.get('1.0', 'end')
+        def deleted(name):
+            self.clear_instance(name)
+            self.kind.set(instance.kind)
+            self.name.set(instance.name)
+            self.port.set(str(instance.port))
+            self.config.delete('1.0', 'end')
+            self.config.insert('1.0', edited)
+            self.status.set('Eliminado · puedes corregir el JSON y crear de nuevo')
+        self.task('Eliminando ' + instance.name + '…', instance.remove, deleted)
+
+    def delete_all(self):
+        def deleted(result):
+            for name in result['removed']:
+                self.clear_instance(name)
+            self.status.set(f"Eliminados {len(result['removed'])} contenedores del laboratorio")
+            if result['errors']:
+                messagebox.showerror('Docker', '\n'.join(result['errors']))
+        self.task('Eliminando contenedores del laboratorio…', self.session.remove_all, deleted)
+
     def open_url(self):
         instance = self.selected()
         path = '/health' if instance.kind == 'reader' else '/raw' if instance.kind == 'storage' else '/'
@@ -246,14 +281,14 @@ class Lab:
                 states = []
                 for name, instance in instances:
                     try:
-                        states.append((name, instance.state()))
+                        states.append((name, instance, instance.state()))
                     except Exception:
-                        states.append((name, 'unavailable'))
+                        states.append((name, instance, 'unavailable'))
                 def apply():
                     labels = {'running':'En ejecución', 'paused':'Pausado', 'exited':'Parado',
                               'created':'Creado', 'unavailable':'No disponible', 'restarting':'Reiniciando'}
-                    for name, state in states:
-                        if self.table.exists(name):
+                    for name, instance, state in states:
+                        if self.instances.get(name) is instance and self.table.exists(name):
                             self.table.set(name, 'state', labels.get(state, state))
                             self.table.item(name, tags=(state,))
                     self.polling = False

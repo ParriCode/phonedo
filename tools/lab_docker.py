@@ -43,9 +43,19 @@ class DockerSession:
         self.events.put(('Docker', f'Imagen {tag} preparada.\n'))
         return tag
 
+    def remove_all(self):
+        removed, errors = [], []
+        for instance in list(self.instances):
+            try:
+                removed.append(instance.remove())
+            except Exception as error:
+                errors.append(f'{instance.name}: {error}')
+        return {'removed': removed, 'errors': errors}
+
     def close(self):
-        for instance in self.instances:
-            instance.remove()
+        result = self.remove_all()
+        if result['errors']:
+            raise RuntimeError('\n'.join(result['errors']))
         if self.connected:
             self.run('network', 'rm', self.network)
             self.connected = False
@@ -171,3 +181,6 @@ class DockerInstance:
         if self.exists():
             self.session.run('rm', '-f', self.container)
         self.directory.cleanup()
+        if self in self.session.instances:
+            self.session.instances.remove(self)
+        return self.name

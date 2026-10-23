@@ -87,3 +87,29 @@ def test_docker_lab_manual_periodic_and_resume():
     finally:
         session.close()
     assert all(not instance.exists() for instance in instances.values())
+
+
+def test_remove_all_only_removes_its_session():
+    import uuid
+    session = lab.DockerSession(queue.Queue())
+    owned = []
+    sentinel = 'phonendo-delete-sentinel-' + uuid.uuid4().hex[:8]
+    try:
+        for name in ['reader-a','reader-b']:
+            instance = lab.DockerInstance(session,'reader',name,port(),
+                {'readerId':name,'server':{'enabled':True},'services':{'managers':[]}})
+            owned.append(instance)
+        session.run('run','-d','--name',sentinel,'--entrypoint','python','phonendo-lab-reader',
+                    '-c','import time; time.sleep(90)')
+        owned[0].pause()
+        result = session.remove_all()
+        assert set(result['removed']) == {'reader-a','reader-b'}
+        assert result['errors'] == []
+        assert session.instances == []
+        assert all(not instance.exists() for instance in owned)
+        assert all(not Path(instance.directory.name).exists() for instance in owned)
+        assert session.run('inspect','--format','{{.State.Running}}',sentinel) == 'true'
+        assert session.remove_all() == {'removed':[], 'errors':[]}
+    finally:
+        session.run('rm','-f',sentinel) if session.run('ps','-aq','--filter','name=^'+sentinel+'$') else None
+        session.close()

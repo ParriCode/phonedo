@@ -5,7 +5,7 @@ import json
 from dataclasses import dataclass
 from .service import ReaderService
 from .stream import ObservationStream, StreamOutput
-
+from aiohttp import web
 
 @dataclass(frozen=True)
 class ServerConfig:
@@ -49,6 +49,7 @@ class ReaderServer:
                 web.get("/health", self.health),
                 web.get("/metadata", self.metadata),
                 web.get("/devices", self.devices),
+                web.get("/devices/{device_id}", self.device)
             ])
             if self.stream is not None:
                 self._app.router.add_get("/stream", self.observations)
@@ -90,21 +91,30 @@ class ReaderServer:
     def status(self):
         return {"running": self.running, "http_enabled": self.config.enabled,
                 "readerId": self.core.reader_id}
-
+    
     async def health(self, request):
-        from aiohttp import web
         return web.json_response({"status": "ok"})
 
     async def metadata(self, request):
-        from aiohttp import web
         return web.json_response(self.service.metadata(stream_enabled=self.config.stream_enabled))
 
     async def devices(self, request):
-        from aiohttp import web
         return web.json_response(self.service.devices())
+    async def device(self, request):
+        deviceId = request.match_info["device_id"]
+        device = self.service.device(deviceId)
+        if device is None:
+            raise web.HTTPNotFound(
+            text=json.dumps({
+                "error": "device_not_found",
+                "deviceId": deviceId,
+            }),
+            content_type="application/json",
+        )
+        return web.json_response(device)
 
+    
     async def observations(self, request):
-        from aiohttp import web
         response = web.StreamResponse(headers={
             "Content-Type": "text/event-stream",
             "Cache-Control": "no-cache",

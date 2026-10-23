@@ -36,6 +36,19 @@ varios sensores a un dispositivo, y borrar sensores o dispositivos. La pestaña
 **Abrir en navegador** abre la consulta del servicio seleccionado; en Storage
 muestra los datos guardados.
 
+## Eliminar y recrear
+
+- **Eliminar seleccionado** borra el contenedor elegido y sus datos temporales.
+  Conserva el JSON del editor, el nombre y el puerto para que puedas corregir la
+  configuración y pulsar **Crear contenedor** de nuevo.
+- **Eliminar todos (laboratorio)** elimina las instancias creadas por esa ventana,
+  incluso si están paradas o pausadas. Limpia la tabla y permite volver a usar
+  sus nombres y puertos. No elimina imágenes ni contenedores de otras sesiones.
+
+Para aplicar un JSON corregido: selecciónalo, edita el JSON, pulsa **Eliminar
+seleccionado** y después **Crear contenedor**. Parar/reanudar conserva la
+configuración anterior.
+
 ## Puertos y conexiones
 
 La tabla distingue **puerto local**, **puerto contenedor** y **URL Docker**.
