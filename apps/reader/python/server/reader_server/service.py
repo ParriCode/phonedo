@@ -1,6 +1,11 @@
 """Transport-independent facade over ReaderCore and its observation outputs."""
 from reader_core import ReaderCore, Device, Observation
-from .contracts import ObservationOutput
+from typing import Protocol
+
+
+class ObservationOutput(Protocol):
+    def register_device(self, reader_id: str, device: Device) -> None: ...
+    def publish(self, reader_id: str, observation: Observation) -> None: ...
 
 
 class ReaderService:

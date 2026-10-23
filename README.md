@@ -71,7 +71,7 @@
 
 The Phonendo architecture adopts a microservice event-driven approach, consisting of five key components: Reader, Manager, Storage, Verifier, and Publisher. The diagram below depicts the interconnectedness of these components and highlights their primary functions. This architectural design prioritizes flexibility, scalability, and adaptability across various applications.
 
-The current implementation keeps the services in Python. The Reader separates its portable Python/C++ core, a transport-independent server layer, and platform implementations under `apps/reader/implementations/`. Linux provides acquisition sources and HTTP/SSE adapters; Arduino provides GPIO, WiFi and Manager delivery. See [Reader configuration](apps/reader/README.md) for HTTP streaming and optional manager delivery.
+The Reader provides Python/C++ core and service libraries, a Python HTTP/SSE server, and platform examples under `apps/reader/examples/`. Linux simulates temperatures; Arduino demonstrates GPIO, WiFi and Manager delivery. See [Reader documentation](apps/reader/README.md) for architecture and execution.
 
 During the implementation phase, we employed the Pine Time smartwatch (available at [https://www.pine64.org/pinetime/](https://www.pine64.org/pinetime/)) as a reference device. This choice allowed us to ensure compatibility and evaluate the integration of Phonendo with a real-world wearable device. By doing so, we were able to validate the platform's functionality and its capacity to handle data from smartwatches, which are commonly used in healthcare and fitness applications.
 

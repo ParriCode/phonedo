@@ -1,11 +1,8 @@
 #include "reader_service.h"
 #include <utility>
 
-ReaderService::ReaderService(const std::string& readerId,
-                             std::vector<ObservationOutput*> outputs,
-                             bool allowNewDevices, bool allowNewSensors)
-    : outputs(std::move(outputs)),
-      readerCore(readerId, allowNewDevices, allowNewSensors) {
+ReaderService::ReaderService(ReaderCore& core, std::vector<ObservationOutput*> outputs)
+    : outputs(std::move(outputs)), readerCore(core) {
     readerCore.setOnRegisterCallback([this](Device& device) {
         for (auto* output : this->outputs) {
             if (output) output->registerDevice(readerCore.getReaderId(), device);
@@ -18,6 +15,11 @@ ReaderService::ReaderService(const std::string& readerId,
         }
         return success;
     });
+}
+
+ReaderService::~ReaderService() {
+    readerCore.setOnRegisterCallback(nullptr);
+    readerCore.setOnObservationCallback(nullptr);
 }
 
 ReaderCore& ReaderService::core() {

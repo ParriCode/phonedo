@@ -12,11 +12,12 @@ public:
     virtual bool publish(const std::string& readerId, const Observation& observation) = 0;
 };
 
-// Owns a core and its callbacks. Outputs must outlive the service.
+// Borrows a core and exclusively manages its callbacks.
+// Core and outputs must outlive the service; do not replace callbacks while attached.
 class ReaderService {
 public:
-    ReaderService(const std::string& readerId, std::vector<ObservationOutput*> outputs = {},
-                  bool allowNewDevices = true, bool allowNewSensors = true);
+    ReaderService(ReaderCore& core, std::vector<ObservationOutput*> outputs = {});
+    ~ReaderService();
     ReaderService(const ReaderService&) = delete;
     ReaderService& operator=(const ReaderService&) = delete;
 
@@ -25,7 +26,7 @@ public:
 
 private:
     std::vector<ObservationOutput*> outputs;
-    ReaderCore readerCore;
+    ReaderCore& readerCore;
 };
 
 // Embedded transports implement their own listening loop; no network API is required here.

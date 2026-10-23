@@ -19,8 +19,8 @@
 ManagerClient manager(MANAGER_URL, MANAGER_TOKEN);
 
 ManagerOutput managerOutput(manager);
-ReaderService service("reader-esp8266-01", {&managerOutput});
-ReaderCore& reader = service.core();
+ReaderCore reader("reader-esp8266-01");
+ReaderService service(reader, {&managerOutput});
 
 Device device(
     "esp8266-device-01",

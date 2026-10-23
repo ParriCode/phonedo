@@ -8,7 +8,7 @@ import sys
 import pytest
 
 from reader_core import ReaderCore, Observation
-from reader_server import ReaderService, ReaderRuntime
+from reader_server import ReaderService
 
 ROOT = Path(__file__).resolve().parents[2]
 READER = ROOT / 'apps/reader'
@@ -35,7 +35,7 @@ assert not hasattr(Observation, 'to_dict')
 assert not hasattr(core, 'load_devices_from_config')
 assert not hasattr(core, 'handle_serial_data')
 assert not hasattr(core, 'handle_bluetooth_data')
-for module in ('aiohttp', 'requests', 'serial', 'bleak', 'logger', 'implementations'):
+for module in ('aiohttp', 'requests', 'serial', 'bleak', 'logger', 'examples'):
     assert module not in sys.modules, module
 '''
     subprocess.run([sys.executable, '-I', '-S', '-c', code,
@@ -70,61 +70,6 @@ def test_service_rejects_overwriting_existing_core_callbacks():
     core = ReaderCore(on_observation=lambda _: None)
     with pytest.raises(ValueError, match='callbacks'):
         ReaderService(core)
-
-
-def test_runtime_releases_resources_after_partial_server_start():
-    async def check():
-        calls = []
-
-        class Server:
-            def __init__(self, fail=False):
-                self.fail = fail
-
-            async def start(self):
-                calls.append(('start', self.fail))
-                if self.fail:
-                    raise RuntimeError('bind failed')
-
-            async def stop(self):
-                calls.append(('stop', self.fail))
-
-        runtime = ReaderRuntime(servers=[Server(), Server(True)], on_close=lambda: calls.append('close'))
-        with pytest.raises(RuntimeError, match='bind failed'):
-            await runtime.run()
-        assert calls.count(('stop', False)) == calls.count(('stop', True)) == 1
-        assert calls.count('close') == 1
-    asyncio.run(check())
-
-
-def test_runtime_source_failure_cancels_worker_and_stops_server():
-    async def check():
-        worker_started = asyncio.Event()
-        calls = []
-
-        class Worker:
-            async def run(self):
-                worker_started.set()
-                try:
-                    await asyncio.Event().wait()
-                finally:
-                    calls.append('worker_cancelled')
-
-        class Source:
-            async def start(self):
-                await worker_started.wait()
-                raise RuntimeError('source failed')
-
-            async def stop(self):
-                calls.append('source_stopped')
-
-        class Server:
-            async def start(self): pass
-            async def stop(self): calls.append('server_stopped')
-
-        with pytest.raises(RuntimeError, match='source failed'):
-            await ReaderRuntime(sources=[Source()], workers=[Worker()], servers=[Server()]).run()
-        assert set(calls) == {'worker_cancelled', 'source_stopped', 'server_stopped'}
-    asyncio.run(check())
 
 
 def compile_cpp(tmp_path, code, *, server=False):
@@ -187,7 +132,9 @@ struct Output : ObservationOutput {
 };
 int main() {
     Output first, second;
-    ReaderService service("reader", {&first, &second});
+    ReaderCore core("reader");
+    ReaderService service(core, {&first, &second});
+    assert(&service.core() == &core);
     Observation value("temperature", "23", "timestamp", "room", "measure", "board", "temp");
     assert(service.ingest(value));
     assert(first.registered == 1 && second.registered == 1);
@@ -213,9 +160,9 @@ def test_server_lifecycle_and_http(stream_enabled):
         assert len(server.service.outputs) == int(stream_enabled)
         assert not server.running
         await server.start()
-        runner = server.transport.runner
+        runner = server.runner
         await server.start()
-        assert server.transport.runner is runner
+        assert server.runner is runner
         assert server.status()['running']
         port = runner.addresses[0][1]
         try:
@@ -231,7 +178,7 @@ def test_server_lifecycle_and_http(stream_enabled):
             await server.stop()
         await server.stop()
         assert not server.running
-        assert server.transport.runner is None
+        assert server.runner is None
         with pytest.raises(RuntimeError, match='disposed'):
             await server.start()
     asyncio.run(check())
@@ -255,28 +202,43 @@ def test_disabled_server_and_no_outputs():
     asyncio.run(check())
 
 
-def test_linux_bootstrap_uses_generic_sources(tmp_path, monkeypatch):
-    import argparse
-    import json
-    from implementations.linux import main
-    source = object()
-    callbacks = []
-    def build_sources(config, callback):
-        callbacks.append(callback)
-        return [source]
-    monkeypatch.setattr(main, 'build_sources', build_sources)
-    path = tmp_path / 'config.json'
-    path.write_text(json.dumps({'communication': {'manager': {'enabled': True},
-                                                 'server': {'stream_enabled': False}}}))
-    settings = main.load_settings(argparse.Namespace(config=str(path), reader_id='test',
-                                                     static=False, verbose=False))
-    app = main.build_app(settings)
-    assert isinstance(app.core, ReaderCore)
-    assert app.server.core is app.core
-    assert app.sources == [source]
-    assert callbacks == [app.core.ingest]
-    assert app.server.service.outputs == (app.manager_output,)
-    assert not hasattr(app, 'serial_manager')
-    assert not hasattr(app, 'bluetooth_manager')
-    assert app.core.ingest(observation())
-    assert app.manager_output.queue.qsize() == 2
+def test_cpp_service_detaches_from_external_core(tmp_path):
+    compile_cpp(tmp_path, r'''
+#include "reader_service.h"
+#include <cassert>
+struct Output : ObservationOutput {
+    int calls = 0;
+    void registerDevice(const std::string&, const Device&) override {}
+    bool publish(const std::string&, const Observation&) override { ++calls; return true; }
+};
+int main() {
+    ReaderCore core("reader");
+    Output output;
+    Observation value("temperature", "23", "timestamp", "room", "measure", "board", "temp");
+    {
+        ReaderService service(core, {&output});
+        assert(core.ingest(value));
+        assert(output.calls == 1);
+    }
+    assert(core.ingest(value));
+    assert(output.calls == 1);
+    assert(core.getDevice("board") != nullptr);
+}
+''', server=True)
+
+
+def test_http_partial_start_cleans_up():
+    import socket
+    from reader_server import ReaderServer, ServerConfig
+    async def check():
+        with socket.socket() as occupied:
+            occupied.bind(('127.0.0.1', 0))
+            occupied.listen()
+            server = ReaderServer(ReaderCore('failure'), ServerConfig(
+                enabled=True, port=occupied.getsockname()[1]))
+            with pytest.raises(OSError):
+                await server.start()
+            assert not server.running
+            assert server.runner is None
+            await server.stop()
+    asyncio.run(check())

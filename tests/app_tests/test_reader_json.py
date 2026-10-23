@@ -12,8 +12,6 @@ sys.path.insert(0, str(ROOT / 'apps/reader/python/core'))
 sys.path.insert(0, str(ROOT / 'apps/reader'))
 from reader_core.observation import Observation
 from reader_server.serialization import observation_to_dict
-from implementations.linux.config import load_devices_from_config
-from implementations.linux.communication.manager_client import ManagerClient
 
 
 def test_cpp_and_python_json_preserve_values(tmp_path):
@@ -48,29 +46,13 @@ int main() {
 
 
 @pytest.mark.parametrize('value', [23, 36.7, True, '36.7', {'values': [1, 2]}])
-def test_manager_sends_json_object(monkeypatch, value):
+def test_json_preserves_native_values(value):
     observation = Observation('temperature', value, datetime(2026, 10, 22),
                               'room', 'test', device_id='board', sensor_id='temp')
-    captured = {}
-
-    class Response:
-        ok = True
-        status_code = 200
-        text = 'Event accepted'
-
-    def post(url, **kwargs):
-        captured.update(json.loads(json.dumps(kwargs['json'])))
-        return Response()
-
-    monkeypatch.setattr('implementations.linux.communication.manager_client.requests.post', post)
-    ManagerClient('http://manager', token='test').send_observation_json(
-        observation_to_dict(observation), 'reader', 'board')
-    assert captured['payloadFormat'] == 'application/json'
-    assert captured['payload']['simple_result'] == value
-    assert captured['payload']['device_id'] == 'board'
-    assert captured['payload']['sensor_id'] == 'temp'
-    assert captured['payload']['unit'] is None
-    assert captured['payload']['phenomenon_time'].endswith('+00:00')
+    payload = json.loads(json.dumps(observation_to_dict(observation)))
+    assert payload['simple_result'] == value
+    assert payload['device_id'] == 'board'
+    assert payload['phenomenon_time'].endswith('+00:00')
 
 
 def test_core_emits_original_observation_without_serializing(monkeypatch):
@@ -104,16 +86,6 @@ def test_core_rejects_missing_identity_without_mutation(field, value):
         core.ingest(observation)
     assert core.devices == {}
     assert getattr(observation, field) == value
-
-
-def test_core_config_requires_explicit_default_device():
-    from reader_core.core import ReaderCore
-    core = ReaderCore(reader_id='reader')
-    with pytest.raises(ValueError, match='device_id'):
-        load_devices_from_config(core, {'devices': [{}]})
-    load_devices_from_config(core, {'devices': [{}]}, default_device_id='board')
-    assert core.get_device('board') is not None
-    assert core.get_device('reader') is None
 
 
 def test_cpp_core_emits_observation_without_rebuilding(tmp_path):
