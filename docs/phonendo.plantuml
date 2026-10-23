@@ -14,7 +14,7 @@ component "Publisher\n(pendiente)" as P #FFF2CC
 
 R --> M : Observaciones por SSE\nManager se suscribe a Reader /stream
 R ..> M : Alternativa HTTP: /registerDevice y /newEvent\nContrato disponible en Manager
-M --> V : HTTP /verify: evento Captured con HMAC\nRespuesta: Verified firmado o rechazo
+M --> V : HTTP /verify: evento Captured con hash\nRespuesta: Verified firmado o rechazo
 M --> V : SSE /stream/verifier del Manager\nVerifier se suscribe (opcional)
 V ..> M : SSE /stream del Verifier: resultados firmados\nConsumo en Manager pendiente
 M --> S : HTTP: registrar y consultar dispositivos\nguardar únicamente eventos Verified

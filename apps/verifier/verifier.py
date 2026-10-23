@@ -13,11 +13,11 @@ from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import padding
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(ROOT_DIR / "libs"))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from logger import Logger
+from verifier_support.logger import Logger
 
-from event_auth import sign_event
+from verifier_support.event_auth import sign_event
 
 def verify_event(message: dict) -> bool:
     supplied = message['value'].get('managerHash')
@@ -111,8 +111,8 @@ private_key = serialization.load_pem_private_key(
     password=None
 )
 
-from event_stream import EventStream
-from server_stream import stream_response
+from verifier_support.event_stream import EventStream
+from verifier_support.server_stream import stream_response
 verification_stream = EventStream()
 app = Flask(__name__)
 
@@ -316,7 +316,7 @@ def consume_manager_event(message):
         Logger.warning("stream_event_rejected", status=status)
 
 
-from stream_client import StreamClient
+from verifier_support.stream_client import StreamClient
 import atexit
 manager_streams = StreamClient(
     json.loads(os.getenv("VERIFIER_MANAGER_STREAMS", "[]")),

@@ -7,8 +7,8 @@ import atexit
 from dotenv import load_dotenv
 from flask import Flask
 ROOT_DIR = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(ROOT_DIR / "libs"))
-from logger import Logger
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from manager_support.logger import Logger
 from config import ManagerConfig
 from client import ManagerClient
 from server import ManagerServer, register_routes

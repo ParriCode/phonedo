@@ -8,7 +8,7 @@ if [[ $# -gt 0 ]]; then
 else
     pattern='test_*.py'
 fi
-export PYTHONPATH="$ROOT_DIR/apps/manager:$ROOT_DIR/libs:$ROOT_DIR/apps/reader/python/core:$ROOT_DIR/apps/reader/python/server${PYTHONPATH:+:$PYTHONPATH}"
+export PYTHONPATH="$ROOT_DIR/apps/manager:$ROOT_DIR/apps/reader/python/core:$ROOT_DIR/apps/reader/python/server${PYTHONPATH:+:$PYTHONPATH}"
 for script in tools/*.sh; do
     bash -n "$script"
 done

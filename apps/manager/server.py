@@ -2,10 +2,10 @@
 import os
 import time
 from flask import g, request
-from logger import Logger
+from manager_support.logger import Logger
 from client import InternalPostError
-from event_stream import EventStream
-from server_stream import stream_response
+from manager_support.event_stream import EventStream
+from manager_support.server_stream import stream_response
 
 
 class ManagerServer:

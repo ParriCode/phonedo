@@ -7,7 +7,7 @@ import unittest
 from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(ROOT / 'libs'))
+sys.path.insert(0, str(ROOT / 'apps/manager'))
 
 
 def load(name, path):
@@ -116,7 +116,7 @@ class ProcessingTests(unittest.TestCase):
         self.manager.core.pending_events.close()
 
     def test_queue_discards_oldest_when_full(self):
-        from pending_events import PendingEvents
+        from manager_support.pending_events import PendingEvents
         dropped = []
         queue = PendingEvents(2, 1, lambda job: False, lambda job: dropped.append(job['message']['key']))
         for key in ('a','b','c'):

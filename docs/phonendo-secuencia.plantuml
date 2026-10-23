@@ -20,7 +20,7 @@ R --> M : Observación (SSE)
 note over R,M : Alternativa: POST /newEvent; tiene prioridad para ese readerId.
 M -> S : Consultar dispositivo
 S --> M : Dispositivo registrado
-note over M : Preparar evento Captured y autenticar contenido con HMAC.
+note over M : Preparar evento Captured y calcular el hash del contenido.
 M -> V : Verificar evento (HTTP /verify)
 alt Verificación positiva
   V --> M : Evento Verified con firma RSA

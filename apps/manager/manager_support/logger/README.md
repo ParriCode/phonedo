@@ -7,7 +7,7 @@ La librería expone una única clase `Logger`. Funciona como singleton estático
 ## Inicialización
 
 ```python
-from logger import Logger
+from manager_support.logger import Logger
 
 Logger.init(
     logs_dir="logs/dev",

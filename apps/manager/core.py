@@ -3,10 +3,10 @@ import threading
 import time
 import uuid
 import requests
-from logger import Logger
-from pending_events import PendingEvents
+from manager_support.logger import Logger
+from manager_support.pending_events import PendingEvents
 from client import DeviceNotRegisteredError, InternalPostError
-from event_auth import sign_event
+from manager_support.event_auth import sign_event
 
 class EventRejected(RuntimeError):
     pass

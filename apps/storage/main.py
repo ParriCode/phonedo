@@ -7,10 +7,10 @@ from flask import Flask, g, jsonify, request
 from dotenv import load_dotenv
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(ROOT_DIR / "libs"))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from db import PhonendoDB
-from logger import Logger
+from storage_support.logger import Logger
 
 load_dotenv(Path(__file__).resolve().parent / "config.env")
 

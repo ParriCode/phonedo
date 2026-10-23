@@ -2,7 +2,7 @@
 import json
 import threading
 import requests
-from logger import Logger
+from .logger import Logger
 
 
 class StreamClient:

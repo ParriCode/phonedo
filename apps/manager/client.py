@@ -2,7 +2,7 @@
 
 import requests
 
-from logger import Logger
+from manager_support.logger import Logger
 
 
 class DeviceNotRegisteredError(RuntimeError):

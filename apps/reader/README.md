@@ -116,8 +116,11 @@ a `../../cpp/core` y `../../cpp/server`.
 
 ## Verificación
 
+Desde la raíz, con el entorno de pruebas del [README principal](../../README.md).
+
 ```sh
-python3 -m pytest tests/app_tests/test_reader*.py -q
+./tools/test.sh 'test_reader*.py'
+./tools/test_integration.sh
 ```
 
 Incluye aislamiento del core/servicio, distribución de objetos, JSON Python/C++,

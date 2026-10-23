@@ -19,7 +19,7 @@ Las conexiones pendientes están anotadas, incluida la publicación futura.
 
 Fuentes actuales: `apps/reader/python/server/reader_server/server.py`,
 `apps/manager/{manager,core,server,client}.py`, `apps/verifier/verifier.py`,
-`apps/storage/main.py`, `libs/{event_auth,stream_client,event_stream}.py` y
+`apps/storage/main.py`, las utilidades locales en `apps/manager/manager_support/` y `apps/verifier/verifier_support/` y
 `tests/integration/test_pipeline.py`.
 
 Fuentes históricas conservadas: `apps/reader/python/core/reader_core/`,
