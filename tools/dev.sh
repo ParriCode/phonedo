@@ -98,7 +98,9 @@ cleanup() {
 }
 
 # Para que cuando se haga ctrl+C se ejecute clean UP y muertan todos los procesos hijos
-trap cleanup EXIT INT TERM
+trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
 
 service_up() {
     local service="$1"
@@ -113,6 +115,9 @@ service_up() {
     local python_bin="$venv_dir/bin/python"
     local req_file="$service_dir/requirements.txt"
     local py_file="$service_dir/main.py"
+    if [[ "$service" == "manager" || "$service" == "verifier" ]]; then
+        py_file="$service_dir/$service.py"
+    fi
 
     # Comprobar que existe el directorio del servicio
     if [[ ! -d "$service_dir" ]]; then
@@ -130,7 +135,7 @@ service_up() {
 
     # Comprobar que existe el script principal
     if [[ ! -f "$py_file" ]]; then
-        print_error "No existe el archivo main.py en $service_dir"
+        print_error "No existe el archivo $py_file"
         exit 1
     fi
 
@@ -148,7 +153,7 @@ service_up() {
     (
         cd "$service_dir"
         exec "$python_bin" "$py_file"
-    ) 2>&1 | sed "s/^/[${service^^}] /" &
+    ) &
 
     # Guardamos el PID del proceso en background
     PIDS+=("$!")

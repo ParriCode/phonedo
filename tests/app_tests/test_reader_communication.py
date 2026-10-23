@@ -45,8 +45,8 @@ def test_http_stream_without_manager(tmp_path):
             headers = {"Authorization": "Bearer test-token"}
             response = await client.get("/metadata", headers=headers)
             assert (await response.json())["readerId"] == "stream-reader"
-            first = await client.get("/observations/stream", headers=headers)
-            second = await client.get("/observations/stream", headers=headers)
+            first = await client.get("/stream", headers=headers)
+            second = await client.get("/stream", headers=headers)
             for response in (first, second):
                 assert await response.content.readline() == b": connected\n"
                 assert await response.content.readline() == b"\n"
@@ -70,7 +70,7 @@ def test_stream_can_be_disabled(tmp_path):
         core = ReaderCore('stream-reader')
         server = ReaderServer(core, ServerConfig(enabled=True, stream_enabled=False))
         async with TestClient(TestServer(server.app)) as client:
-            assert (await client.get("/observations/stream")).status == 404
+            assert (await client.get("/stream")).status == 404
             response = await client.get("/metadata")
             assert (await response.json())["capabilities"]["stream"] is False
     asyncio.run(check())

@@ -1,0 +1,21 @@
+{
+  "services": {
+    "readers": [],
+    "verifiers": [],
+    "storages": [],
+    "publishers": []
+  },
+  "stream": {
+    "enabled": false,
+    "readers": true,
+    "verifiers": false,
+    "storages": false,
+    "publishers": false
+  },
+  "allowRegistration": {
+    "readers": false,
+    "verifiers": false,
+    "storages": false,
+    "publishers": false
+  }
+}

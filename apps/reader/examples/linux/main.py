@@ -17,7 +17,7 @@ async def main():
     server = ReaderServer(core, ServerConfig(enabled=True))
     try:
         await server.start()
-        print("Temperaturas simuladas: http://127.0.0.1:3002/observations/stream")
+        print("Temperaturas simuladas: http://127.0.0.1:3002/stream")
         while True:
             core.ingest(Observation(
                 device_id="simulated-device",

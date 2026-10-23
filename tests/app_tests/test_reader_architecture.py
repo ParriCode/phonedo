@@ -171,7 +171,7 @@ def test_server_lifecycle_and_http(stream_enabled):
                     assert response.status == 200
                     assert (await response.json())['capabilities']['stream'] == stream_enabled
                 if not stream_enabled:
-                    async with client.get(f'http://127.0.0.1:{port}/observations/stream') as response:
+                    async with client.get(f'http://127.0.0.1:{port}/stream') as response:
                         assert response.status == 404
             assert core.ingest(observation())
         finally:

@@ -2,19 +2,57 @@ from pathlib import Path
 import os
 import sys
 import uuid
-import hashlib
 import time
+import math
+import atexit
+import threading
 
 import requests
 from dotenv import load_dotenv
-from flask import Flask, g, request
+from flask import Flask, g, request , stream_with_context
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT_DIR / "libs"))
 
 from logger import Logger
+from pending_events import PendingEvents
+from config import ManagerConfig
+from server import ManagerServer
+from client import ManagerClient, DeviceNotRegisteredError, InternalPostError
+
+import os
+import hashlib
+import json
+import hmac
+
+
+def sign_event(message: dict) -> str:
+    secret = os.getenv('MANAGER_PASSWORD')
+    if not secret:
+        raise RuntimeError('MANAGER_PASSWORD is not configured')
+    value = dict(message['value'])
+    value.pop('managerHash', None)
+    envelope = {**message, 'value': value}
+    encoded = json.dumps(envelope, sort_keys=True, separators=(',', ':'),
+                         ensure_ascii=False, allow_nan=False).encode('utf-8')
+    return hmac.new(secret.encode('utf-8'), encoded, hashlib.sha256).hexdigest()
+
+
+
 
 load_dotenv(Path(__file__).resolve().parent / "config.env")
+
+
+def positive_setting(name, default, cast=float):
+    value = cast(os.getenv(name, str(default)))
+    if not math.isfinite(value) or value <= 0:
+        raise ValueError(f"{name} must be positive and finite")
+    return value
+
+
+HTTP_TIMEOUT = positive_setting("MANAGER_HTTP_TIMEOUT_SECONDS", 10)
+QUEUE_SIZE = positive_setting("MANAGER_QUEUE_SIZE", 1000, int)
+RETRY_INTERVAL = positive_setting("MANAGER_RETRY_INTERVAL_SECONDS", 5)
 
 
 def env_bool(name: str, default: bool) -> bool:
@@ -35,27 +73,17 @@ Logger.init(
 )
 
 app = Flask(__name__)
+manager_config = ManagerConfig(os.getenv("MANAGER_CONFIG_PATH", str(Path(__file__).with_name("config.json"))))
+manager_server = ManagerServer(app, manager_config)
+manager_client = ManagerClient(manager_config, HTTP_TIMEOUT)
+http_readers = set()
+reader_source_lock = threading.Lock()
+reader_locks = {}
 
 
-class InternalPostError(RuntimeError):
-    def __init__(self, url: str, status: int, body: str):
-        super().__init__(f"{url} returned {status}: {body}")
-        self.url = url
-        self.status = status
-        self.body = body
-
-
-def sanitize_body(body):
-    if not isinstance(body, dict):
-        return body
-
-    sanitized = dict(body)
-    sanitized.pop("token", None)
-
-    if "payload" in sanitized:
-        sanitized["payload"] = "<payload>"
-
-    return sanitized
+def lock_for_reader(reader_id):
+    with reader_source_lock:
+        return reader_locks.setdefault(reader_id, threading.Lock())
 
 
 @app.before_request
@@ -76,83 +104,14 @@ def log_request(response):
         deviceId=body.get("deviceId") if isinstance(body, dict) else None,
         readerId=body.get("readerId") if isinstance(body, dict) else None,
     )
-    Logger.debug("request_body", body=sanitize_body(body))
     return response
 
-
-def get_device_from_storage(device_id: str) -> dict:
-    url = f"{os.getenv('INTERNAL_URL_STORAGE_DEVICES')}/{device_id}"
-    Logger.debug("storage_device_lookup_request", url=url, deviceId=device_id)
-
-    response = requests.get(
-        url,
-        headers={
-            "X-Storage-Token": os.getenv("API_TOKEN_STORAGE")
-        },
-        timeout=5
-    )
-
-    if response.status_code == 404:
-        Logger.warning("storage_device_not_registered", deviceId=device_id)
-        raise ValueError("Device not registered")
-
-    if response.status_code != 200:
-        Logger.error(
-            "storage_device_lookup_failed",
-            deviceId=device_id,
-            status=response.status_code,
-            body=response.text,
-        )
-        raise RuntimeError(f"Storage error: {response.status_code} {response.text}")
-
-    Logger.info("storage_device_found", deviceId=device_id)
-    return response.json()["value"]
-
-def generate_wearable_key(device_id: str) -> str:
-    manager_password = os.getenv("MANAGER_PASSWORD")
-    if not manager_password:
-        raise ValueError("MANAGER_PASSSWORD no está definida")
-
-    device_key = device_id.strip().lower()
-    clave = f"{device_key}:{manager_password}"
-
-    hash_sha256 = hashlib.sha256(clave.encode("utf-8")).hexdigest()
-
-    return hash_sha256
-
-
+#Obtener mensaje de una respuesta , si es un diccionario y tiene un campo message , se devuelve el valor de message
 def get_message_from_response(response):
     if isinstance(response, dict) and isinstance(response.get("message"), dict):
         return response["message"]
 
     return response
-
-def post_request(url, body):
-    Logger.debug("internal_post_request", url=url, body=sanitize_body(body))
-    response = requests.post(url, json=body, timeout=10)
-    Logger.debug("internal_post_response", url=url, status=response.status_code, body=response.text)
-    if not response.ok:
-        raise InternalPostError(url, response.status_code, response.text)
-
-    try:
-        return response.json()
-    except Exception:
-        return response.text
-
-
-def to_bytes(string):
-    return list(string.encode("utf-8"))
-
-
-def sign_data_source(message):
-    hash_value = hashlib.sha256(
-        (message["value"]["device"] + "Phonendo").encode("utf-8")
-    ).hexdigest()
-
-    bytes_value = to_bytes(hash_value)
-    return message
-
-
 
 #ok 
 @app.get("/")
@@ -235,15 +194,7 @@ def register_device():
     }
 
     try:
-        hash_sha256 =  generate_wearable_key(device_id)
-        message["value"]["managerHash"] = hash_sha256
-        #Registro de un nuevo token
-        storage_body = {
-            "token": os.getenv("API_TOKEN_STORAGE"),
-            "message":message
-        }
-        #meter en el stotage
-        response = post_request(os.getenv("INTERNAL_URL_STORAGE_REGISTER_DEVICES"), storage_body)
+        response = manager_client.register_device(message)
 
         Logger.info("device_registered", deviceId=device_id, readerId=reader_id)
         Logger.debug("device_register_storage_response", response=response)
@@ -300,7 +251,20 @@ def new_event():
     if not event_type:
         Logger.warning("manager_new_event_bad_request", missing="eventType")
         return {"error": "eventType is required"}, 400
-    
+
+    # Once a Reader uses HTTP, its SSE observations are ignored for this process.
+    with lock_for_reader(reader_id):
+        http_readers.add(reader_id)
+
+    return submit_observation(body)
+
+
+def submit_observation(body):
+    device_id = body["deviceId"]
+    reader_id = body["readerId"]
+    payload = body["payload"]
+    payload_format = body["payloadFormat"]
+    event_type = body["eventType"]
 
     Logger.info("event_received", deviceId=device_id, readerId=reader_id, eventType=event_type)
     Logger.debug("event_payload_received", deviceId=device_id, readerId=reader_id, payload=payload)
@@ -318,66 +282,102 @@ def new_event():
             "creationDatetime": int(time.time() * 1000),
         },
     }
+    job = {"message": message, "stage": "lookup", "verified": None}
+    return attempt_event(job, enqueue=True)
+
+
+def on_reader_stream_event(body):
+    if not isinstance(body, dict) or any(not body.get(field) for field in (
+            "readerId", "deviceId", "payload", "payloadFormat", "eventType")):
+        Logger.warning("reader_stream_invalid_event")
+        return
+    reader_id = body["readerId"]
+    with lock_for_reader(reader_id):
+        if reader_id in http_readers:
+            Logger.debug("reader_stream_ignored_http_priority", readerId=reader_id)
+            return
+        submit_observation(body)
+
+
+
+
+#Esta función procesa un evento por etapas,
+# 1. Consulta el dispositivo en el storage para verificar que existe
+# 2. Firma el evento con la clave secreta del manager
+# 3. Envía el evento al verificador para su verificación
+# 4. Si el verificador aprueba el evento, se almacena en el storage como verificado
+# 5. Si alguna etapa falla, se maneja el error y se devuelve el estado correspondiente
+def process_event(job):
+    """Keep Captured in memory; persist only a positively verified event."""
+    message = job["message"]
+    if job["stage"] == "lookup":
+        manager_client.get_device(message["value"]["deviceId"])
+        job["stage"] = "signing"
+    if job["stage"] == "signing":
+        message["value"]["managerHash"] = sign_event(message)
+        job["stage"] = "verification"
+    if job["stage"] == "verification":
+        manager_server.publish_captured(message)
+        response = manager_client.verify_event(message)
+        if isinstance(response, dict) and response.get("verified") is False:
+            raise EventRejected("Verifier rejected event")
+        verified = get_message_from_response(response)
+        if (not isinstance(response, dict) or response.get("verified") is not True
+                or not isinstance(verified, dict)
+                or verified.get("key") != message["key"]
+                or not isinstance(verified.get("value"), dict)
+                or verified["value"].get("status") != "Verified"
+                or not verified["value"].get("verifierSign")):
+            raise RuntimeError("Invalid verification response")
+        job["verified"] = verified
+        job["stage"] = "store_verified"
+    manager_server.publish_verified(job["verified"])
+    stored = manager_client.store_event(job["verified"])
+    if get_message_from_response(stored) != job["verified"]:
+        raise RuntimeError("Storage did not confirm the verified message")
+    Logger.info("event_stored_as_verified", eventId=message["key"])
+
+
+class EventRejected(RuntimeError):
+    pass
+
+
+def attempt_event(job, *, enqueue):
+    event_id = job["message"]["key"]
     try:
-        get_device_from_storage(device_id)
+        process_event(job)
+        return {"eventId": event_id, "status": "Verified"}, 200
+    except requests.Timeout:
+        if enqueue:
+            pending_events.put(job)
+        Logger.warning("event_pending_timeout", eventId=event_id, stage=job["stage"])
+        return {"eventId": event_id, "status": "Pending", "stage": job["stage"]}, 202
     except Exception as error:
-        Logger.warning("event_rejected_device_not_registered", deviceId=device_id, readerId=reader_id, error=str(error))
-        return "device not registered " , 404
+        rejected = isinstance(error, EventRejected) or (
+            job["stage"] == "verification" and isinstance(error, InternalPostError)
+            and error.status in (400, 422))
+        status = 422 if rejected else (404 if isinstance(error, DeviceNotRegisteredError)
+                                     else 500 if job["stage"] == "signing" else 502)
+        Logger.warning("event_discarded" if rejected else "event_processing_failed",
+                       eventId=event_id, stage=job["stage"], error=str(error))
+        return {"eventId": event_id, "status": "Rejected" if rejected else "Failed",
+                "stage": job["stage"]}, status
 
 
-    manager_signature = generate_wearable_key(device_id)
+def retry_event(job):
+    _, status = attempt_event(job, enqueue=False)
+    return status == 202
 
-    message["value"]["managerHash"] = manager_signature
 
-    try:
-        request_body = {
-            "token": os.getenv("API_TOKEN_STORAGE"),
-            "message": message,
-        }
+def queue_discarded(job):
+    Logger.warning("event_discarded_queue_full", eventId=job["message"]["key"],
+                   stage=job["stage"])
 
-        stored_message = post_request(
-            os.getenv("INTERNAL_URL_STORAGE_EVENTS"),
-            request_body,
-        )
-        Logger.info("event_stored_as_captured", eventId=message["key"], deviceId=device_id, readerId=reader_id)
 
-        request_body["message"] = get_message_from_response(stored_message)
-        request_body["token"] = os.getenv("API_TOKEN_VERIFIER")
-
-        verified_response = post_request(
-            os.getenv("INTERNAL_URL_VERIFIER_VERIFY"),
-            request_body,
-        )
-        Logger.info("event_verified", eventId=message["key"], deviceId=device_id, readerId=reader_id)
-
-        request_body["message"] = get_message_from_response(verified_response)
-        request_body["token"] = os.getenv("API_TOKEN_STORAGE")
-
-        stored_verified_message = post_request(
-            os.getenv("INTERNAL_URL_STORAGE_EVENTS"),
-            request_body,
-        )
-        Logger.info("event_stored_as_verified", eventId=message["key"], deviceId=device_id, readerId=reader_id)
-
-        request_body["message"] = stored_verified_message
-        request_body["token"] = os.getenv("API_TOKEN_PUBLISHER")
-
-        # published_message = post_request(
-        #     os.getenv("INTERNAL_URL_PUBLISHER_PUBLISH"),
-        #     request_body,
-        # )
-
-        request_body["token"] = os.getenv("API_TOKEN_STORAGE")
-
-        # delete_request(
-        #     os.getenv("INTERNAL_URL_STORAGE_EVENTS") + "/" + published_message["key"],
-        #     request_body,
-        # )
-
-    except Exception as error:
-        Logger.error("event_processing_failed", deviceId=device_id, readerId=reader_id, error=str(error))
-
-    return "Event accepted", 200
+pending_events = PendingEvents(QUEUE_SIZE, RETRY_INTERVAL, retry_event, queue_discarded)
+atexit.register(pending_events.close)
+stop_reader_streams = manager_client.start_reader_streams(on_reader_stream_event)
+atexit.register(stop_reader_streams)
 
 
 if __name__ == "__main__":

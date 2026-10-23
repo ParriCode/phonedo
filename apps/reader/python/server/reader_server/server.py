@@ -51,7 +51,7 @@ class ReaderServer:
                 web.get("/devices", self.devices),
             ])
             if self.stream is not None:
-                self._app.router.add_get("/observations/stream", self.observations)
+                self._app.router.add_get("/stream", self.observations)
 
     @property
     def app(self):

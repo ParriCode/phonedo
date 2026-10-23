@@ -17,6 +17,21 @@ sys.path.insert(0, str(ROOT_DIR / "libs"))
 
 from logger import Logger
 
+def sign_event(message: dict) -> str:
+    secret = os.getenv('MANAGER_PASSWORD')
+    if not secret:
+        raise RuntimeError('MANAGER_PASSWORD is not configured')
+    value = dict(message['value'])
+    value.pop('managerHash', None)
+    envelope = {**message, 'value': value}
+    encoded = json.dumps(envelope, sort_keys=True, separators=(',', ':'),
+                         ensure_ascii=False, allow_nan=False).encode('utf-8')
+    return hmac.new(secret.encode('utf-8'), encoded, hashlib.sha256).hexdigest()
+
+def verify_event(message: dict) -> bool:
+    supplied = message['value'].get('managerHash')
+    return isinstance(supplied, str) and hmac.compare_digest(supplied, sign_event(message))
+
 
 def env_bool(name: str, default: bool) -> bool:
     value = os.getenv(name)
@@ -313,6 +328,15 @@ def verify():
 
     if creation_datetime < now_ms - max_age_ms:
         errors.append("creationDatetime is too old")
+
+    # Authenticate the captured content before producing our signed result.
+    try:
+        if not verify_event(message):
+            errors.append("managerHash does not authenticate this event")
+    except RuntimeError:
+        return jsonify({"verified": False, "error": "Manager authentication is not configured"}), 500
+    except (ValueError, TypeError):
+        errors.append("Event cannot be serialized for authentication")
 
     # Hash del Manager
   

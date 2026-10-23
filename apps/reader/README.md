@@ -69,7 +69,7 @@ El servidor mantiene `start()`, `stop()`, `status()` y `app`:
 - Lifecycle: crear → arrancar → parar → desechar. Para reiniciar, crear otra instancia.
 - aiohttp se importa únicamente al habilitar HTTP.
 
-Rutas: `/health`, `/metadata`, `/devices` y `/observations/stream` (SSE opcional).
+Rutas: `/health`, `/metadata`, `/devices` y `/stream` (SSE opcional).
 Si se configura `token`, todas requieren `Authorization: Bearer <token>`.
 
 ## Ejemplo Linux
@@ -77,7 +77,7 @@ Si se configura `token`, todas requieren `Authorization: Bearer <token>`.
 ```sh
 python3 -m pip install -r apps/reader/examples/linux/requirements.txt
 python3 apps/reader/examples/linux/main.py
-curl -N http://127.0.0.1:3002/observations/stream
+curl -N http://127.0.0.1:3002/stream
 ```
 
 Genera una temperatura **simulada** entre 20 y 30 °C cada segundo. El procedimiento
