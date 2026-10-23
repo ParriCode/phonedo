@@ -22,10 +22,13 @@ class StreamClient:
             self.threads.append(thread)
             thread.start()
 
-    def _run(self, url):
+    def _run(self, target):
+        target = {'url': target} if isinstance(target, str) else target
+        url = target['url']
+        token = target.get('token', self.token)
         while not self.stopped.is_set():
             try:
-                headers = {'Authorization': 'Bearer ' + self.token} if self.token else {}
+                headers = {'Authorization': 'Bearer ' + token} if token else {}
                 with requests.get(url, headers=headers, stream=True, timeout=(10, 30)) as response:
                     response.raise_for_status()
                     kind, data = '', []

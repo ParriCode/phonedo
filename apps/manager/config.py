@@ -30,33 +30,6 @@ class ManagerConfig:
         self.api_token_publisher = os.getenv("API_TOKEN_PUBLISHER")
 
         # ---------------------------------------------------------
-        # Default internal services
-        #
-        # Estos se mantienen mientras sigas usando las URLs
-        # actuales del .env.
-        # ---------------------------------------------------------
-
-        self.storage_devices_url = os.getenv(
-            "INTERNAL_URL_STORAGE_DEVICES"
-        )
-
-        self.storage_events_url = os.getenv(
-            "INTERNAL_URL_STORAGE_EVENTS"
-        )
-
-        self.storage_register_devices_url = os.getenv(
-            "INTERNAL_URL_STORAGE_REGISTER_DEVICES"
-        )
-
-        self.verifier_verify_url = os.getenv(
-            "INTERNAL_URL_VERIFIER_VERIFY"
-        )
-
-        self.publisher_publish_url = os.getenv(
-            "INTERNAL_URL_PUBLISHER_PUBLISH"
-        )
-
-        # ---------------------------------------------------------
         # Services
         # ---------------------------------------------------------
 

@@ -19,7 +19,7 @@ def test_service_loads_without_repository(service, entry, tmp_path):
                     ignore=shutil.ignore_patterns('.venv', '__pycache__', '*.log'))
     env = {**os.environ, 'MANAGER_PASSWORD': 'isolation-only',
            'MANAGER_CONFIG_PATH': str(isolated / 'config.json'),
-           'VERIFIER_MANAGER_STREAMS': '[]', 'PHONENDO_DB_PATH': str(tmp_path / 'db'),
+           'VERIFIER_CONFIG_PATH': str(isolated / 'config.json'), 'PHONENDO_DB_PATH': str(tmp_path / 'db'),
            'PHONENDO_LOGGING': 'false', 'PHONENDO_VERBOSE': 'false',
            'PHONENDO_LOGS_DIR': str(tmp_path / 'logs')}
     env.pop('PYTHONPATH', None)

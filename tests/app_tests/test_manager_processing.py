@@ -43,8 +43,8 @@ class ProcessingTests(unittest.TestCase):
         send = exchange or self.exchange
         client = self.manager.manager_client
         with patch.object(client, 'get_device', return_value={}), \
-             patch.object(client, 'verify_event', side_effect=lambda message: send('verifier', {'token': 'verify', 'message': message})), \
-             patch.object(client, 'store_event', side_effect=lambda message: send('storage', {'token': 'storage', 'message': message})):
+             patch.object(client, 'verify_event', side_effect=lambda message, **kwargs: send('verifier', {'token': 'verify', 'message': message})), \
+             patch.object(client, 'store_event', side_effect=lambda message, **kwargs: send('storage', {'token': 'storage', 'message': message})):
             return self.manager.app.test_client().post('/newEvent', json=self.body)
 
     def test_success_and_payload_tampering(self):
@@ -89,8 +89,8 @@ class ProcessingTests(unittest.TestCase):
         self.assertEqual(response.json['status'], 'Pending')
         self.assertEqual(len(self.manager.core.pending_events), 1)
         client = self.manager.manager_client
-        with patch.object(client, 'verify_event', side_effect=lambda message: exchange('verifier', {'token': 'verify', 'message': message})), \
-             patch.object(client, 'store_event', side_effect=lambda message: exchange('storage', {'token': 'storage', 'message': message})):
+        with patch.object(client, 'verify_event', side_effect=lambda message, **kwargs: exchange('verifier', {'token': 'verify', 'message': message})), \
+             patch.object(client, 'store_event', side_effect=lambda message, **kwargs: exchange('storage', {'token': 'storage', 'message': message})):
             self.manager.core.pending_events.retry_once()
         self.assertEqual(len(self.manager.core.pending_events), 0)
         self.assertEqual(calls, 3)
@@ -108,8 +108,8 @@ class ProcessingTests(unittest.TestCase):
         self.assertEqual(response.status_code, 202)
         self.assertEqual(response.json['stage'], 'store_verified')
         client = self.manager.manager_client
-        with patch.object(client, 'verify_event', side_effect=lambda message: exchange('verifier', {'token': 'verify', 'message': message})), \
-             patch.object(client, 'store_event', side_effect=lambda message: exchange('storage', {'token': 'storage', 'message': message})):
+        with patch.object(client, 'verify_event', side_effect=lambda message, **kwargs: exchange('verifier', {'token': 'verify', 'message': message})), \
+             patch.object(client, 'store_event', side_effect=lambda message, **kwargs: exchange('storage', {'token': 'storage', 'message': message})):
             self.manager.core.pending_events.retry_once()
         self.assertEqual(calls, 3)
         self.assertEqual(len(self.manager.core.pending_events), 0)

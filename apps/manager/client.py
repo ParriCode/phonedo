@@ -23,39 +23,72 @@ class ManagerClient:
         self.timeout = timeout
 
 
-    #Obtener dispositivo de la base de datos del storage, si no existe lanza un error DeviceNotRegisteredError
+    def _targets(self, service):
+        targets = getattr(self.config, service + '_url_list')
+        if not targets:
+            raise RuntimeError(f'No {service} configured in services.{service}s')
+        for target in targets:
+            target = {'url': target} if isinstance(target, str) else target
+            yield target['url'].rstrip('/'), target.get(
+                'token', getattr(self.config, 'api_token_' + service))
+
     def get_device(self, device_id: str) -> dict:
-        url = f"{self.config.storage_devices_url.rstrip('/')}/{device_id}"
-        Logger.debug("storage_device_lookup_request", url=url, deviceId=device_id)
-        response = requests.get(
-            url,
-            headers={"X-Storage-Token": self.config.api_token_storage},
-            timeout=self.timeout,
-        )
-        if response.status_code == 404:
-            Logger.warning("storage_device_not_registered", deviceId=device_id)
-            raise DeviceNotRegisteredError("Device not registered")
-        if response.status_code != 200:
-            Logger.error("storage_device_lookup_failed", deviceId=device_id,
-                         status=response.status_code, body=response.text)
-            raise RuntimeError(f"Storage error: {response.status_code} {response.text}")
-        Logger.info("storage_device_found", deviceId=device_id)
-        return response.json()["value"]
-    #Registrar un dispositivo en la base de datos del storage
+        errors = []
+        for base, token in self._targets('storage'):
+            try:
+                response = requests.get(base + '/devices/' + device_id,
+                    headers={'X-Storage-Token': token}, timeout=self.timeout)
+                if response.status_code == 404:
+                    continue
+                response.raise_for_status()
+                return response.json()['value']
+            except requests.RequestException as error:
+                errors.append(error)
+        if errors:
+            raise errors[0]
+        raise DeviceNotRegisteredError('Device not registered')
+
+    def _broadcast(self, service, path, message, completed=None):
+        responses, errors = [], []
+        for base, token in self._targets(service):
+            if completed is not None and base in completed:
+                responses.append(message)
+                continue
+            try:
+                reply = self._post(base + path, {'token': token, 'message': message})
+                if completed is not None:
+                    confirmed = reply.get('message', reply) if isinstance(reply, dict) else reply
+                    if confirmed != message:
+                        raise RuntimeError('Storage did not confirm the verified message')
+                    completed.add(base)
+                responses.append(reply)
+            except (requests.RequestException, InternalPostError) as error:
+                errors.append(error)
+        if errors:
+            raise errors[0]
+        return responses
+
     def register_device(self, message: dict):
-        return self._post(self.config.storage_register_devices_url, {
-            "token": self.config.api_token_storage, "message": message,
-        })
+        return self._broadcast('storage', '/registerDevice', message)[0]
 
-    def verify_event(self, message: dict):
-        return self._post(self.config.verifier_verify_url, {
-            "token": self.config.api_token_verifier, "message": message,
-        })
+    def verify_event(self, message: dict, target=None):
+        if target is None:
+            targets = list(self._targets('verifier'))
+            if len(targets) != 1:
+                raise RuntimeError('An explicit Verifier target is required')
+            base, token = targets[0]
+        else:
+            target = {'url': target} if isinstance(target, str) else target
+            base = target['url'].rstrip('/')
+            token = target.get('token', self.config.api_token_verifier)
+        return self._post(base + '/verify', {'token': token, 'message': message})
 
-    def store_event(self, message: dict):
-        return self._post(self.config.storage_events_url, {
-            "token": self.config.api_token_storage, "message": message,
-        })
+    def store_event(self, message: dict, completed=None):
+        responses = self._broadcast('storage', '/events', message, completed)
+        if any((reply.get('message', reply) if isinstance(reply, dict) else reply) != message
+               for reply in responses):
+            raise RuntimeError('Storage did not confirm the verified message')
+        return responses[0]
 
     def _post(self, url: str, body: dict):
         sanitized = dict(body)
@@ -75,10 +108,12 @@ class ManagerClient:
         """Consume one Reader SSE connection; caller handles reconnection."""
         import json
 
-        base_url = reader_url.rstrip('/')
+        target = {'url': reader_url} if isinstance(reader_url, str) else reader_url
+        base_url = target['url'].rstrip('/')
         headers = {}
-        if self.config.api_token_reader:
-            headers['Authorization'] = f'Bearer {self.config.api_token_reader}'
+        token = target.get('token', self.config.api_token_reader)
+        if token:
+            headers['Authorization'] = f'Bearer {token}'
         metadata = requests.get(f'{base_url}/metadata', headers=headers,
                                 timeout=self.timeout)
         metadata.raise_for_status()

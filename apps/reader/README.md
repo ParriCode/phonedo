@@ -81,8 +81,7 @@ curl -N http://127.0.0.1:3002/stream
 ```
 
 Genera una temperatura **simulada** entre 20 y 30 °C cada segundo. El procedimiento
-`random-simulation` identifica su origen. No lee hardware ni carga configuración
-externa o Manager. Usa core, server y biblioteca estándar; HTTP requiere aiohttp.
+`random-simulation` identifica su origen. No lee hardware. Puede enviar a Managers mediante `config.json`. Usa core, server y biblioteca estándar; HTTP requiere aiohttp.
 Ctrl+C cierra el servidor.
 
 ## C++ y Arduino
@@ -127,3 +126,22 @@ Incluye aislamiento del core/servicio, distribución de objetos, JSON Python/C++
 compilación C++ sin SDK Arduino, lifecycle HTTP, autenticación, SSE, colas y el
 ciclo de vida del ejemplo Linux. Los tests de los adaptadores Linux eliminados
 (configuración, serie, BLE, métricas y Manager) se retiraron con esa funcionalidad.
+
+## Varios Managers
+
+`ManagerOutput` admite múltiples destinos HTTP en `services.managers` del JSON:
+
+```json
+{"services": {"managers": [
+  {"url": "http://manager-a:3003", "token": "token-a"},
+  {"url": "http://manager-b:3003", "token": "token-b"}
+]}, "httpTimeoutSeconds": 10}
+```
+
+El ejemplo Linux carga `apps/reader/config.json` o `READER_CONFIG_PATH`.
+Para otras composiciones: `ManagerOutput.from_config(path)` se pasa en `outputs`
+a `ReaderServer`. Registra dispositivos por `/registerDevice` y entrega
+observaciones por `/newEvent` a cada destino; un error no impide intentar los demás.
+No hay cola persistente de entrega en este output. El SSE admite múltiples Managers
+suscritos y no espera confirmaciones. El ejemplo Arduino mantiene su adaptador C++;
+puede componer varios `ManagerOutput`, uno por cliente Manager.

@@ -318,8 +318,14 @@ def consume_manager_event(message):
 
 from verifier_support.stream_client import StreamClient
 import atexit
+stream_config = json.loads(Path(os.getenv("VERIFIER_CONFIG_PATH", str(BASE_DIR / "config.json"))).read_text())
+manager_targets = []
+for target in stream_config.get('services', {}).get('managers', []):
+    target = {'url': target} if isinstance(target, str) else dict(target)
+    target['url'] = target['url'].rstrip('/') + '/stream/verifier'
+    manager_targets.append(target)
 manager_streams = StreamClient(
-    json.loads(os.getenv("VERIFIER_MANAGER_STREAMS", "[]")),
+    manager_targets,
     os.getenv("API_TOKEN_VERIFIER", ""), consume_manager_event,
 )
 manager_streams.start()

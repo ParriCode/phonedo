@@ -21,10 +21,10 @@ El stream requiere `Authorization: Bearer <API_TOKEN_VERIFIER>` y emite
 
 ## Consumo de Managers
 
-Para recibir eventos desde varios Managers, configura en el entorno:
+Para recibir eventos desde varios Managers, configura `services.managers` en `config.json`:
 
-```sh
-VERIFIER_MANAGER_STREAMS='["http://manager-a:3003/stream/verifier", "http://manager-b:3003/stream/verifier"]'
+```json
+{"services": {"managers": ["http://manager-a:3003", "http://manager-b:3003"]}}
 ```
 
 Se usa `API_TOKEN_VERIFIER` como Bearer. Los Managers deben habilitar
@@ -47,7 +47,7 @@ El servicio carga `config.env` sin sustituir las variables ya definidas en el en
 | `PORT_VERIFIER` | Puerto HTTP; por defecto `5000`. |
 | `API_TOKEN_VERIFIER` | Acceso HTTP/SSE y conexión a los Managers. |
 | `MANAGER_PASSWORD` | Clave compartida para comprobar el hash del Manager. |
-| `VERIFIER_MANAGER_STREAMS` | Lista JSON de URLs SSE; por defecto `[]`. |
+| `VERIFIER_CONFIG_PATH` | Ruta del JSON; por defecto `config.json` junto al servicio. |
 | `MAX_EVENT_AGE_MS` | Antigüedad máxima del evento; por defecto `300000` ms. |
 | `MAX_FUTURE_DRIFT_MS` | Desfase futuro permitido; por defecto `30000` ms. |
 | `keys.json` | Clave privada de firma RSA; debe existir junto a `verifier.py`. |
@@ -69,3 +69,5 @@ La integración usa conexiones reales, comprueba la firma RSA, rechaza eventos
 alterados y verifica el dato guardado en Storage.
 
 Las utilidades de este servicio están en `verifier_support/`. No requieren código de otros servicios.
+
+Cada destino también admite `{"url": "http://manager:3003", "token": "..."}` para credenciales propias.

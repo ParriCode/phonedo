@@ -1,6 +1,7 @@
 """Reader Linux mínimo con temperaturas simuladas y streaming HTTP."""
 import asyncio
 import random
+import os
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -9,12 +10,15 @@ READER_DIR = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(READER_DIR / "python/core"), str(READER_DIR / "python/server")]
 
 from reader_core import Observation, ReaderCore
-from reader_server import ReaderServer, ServerConfig
+from reader_server import ReaderServer, ServerConfig, ManagerOutput
 
 
 async def main():
     core = ReaderCore(reader_id="reader-linux")
-    server = ReaderServer(core, ServerConfig(enabled=True))
+    config_path = Path(os.getenv('READER_CONFIG_PATH', str(READER_DIR / 'config.json')))
+    output = ManagerOutput.from_config(config_path) if config_path.exists() else ManagerOutput([])
+    server = (ReaderServer(core, ServerConfig(enabled=True), outputs=(output,))
+              if output.managers else ReaderServer(core, ServerConfig(enabled=True)))
     try:
         await server.start()
         print("Temperaturas simuladas: http://127.0.0.1:3002/stream")

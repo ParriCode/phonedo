@@ -2,6 +2,8 @@
 import threading
 import time
 import uuid
+import copy
+from concurrent.futures import ThreadPoolExecutor
 import requests
 from manager_support.logger import Logger
 from manager_support.pending_events import PendingEvents
@@ -61,8 +63,28 @@ class ManagerCore:
                 "creationDatetime": int(time.time() * 1000),
             },
         }
-        job = {"message": message, "stage": "lookup", "verified": None}
-        return self.attempt_event(job, enqueue=True)
+        # Each HTTP Verifier has its own event and retry state.
+        targets = self.client.config.verifier_url_list
+        if self.client.config.stream and self.client.config.stream_verifiers:
+            self.client.get_device(device_id)
+            message["value"]["managerHash"] = sign_event(message)
+            self.server.publish_captured(message)
+        if not targets:
+            if not (self.client.config.stream and self.client.config.stream_verifiers):
+                return {'error': 'No HTTP Verifiers or Verifier stream configured'}, 503
+            return {'eventId': message['key'], 'status': 'Streamed'}, 200
+        def send(target):
+            branch = copy.deepcopy(message)
+            branch['key'] = str(uuid.uuid4())
+            job = {'message': branch, 'stage': 'lookup', 'verified': None, 'verifier': target}
+            result, status = self.attempt_event(job, enqueue=True)
+            return {'verifier': target if isinstance(target, str) else target['url'],
+                    'result': result, 'httpStatus': status}
+        with ThreadPoolExecutor(max_workers=min(32, len(targets))) as workers:
+            outcomes = list(workers.map(send, targets))
+        if len(outcomes) == 1:
+            return outcomes[0]['result'], outcomes[0]['httpStatus']
+        return {'results': outcomes}, 207
 
     def on_reader_stream_event(self, body):
         if not isinstance(body, dict) or any(not body.get(field) for field in (
@@ -86,8 +108,7 @@ class ManagerCore:
             message["value"]["managerHash"] = sign_event(message)
             job["stage"] = "verification"
         if job["stage"] == "verification":
-            self.server.publish_captured(message)
-            response = self.client.verify_event(message)
+            response = self.client.verify_event(message, target=job.get('verifier'))
             if isinstance(response, dict) and response.get("verified") is False:
                 raise EventRejected("Verifier rejected event")
             verified = get_message_from_response(response)
@@ -101,7 +122,7 @@ class ManagerCore:
             job["verified"] = verified
             job["stage"] = "store_verified"
         self.server.publish_verified(job["verified"])
-        stored = self.client.store_event(job["verified"])
+        stored = self.client.store_event(job["verified"], completed=job.setdefault("stored", set()))
         if get_message_from_response(stored) != job["verified"]:
             raise RuntimeError("Storage did not confirm the verified message")
         Logger.info("event_stored_as_verified", eventId=message["key"])

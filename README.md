@@ -36,8 +36,9 @@ Publisher aparece como una fase futura.
 
 Requisitos: Python 3.11 o superior, soporte para entornos virtuales y `pip`.
 
-Configura `deploy/env/dev.env` con las URLs, los puertos y los secretos de los
-servicios. Después genera sus configuraciones y arranca el entorno:
+Configura `deploy/env/dev.env` con los puertos y secretos, y las listas de
+conexiones en `apps/reader/config.json`, `apps/manager/config.json` y
+`apps/verifier/config.json`. Después genera sus configuraciones y arranca el entorno:
 
 ```sh
 ./tools/generate_configs.sh

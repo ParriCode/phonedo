@@ -64,7 +64,22 @@ Los streams son en vivo, sin historial ni confirmación de entrega.
 
 ## Configuración y reintentos
 
-Las URLs y tokens de Storage y Verifier se cargan desde el entorno o `config.env`.
+Las conexiones se definen en las listas JSON `services.verifiers`,
+`services.storages` y `services.readers`; cada entrada es una URL base o un objeto
+`{"url": "http://servicio:puerto", "token": "..."}`. Los tokens del entorno
+se usan como valor por defecto cuando la entrada no define uno.
+
+Cada evento se envía a todos los Verifiers HTTP, con trabajo y clave propios para
+cada relación. Un rechazo afecta a esa relación; un timeout encola solo ese trabajo.
+Los envíos se lanzan en paralelo. Con varios Verifiers, `/newEvent` devuelve `207`
+con `results`: URL del Verifier, resultado y `httpStatus` por relación.
+Los eventos aceptados se envían a los Storages configurados; al reintentar una
+escritura se omiten los destinos ya confirmados.
+
+La publicación SSE es independiente: publica una observación sin esperar a ningún
+Verifier. Con lista HTTP vacía y stream de Verifier habilitado responde `200 Streamed`;
+esto indica publicación al stream, no verificación ni guardado. Sin ningún destino
+HTTP ni stream de Verifier devuelve `503`.
 
 | Variable | Valor por defecto | Uso |
 | --- | --- | --- |

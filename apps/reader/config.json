@@ -1,0 +1,6 @@
+{
+  "services": {
+    "managers": []
+  },
+  "httpTimeoutSeconds": 10
+}

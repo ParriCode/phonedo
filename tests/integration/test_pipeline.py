@@ -67,19 +67,17 @@ def test_real_pipeline(tmp_path):
     ports = {name: port() for name in ('reader', 'manager', 'verifier', 'storage')}
     urls = {name: f'http://127.0.0.1:{value}' for name, value in ports.items()}
     config = tmp_path / 'manager.json'
-    config.write_text(json.dumps({'services': {'readers': [urls['reader']]},
+    config.write_text(json.dumps({'services': {'readers': [urls['reader']], 'verifiers': [urls['verifier']], 'storages': [urls['storage']]},
                                  'stream': {'enabled': True, 'readers': True, 'verifiers': True}}))
-    env = {**os.environ, 'MANAGER_PASSWORD': 'integration-only', 'API_TOKEN_MANAGER': 'manager-test',
+    verifier_config = tmp_path / 'verifier.json'
+    verifier_config.write_text(json.dumps({'services': {'managers': [urls['manager']]}}))
+    env = {**os.environ, 'VERIFIER_CONFIG_PATH': str(verifier_config), 'MANAGER_PASSWORD': 'integration-only', 'API_TOKEN_MANAGER': 'manager-test',
            'API_TOKEN_STORAGE': 'storage-test', 'API_TOKEN_VERIFIER': 'verifier-test',
            'API_TOKEN_READER': '', 'MANAGER_CONFIG_PATH': str(config),
            'PHONENDO_DB_PATH': str(tmp_path / 'db'), 'PHONENDO_LOGS_DIR': str(tmp_path / 'logs'),
            'PHONENDO_LOGGING': 'false', 'PHONENDO_VERBOSE': 'false', 'PHONENDO_DEV': 'false',
            'MANAGER_HTTP_TIMEOUT_SECONDS': '2',
-           'INTERNAL_URL_STORAGE_DEVICES': urls['storage'] + '/devices',
-           'INTERNAL_URL_STORAGE_REGISTER_DEVICES': urls['storage'] + '/registerDevice',
-           'INTERNAL_URL_STORAGE_EVENTS': urls['storage'] + '/events',
-           'INTERNAL_URL_VERIFIER_VERIFY': urls['verifier'] + '/verify',
-           'VERIFIER_MANAGER_STREAMS': json.dumps([urls['manager'] + '/stream/verifier'])}
+           }
     env.update({'PORT_' + name.upper(): str(value) for name, value in ports.items()})
     processes, logs = [], []
     def start(name, args):
@@ -114,8 +112,12 @@ asyncio.run(main.main())
         original = captured.next()
         first, second = verified_a.next(), verified_b.next()
         assert first == second
-        assert first['key'] == original['key']
-        stored = wait_for(lambda: requests.get(urls['storage'] + '/raw', timeout=2).json().get(first['key']))
+        def stored_event():
+            records = requests.get(urls['storage'] + '/raw', timeout=2).json()
+            return next(({'key': key, 'value': value} for key, value in records.items()
+                         if value.get('status') == 'Verified' and value.get('payload') == original['value']['payload']), None)
+        persisted = wait_for(stored_event)
+        stored = persisted['value']
         # HTTP and SSE verification may produce different signature timestamps.
         public_key = serialization.load_pem_private_key(
             json.loads((ROOT / 'apps/verifier/keys.json').read_text())['privateKey'].encode(), None).public_key()
@@ -125,10 +127,10 @@ asyncio.run(main.main())
             encoded = json.dumps(unsigned, sort_keys=True, separators=(',', ':'), ensure_ascii=False).encode()
             public_key.verify(signature, encoded, padding.PKCS1v15(), hashes.SHA256())
         check_signature(first)
-        check_signature({'key': first['key'], 'value': stored})
+        check_signature(persisted)
         assert stored['payload'] == original['value']['payload']
         assert stored['status'] == 'Verified'
-        for field in ('readerId', 'deviceId', 'payloadFormat', 'creationDatetime', 'managerHash'):
+        for field in ('readerId', 'deviceId', 'payloadFormat', 'creationDatetime'):
             assert stored[field] == original['value'][field]
         altered = copy.deepcopy(first)
         altered['value']['payload']['simple_result'] = -999
@@ -140,14 +142,16 @@ asyncio.run(main.main())
             response = requests.post(urls['verifier'] + '/verify',
                                      json={'token': 'verifier-test', 'message': altered}, timeout=5)
             assert response.status_code == 422, response.text
-        assert requests.get(urls['storage'] + '/raw', timeout=2).json()[first['key']] == stored
+        assert requests.get(urls['storage'] + '/raw', timeout=2).json()[persisted['key']] == stored
         reader.terminate()
         reader.wait(timeout=5)
         # Prove the Verifier consumes the Manager SSE, independently of POST /verify:
         manager = processes[1]
         manager.terminate()
         manager.wait(timeout=5)
-        env['INTERNAL_URL_VERIFIER_VERIFY'] = urls['verifier'] + '/does-not-exist'
+        settings = json.loads(config.read_text())
+        settings['services']['verifiers'] = [urls['storage']]
+        config.write_text(json.dumps(settings))
         start('manager-sse-only', ['apps/manager/manager.py'])
         wait_for(lambda: requests.get(urls['manager'] + '/', timeout=1).status_code == 200)
         # Reconnection delay is 5 seconds; emit until the consumer has reconnected.

@@ -4,9 +4,11 @@ from pathlib import Path
 from unittest.mock import patch
 
 
-def test_verified_results_fan_out_and_rejections_are_not_published():
+def test_verified_results_fan_out_and_rejections_are_not_published(tmp_path):
     root = Path(__file__).resolve().parents[2]
-    with patch.dict(os.environ, {'API_TOKEN_VERIFIER': 'stream-test', 'VERIFIER_MANAGER_STREAMS': '[]'}):
+    config = tmp_path / 'verifier.json'
+    config.write_text('{"services": {"managers": []}}')
+    with patch.dict(os.environ, {'API_TOKEN_VERIFIER': 'stream-test', 'VERIFIER_CONFIG_PATH': str(config)}):
         spec = importlib.util.spec_from_file_location('verifier_stream_test', root / 'apps/verifier/verifier.py')
         verifier = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(verifier)

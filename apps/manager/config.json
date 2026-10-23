@@ -1,8 +1,12 @@
 {
   "services": {
     "readers": [],
-    "verifiers": [],
-    "storages": [],
+    "verifiers": [
+      "http://127.0.0.1:3002"
+    ],
+    "storages": [
+      "http://127.0.0.1:3001"
+    ],
     "publishers": []
   },
   "stream": {
