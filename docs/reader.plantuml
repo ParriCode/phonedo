@@ -1,128 +1,118 @@
 @startuml reader
+!pragma layout smetana
 skinparam classAttributeIconSize 0
 skinparam packageStyle rectangle
-title Phonendo Reader - Class Diagram
+hide empty members
+title Reader base — dominio, servicio y servidor Python
 
-package "reader" {
-  class "Reader-Core" as ReaderCore {
-    - devices: Map<String, Device>
-    - serializer: SosaTTLSerializer
-    - managerClient: ManagerClient
-    - config: ReaderConfig
-    
-    + registerDevice(device: Device): void
-    + addDevice(device: Device): void
-    + removeDevice(deviceId: String): void
-    + getDevice(deviceId: String): Device
-    + ingestRawMeasurement(deviceId: String, sensorId: String, rawValue: Object, phenomenonTime: DateTime): Observation
-    + sendObservation(obs: Observation, device: Device): void
+package "Core (sin HTTP ni hardware)" {
+  class ReaderCore {
+    +reader_id: str
+    +allow_new_devices: bool = True
+    +allow_new_sensors: bool = True
+    +on_register_device: Callable(Device)
+    +on_observation: Callable(Observation)
+    +register_device(device)
+    +add_device(device)
+    +get_device(device_id)
+    +remove_device(device_id)
+    +create_observation(device_id, sensor_id, value, phenomenon_time)
+    +ingest(observation, send=True): bool
+    +send_observation(observation)
   }
-
-  class "Reader-Service" as ReaderService {
-  }
-
-  class ReaderConfig {
-    + enableBluetooth: bool
-    + enableHttp: bool
-    + enableLocal: bool
-    + managerUrl: String
-    + managerToken: String
-  }
-}
-
-package "domain" {
-
   class Device {
-    + deviceId: String
-    + deviceType: String
-    + macAddress: String
-    + platform: String
-    - sensors: Map<String, Sensor>
-    + addSensor(sensor: Sensor): void
-    + getSensor(sensorId: String): Sensor
-    + removeSensor(sensorId: String): void
-    + listSensors(): List<Sensor>
+    +device_id: str
+    +device_type: str
+    +platform: str
+    +add_sensor(sensor)
+    +get_sensor(sensor_id)
+    +remove_sensor(sensor_id)
+    +list_sensors()
   }
-
   class Sensor {
-    + sensorId: String
-    + observableProperty: String
-    + procedure: String
-    + featureOfInterest: String
-    + unit: String
-    + deviceId: String
-    + buildObservation(rawValue: Object, phenomenonTime: DateTime): Observation
-    + addObservation(simpleResult: Object, phenomenonTime: DateTime): Observation
+    +sensor_id: str
+    +device_id: str
+    +observable_property: str
+    +procedure: str
+    +feature_of_interest: str
+    +unit: str
+    +build_observation(raw_value, phenomenon_time)
   }
-
   class Observation {
-    + observationId: String
-    + observableProperty: String
-    + simpleResult: Object
-    + phenomenonTime: DateTime
-    + featureOfInterest: String
-    + procedure: String
-    + sensorId: String
-    + deviceId: String
-    + unit: String
+    +observation_id: str
+    +device_id: str
+    +sensor_id: str
+    +observable_property: str
+    +simple_result: Any
+    +phenomenon_time: datetime
+    +feature_of_interest: str
+    +procedure: str
+    +unit: str
   }
 }
-
-package "serialization" {
-
-  class SosaTTLSerializer {
-    + serialize(device: Device, observation: Observation): String
+package "Service y outputs" {
+  class ReaderService {
+    +ingest(observation): bool
+    +register_device_output(device)
+    +publish(observation)
+    +metadata(stream_enabled=False)
+    +devices()
+  }
+  interface ObservationOutput {
+    +register_device(reader_id, device)
+    +publish(reader_id, observation)
+  }
+  class StreamOutput
+  class ObservationStream {
+    +subscribe()
+    +publish(event)
+    +close()
+  }
+  class "Serialización JSON" as JSON {
+    +observation_to_dict(observation)
+    +observation_event(reader_id, observation)
   }
 }
-
-package "integration" {
-
-  class ManagerClient {
-    + baseUrl: String
-    + token: String
-    + registerDevice(device: Device): void
-    + sendObservationTTL(ttl: String): void
+package "Server HTTP opcional" {
+  class ReaderServer {
+    +start()
+    +stop()
+    +status()
+    +app
+  }
+  class ServerConfig {
+    +enabled: bool = False
+    +host: str = 127.0.0.1
+    +port: int = 3002
+    +token: str
+    +stream_enabled: bool = True
+    +queue_size: int = 256
   }
 }
-
-ReaderCore *-- "0..*" Device
-ReaderCore --> ReaderConfig
-ReaderCore --> ManagerClient
-ReaderCore --> SosaTTLSerializer
-ReaderService --> ReaderCore
-
-Device *-- "1..*" Sensor
-
-Sensor --> Observation : creates
-
-SosaTTLSerializer --> Device
-SosaTTLSerializer --> Observation
-
-ManagerClient ..> Device
-ManagerClient ..> Observation
-
-note right of ReaderCore
-Reader can run:
-- inside a wearable device
-- in a gateway
-- in a mobile/edge device
-
-It manages multiple Devices and
-sends SOSA TTL to Manager over HTTP.
+ReaderCore o-- "0..*" Device : registro local
+Device o-- "0..*" Sensor
+Sensor ..> Observation : construye
+ReaderCore ..> Observation : valida y emite el objeto
+ReaderService --> ReaderCore : core externo
+ReaderCore --> ReaderService : callbacks instalados por el servicio
+ReaderService o-- "0..*" ObservationOutput : distribuye objetos
+StreamOutput ..|> ObservationOutput
+StreamOutput --> JSON
+StreamOutput --> ObservationStream
+ReaderServer *-- ReaderService : compone
+ReaderServer --> ReaderCore : recibe instancia externa
+ReaderServer --> ServerConfig
+ReaderServer --> ObservationStream
+ReaderServer ..> StreamOutput : añade si stream habilitado
+note bottom of ReaderCore
+  on_observation puede ser una función del usuario.
+  Si se conecta ReaderService, este gestiona los callbacks.
+  Core no serializa ni envía HTTP por sí mismo.
 end note
-
-note right of Device
-A Device is a physical or logical source
-of data and may contain multiple sensors.
+note bottom of ReaderServer
+  GET /health, /metadata, /devices
+  GET /observations/stream (opcional)
+  No existe ingestión HTTP ni historial SSE.
+  enabled refleja el código actual: aún no se ha eliminado.
 end note
-
-note right of Observation
-The important semantic fields are:
-- observableProperty
-- simpleResult
-- phenomenonTime
-- featureOfInterest
-- procedure
-end note
-
 @enduml

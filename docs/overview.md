@@ -1,5 +1,5 @@
 > Estado del Reader: este documento contiene propuestas históricas. La arquitectura
-> implementada de core/server/implementations y sus instrucciones de ejecución
+> implementada de python/cpp/examples y sus instrucciones de ejecución
 > están en [Reader](../apps/reader/README.md#arquitectura).
 
 # PHONENDO 

@@ -1,0 +1,50 @@
+@startuml phonendo
+skinparam componentStyle rectangle
+left to right direction
+title Phonendo — arquitectura general con Reader base
+actor "Aplicación productora" as A
+actor "Consumidor HTTP/SSE" as U
+package "Reader base" {
+  component ReaderCore as C
+  component ReaderService as S
+  component ReaderServer as H
+  component StreamOutput as O
+  component "Output HTTP al Manager\nContrato de integración pendiente\nen Reader base" as B #FFF2CC
+}
+component "Manager\nFlask" as M
+component "Storage operativo\nFlask + LevelDB" as DB
+component "Verifier\nValidación y firma RSA" as V
+component "Publisher\nPendiente" as P #FFF2CC
+component "Storage persistente\nDatos completos y evidencias\nDiseño objetivo" as PS #FFF2CC
+cloud "Stellar\nAtestación de Batch\nDiseño objetivo" as ST
+A --> C : registrar / ingest(Observation)
+C --> S : callbacks de objetos
+S --> O : publish
+O --> H : eventos SSE
+U --> H : consultas HTTP / suscripción
+H --> S : consultar metadata y devices
+S ..> B : output por implementar
+B ..> M : POST /registerDevice y /newEvent
+M --> DB : registrar, consultar y guardar
+M --> V : POST /verify
+V --> M : Verified firmado o rechazo
+M ..> P : publicación desactivada
+P ..> PS : contenido y pruebas
+P ..> ST : raíz y referencia del lote
+note bottom of B
+  El Reader base no incluye un cliente Manager.
+  Se muestra el punto de extensión necesario,
+  sin adaptadores de plataforma ni hardware.
+  Manager no consume automáticamente el SSE.
+end note
+note bottom of M
+  Flujo actual: Captured -> Verified.
+  HTTP 200 no garantiza que todos los pasos hayan terminado bien.
+  managerHash no firma el payload.
+end note
+legend bottom
+  Línea continua: dependencia o flujo implementado.
+  Línea discontinua y amarillo: integración o función pendiente.
+  Storage operativo y persistente son roles; no implican dos motores ya desplegados.
+endlegend
+@enduml
