@@ -101,8 +101,8 @@ Logger.init(
 )
 
 BASE_DIR = Path(__file__).resolve().parent
-stream_config = json.loads(Path(os.getenv("VERIFIER_CONFIG_PATH", str(BASE_DIR / "config.json"))).read_text())
-KEYS_PATH = BASE_DIR / stream_config.get('keysPath', 'keys.json')
+verifier_config = json.loads(Path(os.getenv("VERIFIER_CONFIG_PATH", str(BASE_DIR / "config.json"))).read_text())
+KEYS_PATH = BASE_DIR / verifier_config.get('keysPath', 'keys.json')
 
 with open(KEYS_PATH, "r", encoding="utf-8") as f:
     keys = json.load(f)
@@ -117,9 +117,11 @@ from verifier_support.server_stream import stream_response
 verification_stream = EventStream()
 app = Flask(__name__)
 
-@app.get("/stream")
 def results_stream():
     return stream_response(verification_stream, os.getenv("API_TOKEN_VERIFIER"))
+
+if verifier_config.get('stream', {}).get('enabled', True):
+    app.add_url_rule('/stream', 'stream', results_stream)
 
 
 
@@ -320,21 +322,21 @@ def consume_manager_event(message):
 from verifier_support.stream_client import StreamClient
 import atexit
 manager_targets = []
-for target in stream_config.get('services', {}).get('managers', []):
+for target in verifier_config.get('subscriptions', {}).get('managers', []):
     target = {'url': target} if isinstance(target, str) else dict(target)
     target['url'] = target['url'].rstrip('/') + '/stream/verifier'
     manager_targets.append(target)
-manager_streams = StreamClient(
+manager_subscriptions = StreamClient(
     manager_targets,
     os.getenv("API_TOKEN_VERIFIER", ""), consume_manager_event,
 )
-manager_streams.start()
-atexit.register(manager_streams.close)
+manager_subscriptions.start()
+atexit.register(manager_subscriptions.close)
 
 
 if __name__ == "__main__":
     Logger.info("service_starting", port=os.getenv("PORT_VERIFIER", 5000))
     app.run(
-        host=stream_config.get('server', {}).get('host', '0.0.0.0'),
-        port=int(os.getenv('PORT_VERIFIER', stream_config.get('server', {}).get('port', 5000)))
+        host=verifier_config.get('server', {}).get('host', '0.0.0.0'),
+        port=int(os.getenv('PORT_VERIFIER', verifier_config.get('server', {}).get('port', 5000)))
     )

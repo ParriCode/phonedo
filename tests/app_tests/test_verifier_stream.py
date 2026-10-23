@@ -29,4 +29,4 @@ def test_verified_results_fan_out_and_rejections_are_not_published(tmp_path):
             publish.assert_not_called()
         first.close()
         second.close()
-        verifier.manager_streams.close()
+        verifier.manager_subscriptions.close()

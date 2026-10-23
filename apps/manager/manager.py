@@ -55,9 +55,9 @@ register_routes(app, core)
 atexit.register(core.close)
 
 if __name__ == "__main__":
-    stop_streams = manager_client.start_reader_streams(core.on_reader_stream_event)
+    stop_subscriptions = manager_client.start_subscriptions(core)
     try:
         app.run(host=manager_config.host, port=manager_config.port)
     finally:
-        stop_streams()
+        stop_subscriptions()
         core.close()

@@ -20,9 +20,15 @@ de los datos forma parte del diseño y está pendiente de integración.
 
 El Manager consume las observaciones del Reader por SSE. Si un mismo Reader envía
 eventos por `/newEvent`, esa entrada HTTP tiene prioridad sobre su stream.
-La verificación y el guardado del flujo completo actual se realizan mediante HTTP.
+La verificación admite HTTP o SSE. El guardado puede utilizar HTTP o las
+suscripciones de Storage a las salidas del Manager.
 El Verifier también consume streams de Managers y publica resultados por SSE;
-el Manager todavía no utiliza esos resultados SSE para continuar el guardado.
+el Manager puede suscribirse a ellos para continuar el guardado. Storage expone
+su stream después de escribir los eventos.
+
+En cada JSON, `stream` expone el stream propio y `subscriptions` contiene los
+streams que consume. El Manager usa `outputStreams` para sus salidas específicas
+hacia Verifiers y Storages, separadas de su `/stream` general.
 
 ## Secuencia general
 
@@ -31,6 +37,16 @@ el Manager todavía no utiliza esos resultados SSE para continuar el guardado.
 Solo se guarda el evento tras una verificación positiva. Un rechazo explícito lo
 descarta; un timeout lo deja en una cola temporal en memoria para reintentarlo.
 Publisher aparece como una fase futura.
+
+## Docker
+
+Para construir y arrancar los cuatro servicios:
+
+```sh
+docker compose -f deploy/docker/compose.yml up --build -d --wait
+```
+
+[Configuración, puertos y pruebas con Docker](deploy/docker/README.md).
 
 ## Ejecución local
 
@@ -47,6 +63,13 @@ conexiones en `apps/reader/config.json`, `apps/manager/config.json`, `apps/verif
 
 El generador escribe los archivos `config.env` de los servicios. El Reader del
 entorno local utiliza el ejemplo Linux con observaciones simuladas.
+
+## Laboratorio con interfaz
+
+Para gestionar contenedores Docker, ver sus puertos y crear dispositivos, sensores
+y observaciones manuales o periódicas: `./tools/lab.sh`. Permite parar, pausar y
+reanudar servicios.
+Consulta [las instrucciones del laboratorio](tools/LABORATORIO.md).
 
 ## Pruebas
 

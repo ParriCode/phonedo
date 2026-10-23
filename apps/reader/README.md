@@ -148,3 +148,18 @@ puede componer varios `ManagerOutput`, uno por cliente Manager.
 
 El JSON del ejemplo Linux también admite `readerId` y `server` con las opciones
 de `ServerConfig` (`enabled`, `host`, `port`, `token`, `stream_enabled`, `queue_size`).
+
+## Docker
+
+Desde la raíz del proyecto:
+
+```sh
+docker build -t phonendo-reader apps/reader
+```
+
+[Arranque conjunto, configuración y pruebas](../../deploy/docker/README.md).
+
+En el JSON, `stream.enabled` controla el `/stream` del Reader. El campo
+`server` configura la escucha HTTP; el parámetro Python `ServerConfig.stream_enabled`
+sigue disponible para composiciones por código. `services.managers` sigue siendo
+la lista de destinos HTTP, no una suscripción.

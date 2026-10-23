@@ -37,12 +37,16 @@ end
 V -> M : Suscribirse a /stream/verifier
 M --> V : Evento Captured (SSE)
 note over V : Verificar y firmar si se acepta.
-V --> M : Resultado Verified por /stream del Verifier\n(entrega al Manager pendiente)
+V --> M : Resultado Verified por /stream del Verifier
 note over M,V
   El Verifier ya publica para varios suscriptores.
-  El Manager todavía no consume este resultado para guardar en Storage.
-  Este intercambio no sustituye la llamada HTTP del flujo anterior.
+  Manager correlaciona el resultado con su evento y continúa el guardado.
+  El envío SSE no espera respuestas ni reintenta por timeout del suscriptor.
 end note
+
+M -> S : Guardar Verified (HTTP o salida SSE /stream/storage)
+S --> M : Evento guardado por /stream propio (si está suscrito)
+note over M,S : Recibir la confirmación no provoca otro guardado.
 
 == Publicación futura ==
 M --> P : Publicar evento verificado (pendiente)

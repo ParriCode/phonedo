@@ -1,4 +1,11 @@
 {
   "enabled": false,
-  "services": {"managers": [], "storages": []}
+  "services": {
+    "managers": [],
+    "storages": []
+  },
+  "subscriptions": {},
+  "stream": {
+    "enabled": false
+  }
 }

@@ -10,7 +10,7 @@ ROOT = Path(__file__).resolve().parents[2]
 def test_verifier_jobs_are_independent():
     from core import ManagerCore
     client = SimpleNamespace(config=SimpleNamespace(verifier_url_list=['http://v1', 'http://v2'],
-                                                     stream=False, stream_verifiers=False))
+                                                     stream_enabled=False, output_verifiers=False))
     core = ManagerCore(client, None, 10, 5)
     calls = []
     def attempt(job, *, enqueue):
@@ -66,7 +66,7 @@ def test_timeout_retries_only_its_verifier(monkeypatch):
     monkeypatch.setenv('MANAGER_PASSWORD', 'test-secret')
     client = MagicMock()
     client.config = SimpleNamespace(verifier_url_list=['http://slow', 'http://fast'],
-                                    stream=False, stream_verifiers=False)
+                                    stream_enabled=False, output_verifiers=False)
     calls = []
     retry = False
     def verify(message, target=None):

@@ -14,7 +14,9 @@ quedan para una revisión posterior.
 
 El flujo operativo usa SSE desde el Reader y HTTP para verificar y guardar Verified.
 El Verifier también consume el SSE de Managers y publica resultados para varios
-suscriptores; el Manager aún no consume esos resultados para continuar el guardado.
+suscriptores; el Manager puede consumir esos resultados para continuar el guardado.
+Storage publica su propio `/stream` después de escribir. Las opciones `stream`,
+`subscriptions` y `outputStreams` se configuran de forma independiente.
 Las conexiones pendientes están anotadas, incluida la publicación futura.
 
 Fuentes actuales: `apps/reader/python/server/reader_server/server.py`,

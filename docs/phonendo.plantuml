@@ -13,31 +13,33 @@ component Storage as S
 component "Publisher\n(pendiente)" as P #FFF2CC
 
 R --> M : Observaciones por SSE\nManager se suscribe a Reader /stream
-R ..> M : Alternativa HTTP: /registerDevice y /newEvent\nContrato disponible en Manager
+R --> M : Alternativa HTTP: /registerDevice y /newEvent
 M --> V : HTTP /verify: evento Captured con hash\nRespuesta: Verified firmado o rechazo
 M --> V : SSE /stream/verifier del Manager\nVerifier se suscribe (opcional)
-V ..> M : SSE /stream del Verifier: resultados firmados\nConsumo en Manager pendiente
+V --> M : SSE /stream del Verifier\nManager se suscribe y continúa el guardado
 M --> S : HTTP: registrar y consultar dispositivos\nguardar únicamente eventos Verified
-M --> S : SSE /stream/storage del Manager\nConsumo en Storage pendiente
+M --> S : SSE /stream/storage del Manager\nStorage se suscribe (opcional)
+S --> M : SSE /stream de Storage\nConfirmación después del guardado
 M ..> P : Publicación futura\nLlamada desactivada
 
 note bottom of R
   Si un readerId usa /newEvent,
   HTTP tiene prioridad sobre su SSE
   hasta reiniciar el Manager.
-  El Reader base no incluye el output HTTP.
+  Reader dispone de output HTTP opcional.
 end note
 
 note bottom of V
   Puede consumir varios Managers
   y distribuir resultados a varios suscriptores.
-  Sus resultados SSE aún no reanudan
-  el guardado en el Manager.
+  Cada servicio expone su propio /stream.
+  subscriptions configura qué streams consume.
+  outputStreams configura salidas del Manager.
 end note
 
 legend bottom
   Flecha: dirección del dato; la etiqueta indica quién se suscribe al SSE.
   Línea continua: transporte disponible; las integraciones pendientes se anotan.
-  Línea discontinua: integración futura o contrato pendiente en Reader base.
+  Línea discontinua: publicación futura.
 endlegend
 @enduml

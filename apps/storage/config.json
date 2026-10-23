@@ -8,6 +8,9 @@
     "managers": []
   },
   "stream": {
-    "enabled": false
+    "enabled": true
+  },
+  "subscriptions": {
+    "managers": []
   }
 }

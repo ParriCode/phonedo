@@ -12,15 +12,15 @@ SPEC.loader.exec_module(MODULE)
 
 class StreamServerTests(unittest.TestCase):
     def config(self, **flags):
-        values = dict(stream=True, stream_verifiers=True, stream_storages=True,
-                      api_token_verifier='verifier-secret', api_token_storage='storage-secret')
+        values = dict(stream_enabled=True, output_verifiers=True, output_storages=True,
+                      api_token_manager='manager-secret', api_token_verifier='verifier-secret', api_token_storage='storage-secret')
         values.update(flags)
         return SimpleNamespace(**values)
 
     def test_conditional_routes(self):
-        for flags, expected in [({'stream': False}, []),
-                                ({'stream_verifiers': False}, ['/stream/storage']),
-                                ({'stream_storages': False}, ['/stream/verifier'])]:
+        for flags, expected in [({'stream_enabled': False, 'output_verifiers': False, 'output_storages': False}, []),
+                                ({'output_verifiers': False}, ['/stream/storage']),
+                                ({'output_storages': False}, ['/stream/verifier'])]:
             app = Flask(__name__)
             MODULE.ManagerServer(app, self.config(**flags))
             routes = {rule.rule for rule in app.url_map.iter_rules()}

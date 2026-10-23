@@ -156,14 +156,14 @@ class ManagerClient:
                 elif line.startswith('data:'):
                     data.append(line[5:].lstrip())
 
-    def start_reader_streams(self, on_event):
+    def start_reader_subscriptions(self, on_event):
         """Start configured Reader subscriptions and return a stop function."""
         import threading
 
         stop_event = threading.Event()
         threads = []
-        if self.config.stream and self.config.stream_readers:
-            for reader_url in self.config.reader_url_list:
+        if self.config.reader_subscriptions:
+            for reader_url in self.config.reader_subscriptions:
                 def run(url=reader_url):
                     while not stop_event.is_set():
                         try:
@@ -180,4 +180,23 @@ class ManagerClient:
             stop_event.set()
             for thread in threads:
                 thread.join(timeout=1)
+        return stop
+
+    def start_subscriptions(self, core):
+        from manager_support.stream_client import StreamClient
+        stops = [self.start_reader_subscriptions(core.on_reader_stream_event)]
+        for service, targets, callback in (
+                ('verifier', self.config.verifier_subscriptions, core.on_verifier_stream_event),
+                ('storage', self.config.storage_subscriptions, core.on_storage_stream_event)):
+            for entry in targets:
+                target = {'url': entry} if isinstance(entry, str) else dict(entry)
+                source = target['url'].rstrip('/')
+                target['url'] = source + '/stream'
+                client = StreamClient([target], getattr(self.config, 'api_token_' + service),
+                    lambda message, source=source, callback=callback: callback(source, message))
+                client.start()
+                stops.append(client.close)
+        def stop():
+            for close in stops:
+                close()
         return stop

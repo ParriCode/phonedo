@@ -41,31 +41,53 @@ Un token inválido devuelve 401; campos ausentes, 400. Un fallo al calcular el h
 devuelve 500. Las respuestas de procesamiento incluyen `eventId`; los fallos y
 pendientes también indican `stage`.
 
-## Streams
+## Stream propio, suscripciones y salidas
 
-`MANAGER_CONFIG_PATH` apunta al JSON de configuración; por defecto se usa
-`config.json` junto al servicio. `stream.enabled` habilita las funciones SSE:
+Las tres capacidades son independientes:
 
-| Opción | Comportamiento |
+```json
+{
+  "stream": {"enabled": true},
+  "subscriptions": {
+    "readers": ["http://reader:3002"],
+    "verifiers": ["http://verifier:5000"],
+    "storages": ["http://storage:5000"]
+  },
+  "outputStreams": {"verifiers": true, "storages": true},
+  "services": {"verifiers": [], "storages": ["http://storage:5000"]}
+}
+```
+
+| Configuración | Comportamiento |
 | --- | --- |
-| `stream.readers` | Consume `/metadata` y `/stream` de las URLs base en `services.readers`. |
-| `stream.verifiers` | Expone `/stream/verifier` con eventos Captured. |
-| `stream.storages` | Expone `/stream/storage` con eventos Verified. |
+| `stream.enabled` | Expone `/stream` con eventos Captured y Verified tratados por el Manager. Bearer `API_TOKEN_MANAGER`. |
+| `subscriptions.readers` | Consume `/metadata` y `/stream` de los Readers. |
+| `subscriptions.verifiers` | Consume `/stream` de Verifiers. Correlaciona sus resultados con eventos emitidos por este Manager y continúa el guardado. |
+| `subscriptions.storages` | Consume `/stream` de Storages como confirmaciones de escritura; no vuelve a guardar esos datos. |
+| `outputStreams.verifiers` | Expone `/stream/verifier` con Captured. Bearer `API_TOKEN_VERIFIER`. |
+| `outputStreams.storages` | Expone `/stream/storage` con Verified. Bearer `API_TOKEN_STORAGE`. |
 
-El Reader puede requerir `API_TOKEN_READER` como Bearer. Los streams de salida
-requieren Bearer con `API_TOKEN_VERIFIER` o `API_TOKEN_STORAGE`, respectivamente.
-El Verifier ya puede consumir el stream del Manager; Storage todavía no lo consume.
-El Manager aún no consume los resultados SSE del Verifier para continuar el guardado:
-el flujo completo actual usa HTTP para verificar y guardar.
+Cada lista contiene URLs base u objetos `{"url": "...", "token": "..."}`.
+`services.verifiers` y `services.storages` son destinos **HTTP**, distintos de
+las suscripciones SSE. Para un recorrido de verificación solo por SSE, deja
+`services.verifiers` vacío, activa `outputStreams.verifiers`, configura
+`subscriptions.verifiers` y suscribe el Verifier a este Manager.
 
-Desde que llega un `/newEvent` válido de un `readerId`, se ignora su entrada SSE
-hasta reiniciar el Manager. Los dispositivos deben estar registrados previamente.
-Los streams son en vivo, sin historial ni confirmación de entrega.
+Las suscripciones no dependen de `stream.enabled` y las salidas específicas
+funcionan aunque el `/stream` propio esté deshabilitado. El SSE publica sin
+esperar a los suscriptores ni ofrece replay o confirmación de recepción.
+El Manager conserva un máximo de `MANAGER_QUEUE_SIZE` correlaciones SSE en memoria;
+al reiniciar se pierden. Ignora resultados ajenos, alterados respecto al Captured
+o ya recibidos de la misma fuente. Al recibir un resultado consulta el dispositivo
+y guarda por HTTP; si esa llamada tiene timeout, entra en la cola habitual.
+
+Desde que llega un `/newEvent` válido de un `readerId`, su SSE se ignora hasta
+reiniciar el Manager. Los dispositivos deben estar registrados previamente.
 
 ## Configuración y reintentos
 
 Las conexiones se definen en las listas JSON `services.verifiers`,
-`services.storages` y `services.readers`; cada entrada es una URL base o un objeto
+`services.storages` (HTTP) y `subscriptions.readers` (SSE); cada entrada es una URL base o un objeto
 `{"url": "http://servicio:puerto", "token": "..."}`. Los tokens del entorno
 se usan como valor por defecto cuando la entrada no define uno.
 
@@ -77,9 +99,9 @@ Los eventos aceptados se envían a los Storages configurados; al reintentar una
 escritura se omiten los destinos ya confirmados.
 
 La publicación SSE es independiente: publica una observación sin esperar a ningún
-Verifier. Con lista HTTP vacía y stream de Verifier habilitado responde `200 Streamed`;
-esto indica publicación al stream, no verificación ni guardado. Sin ningún destino
-HTTP ni stream de Verifier devuelve `503`.
+Verifier. Con lista HTTP vacía y stream propio o salida de Verifier habilitados responde `200 Streamed`;
+esto indica publicación al stream, no confirmación del guardado. Sin ningún destino
+HTTP ni stream de salida devuelve `503`.
 
 | Variable | Valor por defecto | Uso |
 | --- | --- | --- |
@@ -107,3 +129,16 @@ comprueba SSE, firmas y conservación del dato, y cierra los procesos al termina
 [Diagramas generales](../../docs/diagramas.md).
 
 Las utilidades de este servicio están en `manager_support/`. No requieren código de otros servicios.
+
+## Docker
+
+Desde la raíz del proyecto:
+
+```sh
+docker build -t phonendo-manager apps/manager
+```
+
+[Arranque conjunto, configuración y pruebas](../../deploy/docker/README.md).
+
+Si un evento ya verificado se entrega solo mediante streams, el resultado es
+`200 Streamed`: no confirma que Storage lo haya recibido o escrito.

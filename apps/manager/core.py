@@ -3,6 +3,7 @@ import threading
 import time
 import uuid
 import copy
+from collections import OrderedDict
 from concurrent.futures import ThreadPoolExecutor
 import requests
 from manager_support.logger import Logger
@@ -24,6 +25,9 @@ class ManagerCore:
         self.client = client
         self.server = server
         self.http_readers = set()
+        self.stream_pending = OrderedDict()
+        self.stream_lock = threading.Lock()
+        self.stream_capacity = queue_size
         self.reader_source_lock = threading.Lock()
         self.reader_locks = {}
         self.pending_events = PendingEvents(queue_size, retry_interval,
@@ -65,12 +69,16 @@ class ManagerCore:
         }
         # Each HTTP Verifier has its own event and retry state.
         targets = self.client.config.verifier_url_list
-        if self.client.config.stream and self.client.config.stream_verifiers:
-            self.client.get_device(device_id)
+        if (self.client.config.stream_enabled or self.client.config.output_verifiers):
             message["value"]["managerHash"] = sign_event(message)
+            if self.client.config.output_verifiers:
+                with self.stream_lock:
+                    self.stream_pending[message['key']] = {'message': copy.deepcopy(message), 'sources': set()}
+                    while len(self.stream_pending) > self.stream_capacity:
+                        self.stream_pending.popitem(last=False)
             self.server.publish_captured(message)
         if not targets:
-            if not (self.client.config.stream and self.client.config.stream_verifiers):
+            if not ((self.client.config.stream_enabled or self.client.config.output_verifiers)):
                 return {'error': 'No HTTP Verifiers or Verifier stream configured'}, 503
             return {'eventId': message['key'], 'status': 'Streamed'}, 200
         def send(target):
@@ -98,9 +106,36 @@ class ManagerCore:
                 return
             self.submit_observation(body)
 
+    def on_verifier_stream_event(self, source, message):
+        if (not isinstance(message, dict) or not isinstance(message.get('value'), dict)
+                or message['value'].get('status') != 'Verified' or not message['value'].get('verifierSign')):
+            Logger.warning('invalid_verifier_stream_result', source=source)
+            return
+        with self.stream_lock:
+            pending = self.stream_pending.get(message.get('key'))
+            if pending is None or source in pending['sources']:
+                return
+            original = pending['message']['value']
+            if any(message['value'].get(key) != value for key, value in original.items() if key != 'status'):
+                Logger.warning('verifier_stream_content_mismatch', source=source)
+                return
+            pending['sources'].add(source)
+        # SSE submission itself never waits; a received result may continue via HTTP.
+        job = {'message': pending['message'], 'verified': message, 'stage': 'lookup_verified'}
+        self.attempt_event(job, enqueue=True)
+
+    def on_storage_stream_event(self, source, message):
+        if not isinstance(message, dict) or not isinstance(message.get('value'), dict):
+            return
+        Logger.info('storage_stream_confirmation', source=source, eventId=message.get('key'))
+        # A stored event is a confirmation, never another request to store it.
+
     def process_event(self, job):
         """Keep Captured in memory; persist only a positively verified event."""
         message = job["message"]
+        if job["stage"] == "lookup_verified":
+            self.client.get_device(message["value"]["deviceId"])
+            job["stage"] = "store_verified"
         if job["stage"] == "lookup":
             self.client.get_device(message["value"]["deviceId"])
             job["stage"] = "signing"
@@ -122,6 +157,10 @@ class ManagerCore:
             job["verified"] = verified
             job["stage"] = "store_verified"
         self.server.publish_verified(job["verified"])
+        if getattr(self.client.config, 'storage_url_list', None) == []:
+            if not (self.client.config.output_storages or self.client.config.stream_enabled):
+                raise RuntimeError('No Storage HTTP ni stream de salida configurado')
+            return
         stored = self.client.store_event(job["verified"], completed=job.setdefault("stored", set()))
         if get_message_from_response(stored) != job["verified"]:
             raise RuntimeError("Storage did not confirm the verified message")
@@ -131,7 +170,8 @@ class ManagerCore:
         event_id = job["message"]["key"]
         try:
             self.process_event(job)
-            return {"eventId": event_id, "status": "Verified"}, 200
+            status = 'Streamed' if getattr(self.client.config, 'storage_url_list', None) == [] else 'Verified'
+            return {"eventId": event_id, "status": status}, 200
         except requests.Timeout:
             if enqueue:
                 self.pending_events.put(job)

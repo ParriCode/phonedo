@@ -21,20 +21,20 @@ El stream requiere `Authorization: Bearer <API_TOKEN_VERIFIER>` y emite
 
 ## Consumo de Managers
 
-Para recibir eventos desde varios Managers, configura `services.managers` en `config.json`:
+Para recibir eventos desde varios Managers, configura `subscriptions.managers` en `config.json`:
 
 ```json
-{"services": {"managers": ["http://manager-a:3003", "http://manager-b:3003"]}}
+{"subscriptions": {"managers": ["http://manager-a:3003", "http://manager-b:3003"]}}
 ```
 
 Se usa `API_TOKEN_VERIFIER` como Bearer. Los Managers deben habilitar
-`stream.enabled` y `stream.verifiers`. Cada conexión tiene un trabajador y se
+`outputStreams.verifiers`. Cada conexión tiene un trabajador y se
 reconecta tras cinco segundos. Los eventos aceptados se publican en `/stream`.
 Los rechazos se registran y se descartan.
 
 Los resultados se difunden a todos los suscriptores autorizados. Cada consumidor
-debe correlacionar `key` con sus propios eventos. El Manager todavía no consume
-esos resultados SSE para continuar el guardado en Storage.
+debe correlacionar `key` con sus propios eventos. El Manager puede consumir
+esos resultados mediante `subscriptions.verifiers` y continuar el guardado en Storage.
 Los streams no tienen historial ni confirmaciones; usar HTTP y SSE simultáneamente
 puede verificar y publicar el mismo evento más de una vez.
 
@@ -76,3 +76,17 @@ El JSON también admite `server.host`, `server.port` y `keysPath` (ruta relativa
 a la carpeta del Verifier). `PORT_VERIFIER` explícito prevalece sobre el puerto JSON.
 Varios Managers pueden enviar HTTP al mismo Verifier con su token de acceso;
 varios Verifiers pueden suscribirse a cada Manager sin confirmaciones SSE.
+
+## Docker
+
+Desde la raíz del proyecto:
+
+```sh
+docker build -t phonendo-verifier apps/verifier
+```
+
+[Arranque conjunto, configuración y pruebas](../../deploy/docker/README.md).
+
+`stream.enabled` controla exclusivamente el `/stream` propio (por defecto `true`).
+La lista `subscriptions.managers` se consume aunque el stream propio esté deshabilitado.
+Deshabilitarlo impide que otros reciban los resultados por SSE.

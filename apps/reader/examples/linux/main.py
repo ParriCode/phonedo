@@ -18,7 +18,9 @@ async def main():
     config_path = Path(os.getenv('READER_CONFIG_PATH', str(READER_DIR / 'config.json')))
     settings = json.loads(config_path.read_text()) if config_path.exists() else {}
     core = ReaderCore(reader_id=settings.get('readerId', 'reader-linux'))
-    server_config = ServerConfig(**settings.get('server', {'enabled': True}))
+    server_settings = dict(settings.get('server', {'enabled': True}))
+    server_settings['stream_enabled'] = settings.get('stream', {}).get('enabled', True)
+    server_config = ServerConfig(**server_settings)
     output = ManagerOutput.from_config(config_path) if config_path.exists() else ManagerOutput([])
     server = (ReaderServer(core, server_config, outputs=(output,))
               if output.managers else ReaderServer(core, server_config))

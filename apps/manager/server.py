@@ -11,23 +11,31 @@ from manager_support.server_stream import stream_response
 class ManagerServer:
     def __init__(self, app, config):
         self.config = config
+        self.own_stream = EventStream()
+        if config.stream_enabled:
+            app.add_url_rule('/stream', 'stream',
+                             lambda: self._response(self.own_stream, config.api_token_manager))
         self.verifier_stream = EventStream()
         self.storage_stream = EventStream()
-        if config.stream and config.stream_verifiers:
+        if config.output_verifiers:
             app.add_url_rule('/stream/verifier', 'stream_verifier',
                              lambda: self._response(self.verifier_stream, config.api_token_verifier))
-        if config.stream and config.stream_storages:
+        if config.output_storages:
             app.add_url_rule('/stream/storage', 'stream_storage',
                              lambda: self._response(self.storage_stream, config.api_token_storage))
 
     _response = staticmethod(stream_response)
 
     def publish_captured(self, event):
-        if self.config.stream and self.config.stream_verifiers:
+        if self.config.stream_enabled:
+            self.own_stream.publish(event)
+        if self.config.output_verifiers:
             self.verifier_stream.publish(event)
 
     def publish_verified(self, event):
-        if self.config.stream and self.config.stream_storages:
+        if self.config.stream_enabled:
+            self.own_stream.publish(event)
+        if self.config.output_storages:
             self.storage_stream.publish(event)
 
 

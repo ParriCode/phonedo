@@ -10,11 +10,7 @@
     "publishers": []
   },
   "stream": {
-    "enabled": false,
-    "readers": true,
-    "verifiers": false,
-    "storages": false,
-    "publishers": false
+    "enabled": true
   },
   "allowRegistration": {
     "readers": false,
@@ -30,5 +26,14 @@
   "queue": {
     "size": 1000,
     "retryIntervalSeconds": 5
+  },
+  "subscriptions": {
+    "readers": [],
+    "verifiers": [],
+    "storages": []
+  },
+  "outputStreams": {
+    "verifiers": false,
+    "storages": false
   }
 }

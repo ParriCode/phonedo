@@ -37,6 +37,16 @@ app = Flask(__name__)
 
 storage_config = StorageConfig()
 my_db = PhonendoDB(storage_config.database_path)
+from storage_support.event_stream import EventStream
+from storage_support.server_stream import stream_response
+stored_stream = EventStream()
+if storage_config.stream_enabled:
+    app.add_url_rule('/stream', 'stream', lambda: stream_response(stored_stream, storage_config.token))
+
+def write_event(message):
+    my_db.write(message['key'], message['value'])
+    if storage_config.stream_enabled:
+        stored_stream.publish(message)
 
 
 def sanitize_body(body):
@@ -161,7 +171,7 @@ def store_event():
 
         message = request.json["message"]
 
-        my_db.write(message["key"], message["value"])
+        write_event(message)
 
         Logger.info(
             "event_stored",
@@ -195,20 +205,20 @@ def consume_manager_event(message):
             or not message['value'].get('verifierSign')):
         Logger.warning('storage_stream_invalid_event')
         return
-    my_db.write(message['key'], message['value'])
+    write_event(message)
 
 
 from storage_support.stream_client import StreamClient
 import atexit
 manager_targets = []
-if storage_config.stream_enabled:
-    for target in storage_config.managers:
+if storage_config.manager_subscriptions:
+    for target in storage_config.manager_subscriptions:
         target = {'url': target} if isinstance(target, str) else dict(target)
         target['url'] = target['url'].rstrip('/') + '/stream/storage'
         manager_targets.append(target)
-manager_streams = StreamClient(manager_targets, storage_config.token, consume_manager_event)
-manager_streams.start()
-atexit.register(manager_streams.close)
+manager_subscriptions = StreamClient(manager_targets, storage_config.token, consume_manager_event)
+manager_subscriptions.start()
+atexit.register(manager_subscriptions.close)
 
 def start():
     Logger.info("service_starting", port=os.getenv("PORT_STORAGE", 5000))

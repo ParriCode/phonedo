@@ -33,15 +33,15 @@ def test_many_to_many_http_and_storage_streams(tmp_path):
         wait_for(lambda: requests.get(urls[name] + '/', timeout=1).status_code == 200)
     try:
         for name in ['s1','s2']:
-            start(name, 'storage', 'main.py', {'services': {'managers':[urls['m1'],urls['m2']]},
-                                              'stream':{'enabled':True}})
+            start(name, 'storage', 'main.py', {'subscriptions': {'managers':[urls['m1'],urls['m2']]},
+                                              'stream':{'enabled':name != 's1'}})
         for name in ['m1','m2']:
             start(name, 'manager', 'manager.py', {'services': {
                 'storages':[urls['s1'],urls['s2']] if name=='m1' else [urls['s2']],
                 'verifiers':[urls['v1'],urls['v2']]},
-                'stream':{'enabled':True,'storages':True,'verifiers':True}})
+                'stream':{'enabled':name != 'm1'}, 'outputStreams':{'storages':True,'verifiers':True}})
         for name in ['v1','v2']:
-            start(name, 'verifier', 'verifier.py', {'services':{'managers':[urls['m1'],urls['m2']]}})
+            start(name, 'verifier', 'verifier.py', {'subscriptions':{'managers':[urls['m1'],urls['m2']]}})
         results = []
         for name in ['m1','m2']:
             registration = {'token':'m-token','schemaVersion':'phonendo.device.v1',

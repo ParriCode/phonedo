@@ -67,10 +67,10 @@ def test_real_pipeline(tmp_path):
     ports = {name: port() for name in ('reader', 'manager', 'verifier', 'storage')}
     urls = {name: f'http://127.0.0.1:{value}' for name, value in ports.items()}
     config = tmp_path / 'manager.json'
-    config.write_text(json.dumps({'services': {'readers': [urls['reader']], 'verifiers': [urls['verifier']], 'storages': [urls['storage']]},
-                                 'stream': {'enabled': True, 'readers': True, 'verifiers': True}}))
+    config.write_text(json.dumps({'subscriptions': {'readers': [urls['reader']]}, 'services': {'verifiers': [urls['verifier']], 'storages': [urls['storage']]},
+                                 'stream': {'enabled': True}, 'outputStreams': {'verifiers': True}}))
     verifier_config = tmp_path / 'verifier.json'
-    verifier_config.write_text(json.dumps({'services': {'managers': [urls['manager']]}}))
+    verifier_config.write_text(json.dumps({'subscriptions': {'managers': [urls['manager']]}}))
     env = {**os.environ, 'VERIFIER_CONFIG_PATH': str(verifier_config), 'MANAGER_PASSWORD': 'integration-only', 'API_TOKEN_MANAGER': 'manager-test',
            'API_TOKEN_STORAGE': 'storage-test', 'API_TOKEN_VERIFIER': 'verifier-test',
            'API_TOKEN_READER': '', 'MANAGER_CONFIG_PATH': str(config),
@@ -151,6 +151,9 @@ asyncio.run(main.main())
         manager.wait(timeout=5)
         settings = json.loads(config.read_text())
         settings['services']['verifiers'] = [urls['storage']]
+        settings['stream']['enabled'] = False
+        settings['subscriptions']['verifiers'] = [urls['verifier']]
+        settings['subscriptions']['storages'] = [urls['storage']]
         config.write_text(json.dumps(settings))
         start('manager-sse-only', ['apps/manager/manager.py'])
         wait_for(lambda: requests.get(urls['manager'] + '/', timeout=1).status_code == 200)
@@ -169,6 +172,8 @@ asyncio.run(main.main())
                     check_signature(event)
                     found = True
         assert found, 'Verifier never consumed the real Manager SSE'
+        wait_for(lambda: any(v.get('payload') == {'sseOnly':True} and v.get('status') == 'Verified'
+            for v in requests.get(urls['storage']+'/raw',timeout=2).json().values()))
     finally:
         for process in reversed(processes):
             if process.poll() is None:

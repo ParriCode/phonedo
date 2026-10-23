@@ -6,8 +6,11 @@
   "server": {
     "host": "0.0.0.0",
     "port": 3002,
-    "enabled": true,
-    "stream_enabled": true
+    "enabled": true
   },
-  "readerId": "reader-linux"
+  "readerId": "reader-linux",
+  "subscriptions": {},
+  "stream": {
+    "enabled": true
+  }
 }

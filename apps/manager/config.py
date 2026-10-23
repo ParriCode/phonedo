@@ -33,22 +33,12 @@ class ManagerConfig:
         # Services
         # ---------------------------------------------------------
 
-        self.reader_url_list: list[str] = []
         self.verifier_url_list: list[str] = []
         self.storage_url_list: list[str] = []
         self.publisher_url_list: list[str] = []
 
         # ---------------------------------------------------------
-        # Stream configuration
-        # ---------------------------------------------------------
-
-        self.stream = False
-
-        # Servicios de los que este Manager puede consumir streams
-        self.stream_readers = True
-        self.stream_verifiers = False
-        self.stream_storages = False
-        self.stream_publishers = False
+        # Independent publication and subscription settings are loaded from JSON.
 
         # ---------------------------------------------------------
         # Dynamic registration
@@ -89,21 +79,20 @@ class ManagerConfig:
 
         services = config.get("services", {})
 
-        self.reader_url_list = services.get("readers", [])
         self.verifier_url_list = services.get("verifiers", [])
         self.storage_url_list = services.get("storages", [])
         self.publisher_url_list = services.get("publishers", [])
-
-        # Stream
-
-        stream = config.get("stream", {})
-
-        self.stream = stream.get("enabled", False)
-
-        self.stream_readers = stream.get("readers", True)
-        self.stream_verifiers = stream.get("verifiers", False)
-        self.stream_storages = stream.get("storages", False)
-        self.stream_publishers = stream.get("publishers", False)
+        self.stream_enabled = config.get('stream', {}).get('enabled', False)
+        outputs = config.get('outputStreams', {})
+        self.output_verifiers = outputs.get('verifiers', False)
+        self.output_storages = outputs.get('storages', False)
+        subscriptions = config.get('subscriptions', {})
+        self.reader_subscriptions = subscriptions.get('readers', [])
+        self.verifier_subscriptions = subscriptions.get('verifiers', [])
+        self.storage_subscriptions = subscriptions.get('storages', [])
+        for targets in (self.reader_subscriptions, self.verifier_subscriptions, self.storage_subscriptions):
+            if not isinstance(targets, list):
+                raise ValueError('Las suscripciones deben ser listas de URLs o destinos')
 
         # Dynamic registration
 
