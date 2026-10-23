@@ -17,16 +17,7 @@ sys.path.insert(0, str(ROOT_DIR / "libs"))
 
 from logger import Logger
 
-def sign_event(message: dict) -> str:
-    secret = os.getenv('MANAGER_PASSWORD')
-    if not secret:
-        raise RuntimeError('MANAGER_PASSWORD is not configured')
-    value = dict(message['value'])
-    value.pop('managerHash', None)
-    envelope = {**message, 'value': value}
-    encoded = json.dumps(envelope, sort_keys=True, separators=(',', ':'),
-                         ensure_ascii=False, allow_nan=False).encode('utf-8')
-    return hmac.new(secret.encode('utf-8'), encoded, hashlib.sha256).hexdigest()
+from event_auth import sign_event
 
 def verify_event(message: dict) -> bool:
     supplied = message['value'].get('managerHash')

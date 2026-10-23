@@ -128,3 +128,22 @@ Para comprobar el proyecto: `tools/build.sh` y `tools/test.sh`.
 Prepara el entorno con `python3 -m venv .venv` y
 `.venv/bin/python -m pip install -r tests/requirements.txt`.
 El script de pruebas admite un patrón: `tools/test.sh 'test_manager_*.py'`.
+
+## Prueba real de integración
+
+Ejecuta `tools/test_integration.sh`. Lanza Reader, Manager, Verifier y Storage
+como procesos independientes con puertos temporales, configuración de prueba y
+LevelDB en un directorio temporal. No arranca Publisher. Los procesos se cierran
+al terminar, incluso si una comprobación falla. Los logs quedan en el directorio
+temporal de pytest para diagnosticar fallos.
+
+Comprueba Reader → Manager por SSE, procesamiento y escritura real en Storage,
+dos suscriptores SSE del Verifier, firmas RSA, rechazo de alteraciones del
+contenido y conservación del evento almacenado. Reinicia el Manager con la ruta
+HTTP de verificación deliberadamente inválida para demostrar que el Verifier
+recibe y verifica también mediante la suscripción al SSE del Manager.
+
+El flujo actual hacia Storage sigue usando HTTP. La fase exclusivamente SSE
+verifica y publica el resultado, pero el Manager todavía no consume ese resultado
+para continuar el guardado: esta prueba no afirma que exista ese recorrido.
+La firma HMAC compartida está en `libs/event_auth.py`.

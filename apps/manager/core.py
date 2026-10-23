@@ -6,7 +6,7 @@ import requests
 from logger import Logger
 from pending_events import PendingEvents
 from client import DeviceNotRegisteredError, InternalPostError
-from utils import sign_event
+from event_auth import sign_event
 
 class EventRejected(RuntimeError):
     pass
