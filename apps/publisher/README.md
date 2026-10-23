@@ -5,7 +5,7 @@ Su integración en el flujo actual está pendiente: el Manager termina tras guar
 el evento Verified en Storage.
 
 Publisher no se arranca con `tools/dev.sh` ni participa en las pruebas de
-integración actuales. Los archivos de esta carpeta no representan una integración
-operativa con el resto de servicios.
+integración actuales. `config.json` mantiene el servicio deshabilitado y listas de Managers y Storages
+para su futura integración.
 
 [Arquitectura general](../../docs/diagramas.md).

@@ -78,6 +78,13 @@ class ManagerConfig:
         with path.open("r", encoding="utf-8") as file:
             config = json.load(file)
 
+        self.port = int(os.getenv('PORT_MANAGER', config.get('server', {}).get('port', self.port)))
+        self.host = config.get('server', {}).get('host', '0.0.0.0')
+        self.http_timeout = float(os.getenv('MANAGER_HTTP_TIMEOUT_SECONDS', config.get('httpTimeoutSeconds', 10)))
+        self.queue_size = int(os.getenv('MANAGER_QUEUE_SIZE', config.get('queue', {}).get('size', 1000)))
+        self.retry_interval = float(os.getenv('MANAGER_RETRY_INTERVAL_SECONDS', config.get('queue', {}).get('retryIntervalSeconds', 5)))
+        if self.http_timeout <= 0 or self.queue_size <= 0 or self.retry_interval <= 0:
+            raise ValueError('Timeout and queue settings must be positive')
         # Services
 
         services = config.get("services", {})

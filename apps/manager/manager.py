@@ -48,16 +48,16 @@ Logger.init(
 
 app = Flask(__name__)
 manager_config = ManagerConfig(os.getenv("MANAGER_CONFIG_PATH", str(Path(__file__).with_name("config.json"))))
-manager_client = ManagerClient(manager_config, HTTP_TIMEOUT)
+manager_client = ManagerClient(manager_config, manager_config.http_timeout)
 manager_server = ManagerServer(app, manager_config)
-core = ManagerCore(manager_client, manager_server, QUEUE_SIZE, RETRY_INTERVAL)
+core = ManagerCore(manager_client, manager_server, manager_config.queue_size, manager_config.retry_interval)
 register_routes(app, core)
 atexit.register(core.close)
 
 if __name__ == "__main__":
     stop_streams = manager_client.start_reader_streams(core.on_reader_stream_event)
     try:
-        app.run(host="0.0.0.0", port=manager_config.port)
+        app.run(host=manager_config.host, port=manager_config.port)
     finally:
         stop_streams()
         core.close()

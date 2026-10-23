@@ -10,6 +10,7 @@ ROOT_DIR = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from db import PhonendoDB
+from storage_support.config import StorageConfig
 from storage_support.logger import Logger
 
 load_dotenv(Path(__file__).resolve().parent / "config.env")
@@ -34,7 +35,8 @@ Logger.init(
 app = Flask(__name__)
 
 
-my_db  = PhonendoDB()
+storage_config = StorageConfig()
+my_db = PhonendoDB(storage_config.database_path)
 
 
 def sanitize_body(body):
@@ -91,7 +93,7 @@ def store_device():
     try:
         Logger.debug("device_received", body=sanitize_body(request.json))
         #checkear el token
-        if not request.json.get("token") or request.json.get("token") != os.getenv("API_TOKEN_STORAGE"):
+        if not request.json.get("token") or request.json.get("token") != storage_config.token:
             Logger.warning("storage_device_register_not_authorized")
             return "Not authorized", 401
 
@@ -120,7 +122,7 @@ def get_device(device_id):
 
         token = storage_token_from_request()
 
-        if not token or token != os.getenv("API_TOKEN_STORAGE"):
+        if not token or token != storage_config.token:
             Logger.warning("storage_device_lookup_not_authorized", deviceId=device_id)
             return jsonify({"error": "Not authorized"}), 401
 
@@ -149,7 +151,7 @@ def store_event():
     try:
         Logger.debug("storage_event_received", body=sanitize_body(request.json))
 
-        if not request.json.get("token") or request.json.get("token") != os.getenv("API_TOKEN_STORAGE"):
+        if not request.json.get("token") or request.json.get("token") != storage_config.token:
             Logger.warning("storage_event_not_authorized")
             return "Not authorized", 401
 
@@ -185,9 +187,32 @@ def raw():
         return "Internal server error", 500
 
 
+
+def consume_manager_event(message):
+    if (not isinstance(message, dict) or not isinstance(message.get('key'), str)
+            or not isinstance(message.get('value'), dict)
+            or message['value'].get('status') != 'Verified'
+            or not message['value'].get('verifierSign')):
+        Logger.warning('storage_stream_invalid_event')
+        return
+    my_db.write(message['key'], message['value'])
+
+
+from storage_support.stream_client import StreamClient
+import atexit
+manager_targets = []
+if storage_config.stream_enabled:
+    for target in storage_config.managers:
+        target = {'url': target} if isinstance(target, str) else dict(target)
+        target['url'] = target['url'].rstrip('/') + '/stream/storage'
+        manager_targets.append(target)
+manager_streams = StreamClient(manager_targets, storage_config.token, consume_manager_event)
+manager_streams.start()
+atexit.register(manager_streams.close)
+
 def start():
     Logger.info("service_starting", port=os.getenv("PORT_STORAGE", 5000))
-    app.run(host="0.0.0.0", port=int(os.getenv("PORT_STORAGE", 5000)))
+    app.run(host=storage_config.host, port=storage_config.port)
 
 
 if __name__ == "__main__":

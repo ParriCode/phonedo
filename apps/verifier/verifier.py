@@ -101,7 +101,8 @@ Logger.init(
 )
 
 BASE_DIR = Path(__file__).resolve().parent
-KEYS_PATH = BASE_DIR / "keys.json"
+stream_config = json.loads(Path(os.getenv("VERIFIER_CONFIG_PATH", str(BASE_DIR / "config.json"))).read_text())
+KEYS_PATH = BASE_DIR / stream_config.get('keysPath', 'keys.json')
 
 with open(KEYS_PATH, "r", encoding="utf-8") as f:
     keys = json.load(f)
@@ -318,7 +319,6 @@ def consume_manager_event(message):
 
 from verifier_support.stream_client import StreamClient
 import atexit
-stream_config = json.loads(Path(os.getenv("VERIFIER_CONFIG_PATH", str(BASE_DIR / "config.json"))).read_text())
 manager_targets = []
 for target in stream_config.get('services', {}).get('managers', []):
     target = {'url': target} if isinstance(target, str) else dict(target)
@@ -335,6 +335,6 @@ atexit.register(manager_streams.close)
 if __name__ == "__main__":
     Logger.info("service_starting", port=os.getenv("PORT_VERIFIER", 5000))
     app.run(
-        host="0.0.0.0",
-        port=int(os.getenv("PORT_VERIFIER", 5000))
+        host=stream_config.get('server', {}).get('host', '0.0.0.0'),
+        port=int(os.getenv('PORT_VERIFIER', stream_config.get('server', {}).get('port', 5000)))
     )

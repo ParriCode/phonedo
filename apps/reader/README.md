@@ -145,3 +145,6 @@ observaciones por `/newEvent` a cada destino; un error no impide intentar los de
 No hay cola persistente de entrega en este output. El SSE admite múltiples Managers
 suscritos y no espera confirmaciones. El ejemplo Arduino mantiene su adaptador C++;
 puede componer varios `ManagerOutput`, uno por cliente Manager.
+
+El JSON del ejemplo Linux también admite `readerId` y `server` con las opciones
+de `ServerConfig` (`enabled`, `host`, `port`, `token`, `stream_enabled`, `queue_size`).

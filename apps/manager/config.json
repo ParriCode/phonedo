@@ -21,5 +21,14 @@
     "verifiers": false,
     "storages": false,
     "publishers": false
+  },
+  "server": {
+    "host": "0.0.0.0",
+    "port": 3003
+  },
+  "httpTimeoutSeconds": 10,
+  "queue": {
+    "size": 1000,
+    "retryIntervalSeconds": 5
   }
 }

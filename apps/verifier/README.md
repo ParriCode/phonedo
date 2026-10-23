@@ -71,3 +71,8 @@ alterados y verifica el dato guardado en Storage.
 Las utilidades de este servicio están en `verifier_support/`. No requieren código de otros servicios.
 
 Cada destino también admite `{"url": "http://manager:3003", "token": "..."}` para credenciales propias.
+
+El JSON también admite `server.host`, `server.port` y `keysPath` (ruta relativa
+a la carpeta del Verifier). `PORT_VERIFIER` explícito prevalece sobre el puerto JSON.
+Varios Managers pueden enviar HTTP al mismo Verifier con su token de acceso;
+varios Verifiers pueden suscribirse a cada Manager sin confirmaciones SSE.

@@ -37,8 +37,8 @@ Publisher aparece como una fase futura.
 Requisitos: Python 3.11 o superior, soporte para entornos virtuales y `pip`.
 
 Configura `deploy/env/dev.env` con los puertos y secretos, y las listas de
-conexiones en `apps/reader/config.json`, `apps/manager/config.json` y
-`apps/verifier/config.json`. Después genera sus configuraciones y arranca el entorno:
+conexiones en `apps/reader/config.json`, `apps/manager/config.json`, `apps/verifier/config.json` y
+`apps/storage/config.json`. Después genera sus configuraciones y arranca el entorno:
 
 ```sh
 ./tools/generate_configs.sh
@@ -75,5 +75,3 @@ firmas e integridad del dato almacenado y cierra los servicios al terminar.
   [Publisher](apps/publisher/README.md).
 - [Diagramas y fuentes PlantUML editables](docs/diagramas.md).
 - Moya, F., Quesada, F. J., Martínez, L. et al. *Phonendo: a platform for publishing wearable data on distributed ledger technologies*. Wireless Networks (2023). [Publicación original](https://doi.org/10.1007/s11276-023-03458-7).
-
-Licencia [MIT](LICENSE.txt).

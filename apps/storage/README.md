@@ -23,7 +23,30 @@ Dispositivos y eventos comparten actualmente el mismo espacio de claves.
 
 `main.py` carga `config.env` y arranca en `PORT_STORAGE` (por defecto `5000`).
 `PHONENDO_DB_PATH` indica la ruta de LevelDB; por defecto `/tmp/phonendo_db_path`.
-El almacenamiento no consume todavía `/stream/storage` del Manager.
+`STORAGE_CONFIG_PATH` selecciona el JSON (por defecto `config.json` junto al servicio).
+El JSON permite configurar `server.host`, `server.port`, `databasePath`, `token`
+y las conexiones. Las variables de entorno ya definidas prevalecen en puerto,
+ruta de base de datos y token.
+
+Para consumir varios Managers por SSE:
+
+```json
+{
+  "services": {"managers": [
+    {"url": "http://manager-a:3003", "token": "token-a"},
+    {"url": "http://manager-b:3003", "token": "token-b"}
+  ]},
+  "stream": {"enabled": true}
+}
+```
+
+Se suscribe a `/stream/storage` de cada Manager, guarda solo mensajes `Verified`
+con `verifierSign` y reconecta cada conexión por separado. No espera confirmaciones
+ni existe historial SSE. Cada Manager debe habilitar `stream.storages` y `stream.enabled`.
+Si una entrada no define token, usa el token local de Storage.
+
+El mismo Storage recibe HTTP de varios Managers con su token de acceso.
+Un Manager puede enviar a varios Storages, por HTTP o mediante varios suscriptores SSE.
 
 ## Pruebas
 

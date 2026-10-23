@@ -2,6 +2,7 @@
 import asyncio
 import random
 import os
+import json
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -14,11 +15,13 @@ from reader_server import ReaderServer, ServerConfig, ManagerOutput
 
 
 async def main():
-    core = ReaderCore(reader_id="reader-linux")
     config_path = Path(os.getenv('READER_CONFIG_PATH', str(READER_DIR / 'config.json')))
+    settings = json.loads(config_path.read_text()) if config_path.exists() else {}
+    core = ReaderCore(reader_id=settings.get('readerId', 'reader-linux'))
+    server_config = ServerConfig(**settings.get('server', {'enabled': True}))
     output = ManagerOutput.from_config(config_path) if config_path.exists() else ManagerOutput([])
-    server = (ReaderServer(core, ServerConfig(enabled=True), outputs=(output,))
-              if output.managers else ReaderServer(core, ServerConfig(enabled=True)))
+    server = (ReaderServer(core, server_config, outputs=(output,))
+              if output.managers else ReaderServer(core, server_config))
     try:
         await server.start()
         print("Temperaturas simuladas: http://127.0.0.1:3002/stream")

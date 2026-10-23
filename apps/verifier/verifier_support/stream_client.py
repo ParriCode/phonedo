@@ -32,7 +32,7 @@ class StreamClient:
                 with requests.get(url, headers=headers, stream=True, timeout=(10, 30)) as response:
                     response.raise_for_status()
                     kind, data = '', []
-                    for line in response.iter_lines():
+                    for line in response.iter_lines(chunk_size=1):
                         if self.stopped.is_set():
                             return
                         line = line.decode('utf-8')
