@@ -68,13 +68,13 @@ class ProcessingTests(unittest.TestCase):
         def exchange(url, body):
             calls.append(body)
             if body['token'] == 'verify':
-                raise self.manager.InternalPostError('verifier', 422, 'rejected')
+                raise __import__("client").InternalPostError('verifier', 422, 'rejected')
             raise AssertionError('Rejected data reached Storage')
         response = self.request(exchange)
         self.assertEqual(response.status_code, 422)
         self.assertEqual(response.json['status'], 'Rejected')
         self.assertEqual(len(calls), 1)
-        self.assertEqual(len(self.manager.pending_events), 0)
+        self.assertEqual(len(self.manager.core.pending_events), 0)
 
     def test_timeout_queues_then_retries_without_resigning(self):
         calls = 0
@@ -82,19 +82,19 @@ class ProcessingTests(unittest.TestCase):
             nonlocal calls
             calls += 1
             if calls == 1:
-                raise self.manager.requests.Timeout()
+                raise __import__("requests").Timeout()
             return self.exchange(url, body)
         response = self.request(exchange)
         self.assertEqual(response.status_code, 202)
         self.assertEqual(response.json['status'], 'Pending')
-        self.assertEqual(len(self.manager.pending_events), 1)
+        self.assertEqual(len(self.manager.core.pending_events), 1)
         client = self.manager.manager_client
         with patch.object(client, 'verify_event', side_effect=lambda message: exchange('verifier', {'token': 'verify', 'message': message})), \
              patch.object(client, 'store_event', side_effect=lambda message: exchange('storage', {'token': 'storage', 'message': message})):
-            self.manager.pending_events.retry_once()
-        self.assertEqual(len(self.manager.pending_events), 0)
+            self.manager.core.pending_events.retry_once()
+        self.assertEqual(len(self.manager.core.pending_events), 0)
         self.assertEqual(calls, 3)
-        self.manager.pending_events.close()
+        self.manager.core.pending_events.close()
 
     def test_storage_timeout_resumes_at_verified_stage(self):
         calls = 0
@@ -102,7 +102,7 @@ class ProcessingTests(unittest.TestCase):
             nonlocal calls
             calls += 1
             if calls == 2:
-                raise self.manager.requests.Timeout()
+                raise __import__("requests").Timeout()
             return self.exchange(url, body)
         response = self.request(exchange)
         self.assertEqual(response.status_code, 202)
@@ -110,10 +110,10 @@ class ProcessingTests(unittest.TestCase):
         client = self.manager.manager_client
         with patch.object(client, 'verify_event', side_effect=lambda message: exchange('verifier', {'token': 'verify', 'message': message})), \
              patch.object(client, 'store_event', side_effect=lambda message: exchange('storage', {'token': 'storage', 'message': message})):
-            self.manager.pending_events.retry_once()
+            self.manager.core.pending_events.retry_once()
         self.assertEqual(calls, 3)
-        self.assertEqual(len(self.manager.pending_events), 0)
-        self.manager.pending_events.close()
+        self.assertEqual(len(self.manager.core.pending_events), 0)
+        self.manager.core.pending_events.close()
 
     def test_queue_discards_oldest_when_full(self):
         from pending_events import PendingEvents

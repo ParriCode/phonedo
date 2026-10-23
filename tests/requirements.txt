@@ -1,0 +1,7 @@
+pytest>=8
+requests>=2.31
+Flask>=3
+python-dotenv>=1
+cryptography>=42
+plyvel>=1.5
+aiohttp>=3.9,<4

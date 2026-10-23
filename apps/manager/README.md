@@ -1,6 +1,6 @@
 # Manager: resultado del procesamiento y autenticación
 
-`manager.py` mantiene las comprobaciones explícitas de campos de cada endpoint.
+`server.py` mantiene las comprobaciones explícitas de campos de cada endpoint.
 
 `POST /newEvent` responde 200 con `{eventId, status: "Verified"}` únicamente tras
 verificación positiva y confirmación del guardado final. Errores: 422 para rechazo
@@ -13,7 +13,7 @@ Un timeout puede tener resultado incierto: el servicio remoto podría haber escr
 `managerHash` contiene HMAC-SHA256 del sobre completo Captured (incluye UUID,
 identidades, payload y fecha), excluyendo únicamente el propio `managerHash`.
 Serialización compartida: JSON UTF-8 con claves ordenadas, separadores compactos,
-sin escape ASCII y sin NaN/Infinity. Implementación: `sign_event()` en `apps/manager/manager.py` y
+sin escape ASCII y sin NaN/Infinity. Implementación: `sign_event()` en `apps/manager/utils.py` y
 `verify_event()` en `apps/verifier/verifier.py`.
 El Verifier comprueba el HMAC antes de producir su mensaje Verified firmado con RSA.
 El HMAC conservado en Verified corresponde al sobre Captured original, no al sobre
@@ -95,8 +95,8 @@ Configuración de ejemplo:
 }
 ```
 
-Los flags `stream.readers` y `stream.publishers` permanecen en la configuración
-para trabajo futuro. No crean rutas en esta versión.
+`stream.readers` activa el consumo de los streams del Reader.
+`stream.publishers` permanece reservado para trabajo futuro.
 
 ## Consumo del stream del Reader
 
@@ -115,3 +115,16 @@ preferencia vive en memoria y se restablece al reiniciar el Manager.
 
 El stream del Reader es en vivo: no ofrece replay. Los dispositivos deben estar
 registrados en Storage antes de procesar sus observaciones, igual que por HTTP.
+
+## Organización
+
+- `manager.py`: configuración y composición del servicio.
+- `core.py`: procesamiento, firma, prioridad HTTP y cola de reintentos.
+- `server.py`: endpoints HTTP y streams de salida.
+- `client.py`: llamadas a servicios y consumo del stream del Reader.
+- `utils.py`: firma del contenido.
+
+Para comprobar el proyecto: `tools/build.sh` y `tools/test.sh`.
+Prepara el entorno con `python3 -m venv .venv` y
+`.venv/bin/python -m pip install -r tests/requirements.txt`.
+El script de pruebas admite un patrón: `tools/test.sh 'test_manager_*.py'`.

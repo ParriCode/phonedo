@@ -1,43 +1,11 @@
-"""Flask SSE endpoints for downstream services.
-
-The current HTTP POST workflow remains active. Consumers can subscribe when ready.
-"""
-from contextlib import contextmanager
-import hmac
-import json
-import queue
-import threading
-
-from flask import Response, abort, request
-
-
-class EventStream:
-    def __init__(self, queue_size=256):
-        self.queue_size = queue_size
-        self._subscribers = set()
-        self._lock = threading.Lock()
-
-    @contextmanager
-    def subscribe(self):
-        subscriber = queue.Queue(maxsize=self.queue_size)
-        with self._lock:
-            self._subscribers.add(subscriber)
-        try:
-            yield subscriber
-        finally:
-            with self._lock:
-                self._subscribers.discard(subscriber)
-
-    def publish(self, event):
-        with self._lock:
-            for subscriber in tuple(self._subscribers):
-                try:
-                    subscriber.put_nowait(event)
-                except queue.Full:
-                    self._subscribers.discard(subscriber)
-                    while not subscriber.empty():
-                        subscriber.get_nowait()
-                    subscriber.put_nowait(None)
+"""Manager HTTP routes and SSE endpoints."""
+import os
+import time
+from flask import g, request
+from logger import Logger
+from client import InternalPostError
+from event_stream import EventStream
+from server_stream import stream_response
 
 
 class ManagerServer:
@@ -52,29 +20,7 @@ class ManagerServer:
             app.add_url_rule('/stream/storage', 'stream_storage',
                              lambda: self._response(self.storage_stream, config.api_token_storage))
 
-    @staticmethod
-    def _response(stream, token):
-        supplied = request.headers.get('Authorization', '')
-        if not token or not hmac.compare_digest(supplied, 'Bearer ' + token):
-            abort(401)
-
-        def events():
-            with stream.subscribe() as subscriber:
-                yield ': connected\n\n'
-                while True:
-                    try:
-                        event = subscriber.get(timeout=15)
-                    except queue.Empty:
-                        yield ': heartbeat\n\n'
-                        continue
-                    if event is None:
-                        yield 'event: stream_closed\ndata: {}\n\n'
-                        break
-                    yield ('event: observation\nid: ' + str(event['key']) + '\ndata: '
-                           + json.dumps(event, ensure_ascii=False, separators=(',', ':')) + '\n\n')
-
-        return Response(events(), mimetype='text/event-stream',
-                        headers={'Cache-Control': 'no-cache', 'X-Accel-Buffering': 'no'})
+    _response = staticmethod(stream_response)
 
     def publish_captured(self, event):
         if self.config.stream and self.config.stream_verifiers:
@@ -83,3 +29,142 @@ class ManagerServer:
     def publish_verified(self, event):
         if self.config.stream and self.config.stream_storages:
             self.storage_stream.publish(event)
+
+
+def register_routes(app, core):
+
+    @app.before_request
+    def start_request_log():
+        g.request_started_at = time.time()
+
+    @app.after_request
+    def log_request(response):
+        duration_ms = int((time.time() - g.get("request_started_at", time.time())) * 1000)
+        body = request.get_json(silent=True) or {}
+
+        Logger.request(
+            request.method,
+            request.path,
+            response.status_code,
+            durationMs=duration_ms,
+            deviceId=body.get("deviceId") if isinstance(body, dict) else None,
+            readerId=body.get("readerId") if isinstance(body, dict) else None,
+        )
+        return response
+
+    @app.get("/")
+    def alive():
+        return "Service is alive"
+
+    @app.post("/registerDevice")
+    def register_device():
+        #Obtener cuerpo del mensaje
+        body = request.get_json(silent=True) or {}
+        #Es necesario el TOKEN para el manager
+        if not body.get("token") or body.get("token") != os.getenv("API_TOKEN_MANAGER"):
+            Logger.warning("manager_register_device_not_authorized")
+            return "Not authorized", 401
+
+
+        #Obtener campos del cuerpo json
+        schema_version      = body.get("schemaVersion")
+        device_id           = body.get("deviceId")
+        reader_id           = body.get("readerId")
+        device_type         = body.get("deviceType")
+        creation_date_time  = body.get("creationDatetime")
+
+        #verificar que todos los cuerpos existen
+        if not schema_version:
+            Logger.warning("manager_register_device_bad_request", missing="schemaVersion")
+            return {"error": "schemaVersion is required"}, 400
+
+        if not device_id:
+            Logger.warning("manager_register_device_bad_request", missing="deviceId")
+            return {"error": "deviceId is required"}, 400
+
+        if not reader_id:
+            Logger.warning("manager_register_device_bad_request", missing="readerId")
+            return {"error": "readerId is required"}, 400
+
+        if not device_type:
+            Logger.warning("manager_register_device_bad_request", missing="deviceType")
+            return {"error": "deviceType is required"}, 400
+
+        if not creation_date_time:
+            Logger.warning("manager_register_device_bad_request", missing="creationDatetime")
+            return {"error": "creation_date_time is requires"}, 400
+
+
+        Logger.info("device_register_received", deviceId=device_id, readerId=reader_id)
+
+        message = {
+            "key": device_id,
+            "value": {
+                "deviceId": device_id,
+                "deviceType": device_type,
+                "registeredByReader": reader_id,
+                "registrationDatetime": int(time.time() * 1000),
+            },
+        }
+
+        try:
+            response = core.client.register_device(message)
+
+            Logger.info("device_registered", deviceId=device_id, readerId=reader_id)
+            Logger.debug("device_register_storage_response", response=response)
+        except InternalPostError as error:
+            Logger.error(
+                "device_register_failed",
+                deviceId=device_id,
+                readerId=reader_id,
+                url=error.url,
+                status=error.status,
+                body=error.body,
+            )
+            return f"Storage register failed. Status={error.status}. Body={error.body}", 502
+        except Exception as error:
+            Logger.error("device_register_failed", deviceId=device_id, readerId=reader_id, error=str(error))
+            return "Internal server error", 500
+
+        return "Successfully registered", 200
+
+    @app.post("/newEvent")
+    def new_event():
+        body = request.get_json(silent=True) or {}
+
+        if not body.get("token") or body.get("token") != os.getenv("API_TOKEN_MANAGER"):
+            Logger.warning("manager_new_event_not_authorized")
+            return "Not authorized", 401
+
+
+        device_id           = body.get("deviceId")
+        reader_id           = body.get("readerId")
+        payload             = body.get("payload")
+        payload_format      = body.get("payloadFormat")
+        event_type          = body.get("eventType")
+
+
+        if not device_id:
+            Logger.warning("manager_new_event_bad_request", missing="deviceId")
+            return {"error": "deviceId is required"}, 400
+
+        if not reader_id:
+            Logger.warning("manager_new_event_bad_request", missing="readerId")
+            return {"error": "readerId is required"}, 400
+
+        if not payload:
+            Logger.warning("manager_new_event_bad_request", missing="payload")
+            return {"error": "payload is required"}, 400
+
+        if not payload_format:
+            Logger.warning("manager_new_event_bad_request", missing="payloadFormat")
+            return {"error": "payloadFormat is required"}, 400
+
+        if not event_type:
+            Logger.warning("manager_new_event_bad_request", missing="eventType")
+            return {"error": "eventType is required"}, 400
+
+        # Once a Reader uses HTTP, its SSE observations are ignored for this process.
+        core.prefer_http(reader_id)
+
+        return core.submit_observation(body)

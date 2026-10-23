@@ -2,7 +2,7 @@
 set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
-PYTHON_BIN="${PYTHON_BIN:-python3}"
+PYTHON_BIN="${PYTHON_BIN:-$ROOT_DIR/.venv/bin/python}"
 if [[ $# -gt 0 ]]; then
     pattern="$1"
 else
@@ -12,4 +12,9 @@ export PYTHONPATH="$ROOT_DIR/apps/manager:$ROOT_DIR/libs:$ROOT_DIR/apps/reader/p
 for script in tools/*.sh; do
     bash -n "$script"
 done
-exec "$PYTHON_BIN" -m unittest discover -s tests/app_tests -p "$pattern" -v
+mapfile -t test_files < <(find tests/app_tests -maxdepth 1 -name "$pattern" -type f | sort)
+if [[ ${#test_files[@]} -eq 0 ]]; then
+    echo "No hay pruebas para $pattern" >&2
+    exit 1
+fi
+exec "$PYTHON_BIN" -m pytest "${test_files[@]}" -v

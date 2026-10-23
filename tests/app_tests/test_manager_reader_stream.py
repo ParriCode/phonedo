@@ -60,15 +60,15 @@ class ReaderStreamTests(unittest.TestCase):
             body = {'token': 'manager-token', 'eventType': 'observation',
                     'readerId': 'r1', 'deviceId': 'd1', 'payloadFormat': 'application/json',
                     'payload': {'value': 1}}
-            with patch.object(manager, 'attempt_event', return_value=({'status': 'Verified'}, 200)) as process:
-                manager.on_reader_stream_event({key: value for key, value in body.items() if key != 'token'})
+            with patch.object(manager.core, 'attempt_event', return_value=({'status': 'Verified'}, 200)) as process:
+                manager.core.on_reader_stream_event({key: value for key, value in body.items() if key != 'token'})
                 self.assertEqual(process.call_count, 1)
                 response = manager.app.test_client().post('/newEvent', json=body)
                 self.assertEqual(response.status_code, 200)
                 self.assertEqual(process.call_count, 2)
-                manager.on_reader_stream_event({key: value for key, value in body.items() if key != 'token'})
+                manager.core.on_reader_stream_event({key: value for key, value in body.items() if key != 'token'})
                 self.assertEqual(process.call_count, 2)
-            manager.pending_events.close()
+            manager.core.pending_events.close()
 
 
 if __name__ == '__main__':
