@@ -31,8 +31,41 @@ class ManagerClient:
             target = {'url': target} if isinstance(target, str) else target
             yield target['url'].rstrip('/'), target.get(
                 'token', getattr(self.config, 'api_token_' + service))
+    
+    def get_device_reader(self, device_id: str) -> dict:
+        errors = []
 
-    def get_device(self, device_id: str) -> dict:
+        for base, token in self._targets("reader"):
+            try:
+                response = requests.get(
+                    f"{base}/devices/{device_id}",
+                    headers={
+                        "Authorization": f"Bearer {token}"
+                    },
+                    timeout=self.timeout,
+                )
+
+                if response.status_code == 404:
+                    # Este Reader no conoce el dispositivo.
+                    # Probamos con el siguiente Reader.
+                    continue
+
+                response.raise_for_status()
+
+                return response.json()
+
+            except requests.RequestException as error:
+                errors.append(error)
+
+        if errors:
+            raise errors[0]
+
+        raise DeviceNotRegisteredError(
+            f"Device '{device_id}' is not registered in any Reader"
+        )
+
+    
+    def get_device_storage(self, device_id: str) -> dict:
         errors = []
         for base, token in self._targets('storage'):
             try:

@@ -133,12 +133,35 @@ class ManagerCore:
     def process_event(self, job):
         """Keep Captured in memory; persist only a positively verified event."""
         message = job["message"]
+        device_id = message["value"]["deviceId"]
+
         if job["stage"] == "lookup_verified":
-            self.client.get_device(message["value"]["deviceId"])
-            job["stage"] = "store_verified"
+            try:
+                self.client.get_device_storage(message["value"]["deviceId"])
+                job["stage"] = "store_verified"
+            except DeviceNotRegisteredError:
+                job["state"] = "discover_device"
+            else: 
+                job["stage"] = "store_verified"
         if job["stage"] == "lookup":
-            self.client.get_device(message["value"]["deviceId"])
-            job["stage"] = "signing"
+            try:
+                self.client.get_device_storage(message["value"]["deviceId"])
+                job["stage"] = "signing"
+            except DeviceNotRegisteredError:
+                job["state"] = "discover_device"
+            else: 
+                job["stage"] = "signing"
+
+        if job["stage"] == "discover_device":
+            device = self.client.get_device_reader(device_id)
+
+            self.client.register_device_storage(device)
+
+            # El evento todavía necesita pasar por verificación.
+            if job.get("verified") is None:
+                job["stage"] = "signing"
+            else:
+                job["stage"] = "store_verified"
         if job["stage"] == "signing":
             message["value"]["managerHash"] = sign_event(message)
             job["stage"] = "verification"
