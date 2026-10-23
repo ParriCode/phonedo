@@ -1,110 +1,49 @@
 @startuml phonendo_secuencia
+!theme plain
 hide footbox
+skinparam shadowing false
 skinparam sequenceMessageAlign center
-title Phonendo completo — Reader base, flujo actual e integraciones pendientes
-actor "Aplicación productora" as A
-box "Reader base"
-participant ReaderCore as C
-participant ReaderService as S
-participant "StreamOutput / ReaderServer" as H
-participant "Output HTTP al Manager\nPENDIENTE en Reader base" as O #FFF2CC
-end box
-actor "Consumidor SSE" as U
+title Phonendo — secuencia simplificada entre servicios
+
+participant Reader as R
 participant Manager as M
-participant "Storage operativo" as DB
 participant Verifier as V
-participant "Publisher\nPENDIENTE" as P #FFF2CC
-participant "Storage persistente\nDISEÑO OBJETIVO" as PS #FFF2CC
-participant "Stellar\nDISEÑO OBJETIVO" as ST #FFF2CC
-note over A,ST
-  Secuencia de integración completa, no prueba de un flujo ya conectado.
-  El output HTTP del Reader base y toda la fase Publisher/Stellar están pendientes.
-  No intervienen Arduino, simuladores ni adaptadores de hardware.
+participant Storage as S
+participant "Publisher\n(pendiente)" as P #FFF2CC
+
+note over R,S
+  Dispositivo previamente registrado en Storage.
+  Flujo operativo: SSE desde Reader; verificación y guardado por HTTP.
 end note
-== Composición y registro ==
-A -> C : crear ReaderCore
-A -> H : crear ReaderServer(core, configuración)
-H -> S : crear Service con Core externo y outputs
-S -> C : instalar callbacks
-A -> H : start() con HTTP habilitado
-U -> H : GET /observations/stream
-H --> U : connected (sin historial)
-A -> C : register_device(device)
-C -> S : on_register_device(device)
-S -> O : register_device(reader_id, device)
-note right of O : Esta entrega HTTP requiere implementar el output.
-O -> M : POST /registerDevice (token y datos)
-M -> M : comprobar campos y derivar managerHash
-M -> DB : POST /registerDevice
-DB --> M : confirmación o error
-M --> O : resultado del registro
-== Ingestión y distribución ==
-A -> C : ingest(Observation)
-C -> C : validar IDs y políticas de alta
-alt Identidad inválida o alta no permitida
-  C --> A : excepción o False (Python)
-else Observación aceptada
-  C -> S : on_observation(Observation)
-  S -> H : StreamOutput.publish -> JSON -> colas
-  H --> U : event observation
-  note over H,U : Solo suscriptores activos; sin replay.
-  S -> O : publish(reader_id, Observation)
-  O -> M : POST /newEvent (token y payload JSON)
-  alt Token o campos incorrectos
-    M --> O : 401 o 400
-  else Entrada válida
-    M -> DB : GET /devices/id
-    DB --> M : dispositivo o error
-    alt Consulta del dispositivo falla
-      M --> O : 404 (también ante fallo de Storage)
-    else Dispositivo encontrado
-      M -> M : UUID, fecha, managerHash y Captured
-      M -> DB : POST /events (Captured)
-      alt Guardado Captured falla
-        DB --> M : error
-        M -> M : registrar fallo
-      else Captured guardado
-        DB --> M : mensaje almacenado
-        M -> V : POST /verify (token y mensaje)
-        V -> V : comprobar sobre, formato y ventana temporal
-        alt Rechazo o fallo del Verifier
-          V --> M : error
-          M -> M : registrar fallo; Captured permanece
-        else Validación correcta
-          V -> V : construir Verified y firmar RSA/SHA256
-          V --> M : mensaje con verifierSign
-          M -> DB : POST /events (Verified, misma clave)
-          DB --> M : confirmación o error
-          note over M,DB : Si falla, se registra el error sin reintento automático.
-        end
-      end
-      M --> O : 200 Event accepted incluso tras esos fallos
-    end
-  end
+M -> R : Suscribirse a /stream
+R --> M : Observación (SSE)
+note over R,M : Alternativa: POST /newEvent; tiene prioridad para ese readerId.
+M -> S : Consultar dispositivo
+S --> M : Dispositivo registrado
+note over M : Preparar evento Captured y autenticar contenido con HMAC.
+M -> V : Verificar evento (HTTP /verify)
+alt Verificación positiva
+  V --> M : Evento Verified con firma RSA
+  M -> S : Guardar evento Verified (HTTP)
+  S --> M : Confirmación de guardado
+else Rechazo explícito
+  V --> M : Rechazo
+  note over M,S : Descartar evento; no guardarlo.
+else Timeout
+  note over M,S : Cola en memoria y reintento desde la etapa pendiente.
 end
-== Publicación futura — NO ejecutada actualmente ==
-opt Integración futura, solo con evento verificado y guardado
-  M -> P : preparar/publicar Batch inmutable
-  P -> P : serialización versionada, hashes y pruebas Merkle
-  P -> PS : guardar contenido completo y evidencias
-  alt Copias insuficientes o error
-    PS --> P : fallo
-    P --> M : pendiente de recuperación
-  else Política de copias satisfecha
-    PS --> P : referencias confirmadas
-    P -> ST : registrar atestación de Batch y raíz
-    alt Resultado del envío incierto
-      P -> ST : reconciliar antes de repetir
-      ST --> P : estado del envío
-    end
-    P -> ST : consultar confirmación
-    ST --> P : resultado
-    P --> M : referencias y estado, Publicado solo si confirmado
-  end
-end
-note over M,ST
-  Actualmente la llamada del Manager al Publisher está comentada.
-  No hay reintentos persistentes ni publicación Stellar implementada.
-  Esta fase futura no cambia el significado del HTTP 200 actual.
+
+== Intercambio SSE opcional con Verifier ==
+V -> M : Suscribirse a /stream/verifier
+M --> V : Evento Captured (SSE)
+note over V : Verificar y firmar si se acepta.
+V --> M : Resultado Verified por /stream del Verifier\n(entrega al Manager pendiente)
+note over M,V
+  El Verifier ya publica para varios suscriptores.
+  El Manager todavía no consume este resultado para guardar en Storage.
+  Este intercambio no sustituye la llamada HTTP del flujo anterior.
 end note
+
+== Publicación futura ==
+M --> P : Publicar evento verificado (pendiente)
 @enduml

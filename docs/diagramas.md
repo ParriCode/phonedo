@@ -6,13 +6,26 @@ Actualizados: 23/10/2026. Basados en el Reader base Python, sin plataformas ni h
 | --- | --- | --- | --- |
 | Reader: clases | [PlantUML](reader.plantuml) | [SVG](reader.svg) | [PNG](reader.png) |
 | Phonendo: arquitectura | [PlantUML](phonendo.plantuml) | [SVG](phonendo.svg) | [PNG](phonendo.png) |
-| Phonendo: secuencia completa | [PlantUML](phonendo-secuencia.plantuml) | [SVG](phonendo_secuencia.svg) | [PNG](phonendo_secuencia.png) |
+| Phonendo: secuencia simplificada | [PlantUML](phonendo-secuencia.plantuml) | [SVG](phonendo_secuencia.svg) | [PNG](phonendo_secuencia.png) |
 
-El output HTTP al Manager no está implementado en el Reader base. El diagrama general lo marca como integración pendiente. La secuencia describe ese contrato de integración y separa la publicación futura: la llamada al Publisher sigue comentada y Stellar no está conectado.
+Los generales muestran únicamente Reader, Manager, Verifier, Storage y Publisher.
+El UML interno del Reader se conserva. Los diagramas internos de los demás servicios
+quedan para una revisión posterior.
 
-Las opciones del Reader reflejan el código actual, incluido `ServerConfig.enabled`. Las respuestas HTTP del Manager no garantizan que la verificación haya finalizado correctamente.
+El flujo operativo usa SSE desde el Reader y HTTP para verificar y guardar Verified.
+El Verifier también consume el SSE de Managers y publica resultados para varios
+suscriptores; el Manager aún no consume esos resultados para continuar el guardado.
+Las conexiones pendientes están anotadas, incluida la publicación futura.
 
-Fuentes: `apps/reader/python/core/reader_core/`, `apps/reader/python/server/reader_server/`, `apps/manager/main.py`, `apps/storage/main.py`, `apps/storage/db.py`, `apps/verifier/main.py` y los requisitos objetivo de PHONENDO en el vault.
+Fuentes actuales: `apps/reader/python/server/reader_server/server.py`,
+`apps/manager/{manager,core,server,client}.py`, `apps/verifier/verifier.py`,
+`apps/storage/main.py`, `libs/{event_auth,stream_client,event_stream}.py` y
+`tests/integration/test_pipeline.py`.
+
+Fuentes históricas conservadas: `apps/reader/python/core/reader_core/`,
+`apps/reader/python/server/reader_server/`, `apps/manager/main.py`,
+`apps/storage/db.py`, `apps/verifier/main.py` y los requisitos objetivo de PHONENDO
+explicaban la versión anterior; las rutas antiguas del Manager y Verifier han cambiado.
 
 Renderizar con PlantUML (UTF-8), por ejemplo:
 

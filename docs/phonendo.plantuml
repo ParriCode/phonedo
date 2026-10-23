@@ -1,50 +1,43 @@
 @startuml phonendo
-skinparam componentStyle rectangle
+!theme plain
 left to right direction
-title Phonendo — arquitectura general con Reader base
-actor "Aplicación productora" as A
-actor "Consumidor HTTP/SSE" as U
-package "Reader base" {
-  component ReaderCore as C
-  component ReaderService as S
-  component ReaderServer as H
-  component StreamOutput as O
-  component "Output HTTP al Manager\nContrato de integración pendiente\nen Reader base" as B #FFF2CC
-}
-component "Manager\nFlask" as M
-component "Storage operativo\nFlask + LevelDB" as DB
-component "Verifier\nValidación y firma RSA" as V
-component "Publisher\nPendiente" as P #FFF2CC
-component "Storage persistente\nDatos completos y evidencias\nDiseño objetivo" as PS #FFF2CC
-cloud "Stellar\nAtestación de Batch\nDiseño objetivo" as ST
-A --> C : registrar / ingest(Observation)
-C --> S : callbacks de objetos
-S --> O : publish
-O --> H : eventos SSE
-U --> H : consultas HTTP / suscripción
-H --> S : consultar metadata y devices
-S ..> B : output por implementar
-B ..> M : POST /registerDevice y /newEvent
-M --> DB : registrar, consultar y guardar
-M --> V : POST /verify
-V --> M : Verified firmado o rechazo
-M ..> P : publicación desactivada
-P ..> PS : contenido y pruebas
-P ..> ST : raíz y referencia del lote
-note bottom of B
-  El Reader base no incluye un cliente Manager.
-  Se muestra el punto de extensión necesario,
-  sin adaptadores de plataforma ni hardware.
-  Manager no consume automáticamente el SSE.
+skinparam componentStyle rectangle
+skinparam shadowing false
+skinparam defaultFontSize 13
+title Phonendo — relaciones entre servicios
+
+component Reader as R
+component Manager as M
+component Verifier as V
+component Storage as S
+component "Publisher\n(pendiente)" as P #FFF2CC
+
+R --> M : Observaciones por SSE\nManager se suscribe a Reader /stream
+R ..> M : Alternativa HTTP: /registerDevice y /newEvent\nContrato disponible en Manager
+M --> V : HTTP /verify: evento Captured con HMAC\nRespuesta: Verified firmado o rechazo
+M --> V : SSE /stream/verifier del Manager\nVerifier se suscribe (opcional)
+V ..> M : SSE /stream del Verifier: resultados firmados\nConsumo en Manager pendiente
+M --> S : HTTP: registrar y consultar dispositivos\nguardar únicamente eventos Verified
+M --> S : SSE /stream/storage del Manager\nConsumo en Storage pendiente
+M ..> P : Publicación futura\nLlamada desactivada
+
+note bottom of R
+  Si un readerId usa /newEvent,
+  HTTP tiene prioridad sobre su SSE
+  hasta reiniciar el Manager.
+  El Reader base no incluye el output HTTP.
 end note
-note bottom of M
-  Flujo actual: Captured -> Verified.
-  HTTP 200 no garantiza que todos los pasos hayan terminado bien.
-  managerHash no firma el payload.
+
+note bottom of V
+  Puede consumir varios Managers
+  y distribuir resultados a varios suscriptores.
+  Sus resultados SSE aún no reanudan
+  el guardado en el Manager.
 end note
+
 legend bottom
-  Línea continua: dependencia o flujo implementado.
-  Línea discontinua y amarillo: integración o función pendiente.
-  Storage operativo y persistente son roles; no implican dos motores ya desplegados.
+  Flecha: dirección del dato; la etiqueta indica quién se suscribe al SSE.
+  Línea continua: transporte disponible; las integraciones pendientes se anotan.
+  Línea discontinua: integración futura o contrato pendiente en Reader base.
 endlegend
 @enduml
