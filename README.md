@@ -1,157 +1,78 @@
+# Phonendo
 
-<!-- PROJECT SHIELDS -->
-<!--
-*** I'm using markdown "reference style" links for readability.
-*** Reference links are enclosed in brackets [ ] instead of parentheses ( ).
-*** See the bottom of this document for the declaration of the reference variables
-*** for contributors-url, forks-url, etc. This is an optional, concise syntax you may use.
-*** https://www.markdownguide.org/basic-syntax/#reference-style-links
--->
-[![Contributors][contributors-shield]][contributors-url]
-[![Forks][forks-shield]][forks-url]
-[![Stargazers][stars-shield]][stars-url]
-[![Issues][issues-shield]][issues-url]
-[![MIT License][license-shield]][license-url]
-[![LinkedIn][linkedin-shield]][linkedin-url]
+Phonendo es una plataforma de servicios para recoger datos de dispositivos y sensores,
+coordinar su procesamiento, verificar su integridad y almacenarlos. La publicación
+de los datos forma parte del diseño y está pendiente de integración.
 
+## Servicios
 
+| Servicio | Responsabilidad |
+| --- | --- |
+| **Reader** | Recoge observaciones y las expone mediante un stream SSE. |
+| **Manager** | Coordina el flujo, calcula el hash del contenido del evento y gestiona los reintentos por timeout. |
+| **Verifier** | Valida el evento, comprueba el hash y firma el resultado verificado. |
+| **Storage** | Guarda los dispositivos registrados y los eventos verificados. |
+| **Publisher** | Se encargará de publicar los datos. Su integración está pendiente. |
 
-<!-- PROJECT LOGO -->
-<br />
-<div align="center">
+## Arquitectura general
 
-  <h1 align="center">Phonendo</h1>
+![Relaciones entre los servicios de Phonendo](docs/phonendo.svg)
 
-  <p align="center">
-    Phonendo is a platform consisting of several software services that manages the entire data lifecycle from wearable device data collection to publishing them on IOTA.
-    <br />
-    <br />
-    Phonendo is published on Wireless Networks https://link.springer.com/article/10.1007/s11276-023-03458-7 and can be cited:
-    
-    Moya, F., Quesada, F.J., Martínez, L. et al. 
-    Phonendo: a platform for publishing wearable data on distributed ledger technologies. 
-    Wireless Netw (2023). 
-    https://doi.org/10.1007/s11276-023-03458-7
-  <br />
-    <br />
-    <a href="https://github.com/sinbad2-ujaen/phonendo/blob/main/demo/phonendo_demo.mp4">View Demo</a>
-    ·
-    <a href="https://github.com/sinbad2-ujaen/phonendo/issues">Report Bug / Request Feature</a>
-  </p>
-</div>
+El Manager consume las observaciones del Reader por SSE. Si un mismo Reader envía
+eventos por `/newEvent`, esa entrada HTTP tiene prioridad sobre su stream.
+La verificación y el guardado del flujo completo actual se realizan mediante HTTP.
+El Verifier también consume streams de Managers y publica resultados por SSE;
+el Manager todavía no utiliza esos resultados SSE para continuar el guardado.
 
+## Secuencia general
 
+![Secuencia simplificada entre los servicios de Phonendo](docs/phonendo_secuencia.svg)
 
-<!-- TABLE OF CONTENTS -->
-<details>
-  <summary>Table of Contents</summary>
-  <ol>
-    <li>
-      <a href="#about-the-project">About The Project</a>
-    </li>
-    <li>
-      <a href="#getting-started">Getting Started</a>
-      <ul>
-        <li><a href="#prerequisites">Prerequisites</a></li>
-        <li><a href="#installation">Installation</a></li>
-      </ul>
-    </li>
-    <li><a href="#usage">Usage</a></li>
-    <li><a href="#contributing">Contributing</a></li>
-    <li><a href="#license">License</a></li>
-  </ol>
-</details>
+Solo se guarda el evento tras una verificación positiva. Un rechazo explícito lo
+descarta; un timeout lo deja en una cola temporal en memoria para reintentarlo.
+Publisher aparece como una fase futura.
 
+## Ejecución local
 
+Requisitos: Python 3.11 o superior, soporte para entornos virtuales y `pip`.
 
-<!-- ABOUT THE PROJECT -->
-## About The Project
+Configura `deploy/env/dev.env` con las URLs, los puertos y los secretos de los
+servicios. Después genera sus configuraciones y arranca el entorno:
 
-[![Phonendo][product-screenshot]](https://github.com/sinbad2-ujaen/phonendo)
-
-The Phonendo architecture adopts a microservice event-driven approach, consisting of five key components: Reader, Manager, Storage, Verifier, and Publisher. The diagram below depicts the interconnectedness of these components and highlights their primary functions. This architectural design prioritizes flexibility, scalability, and adaptability across various applications.
-
-The Reader provides Python/C++ core and service libraries, a Python HTTP/SSE server, and platform examples under `apps/reader/examples/`. Linux simulates temperatures; Arduino demonstrates GPIO, WiFi and Manager delivery. See [Reader documentation](apps/reader/README.md) for architecture and execution.
-
-During the implementation phase, we employed the Pine Time smartwatch (available at [https://www.pine64.org/pinetime/](https://www.pine64.org/pinetime/)) as a reference device. This choice allowed us to ensure compatibility and evaluate the integration of Phonendo with a real-world wearable device. By doing so, we were able to validate the platform's functionality and its capacity to handle data from smartwatches, which are commonly used in healthcare and fitness applications.
-
-It is essential to acknowledge that the current implementation of Phonendo serves as a foundation for further research and development. As we continue refining the platform and exploring additional use cases, we anticipate introducing enhancements and optimizations based on empirical experimentation and user feedback.
-
-<!-- GETTING STARTED -->
-## Getting Started
-
-### Prerequisites
-
-* Python 3
-* g++ with C++17 support for the Reader core
-
-### Installation
-
-1. Clone the repo
-   ```sh
-   git clone https://github.com/sinbad2-ujaen/phonendo.git
-   ```
-2. Generate service configuration files
-   ```sh
-   ./tools/generate_configs.sh
-   ```
-3. Start project
-   ```sh
-   ./tools/dev.sh
-   ```
-
-
-
-<!-- USAGE EXAMPLES -->
-## Usage
-
-- To start the project
-   ```sh
-   ./tools/dev.sh
-   ```
-
-Once all services are up, next step is to register a device using the Reader endpoint
-``` 
-curl --location 'http://127.0.0.1:3003/register' \ --header 'Content-Type: application/x-www-form-urlencoded' \ --data-urlencode 'device=XXXXXXXXXX' \ --data-urlencode 'deviceType=SMARTWATCH'
+```sh
+./tools/generate_configs.sh
+./tools/dev.sh
 ```
 
-Once the device is registered, Phonendo will automatically detect, connect and start listening events. In particular, it captures heartbeat events.
+El generador escribe los archivos `config.env` de los servicios. El Reader del
+entorno local utiliza el ejemplo Linux con observaciones simuladas.
 
-<!-- CONTRIBUTING -->
-## Contributing
+## Pruebas
 
-Contributions are what make the open source community such an amazing place to learn, inspire, and create. Any contributions you make are **greatly appreciated**.
+Prepara el entorno de pruebas:
 
-If you have a suggestion that would make this better, please fork the repo and create a pull request. You can also simply open an issue with the tag "enhancement".
-Don't forget to give the project a star! Thanks again!
+```sh
+python3 -m venv .venv
+.venv/bin/python -m pip install -r tests/requirements.txt
+```
 
-1. Fork the Project
-2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the Branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
+Ejecuta las pruebas de los componentes y la integración con servicios reales:
 
+```sh
+./tools/test.sh
+./tools/test_integration.sh
+```
 
+Las pruebas del Reader en C++ requieren un compilador con soporte C++17. La prueba
+de integración utiliza puertos y una base de datos temporales, comprueba streams,
+firmas e integridad del dato almacenado y cierra los servicios al terminar.
 
-<!-- LICENSE -->
-## License
+## Documentación y referencia
 
-Distributed under the MIT License. See `LICENSE.txt` for more information.
+- [Reader](apps/reader/README.md), [Manager](apps/manager/README.md),
+  [Verifier](apps/verifier/README.md), [Storage](apps/storage/README.md) y
+  [Publisher](apps/publisher/README.md).
+- [Diagramas y fuentes PlantUML editables](docs/diagramas.md).
+- Moya, F., Quesada, F. J., Martínez, L. et al. *Phonendo: a platform for publishing wearable data on distributed ledger technologies*. Wireless Networks (2023). [Publicación original](https://doi.org/10.1007/s11276-023-03458-7).
 
-
-
-<!-- MARKDOWN LINKS & IMAGES -->
-<!-- https://www.markdownguide.org/basic-syntax/#reference-style-links -->
-[contributors-shield]: https://img.shields.io/github/contributors/sinbad2-ujaen/phonendo.svg?style=for-the-badge
-[contributors-url]: https://github.com/sinbad2-ujaen/phonendo/graphs/contributors
-[forks-shield]: https://img.shields.io/github/forks/sinbad2-ujaen/phonendo.svg?style=for-the-badge
-[forks-url]: https://github.com/sinbad2-ujaen/phonendo/network/members
-[stars-shield]: https://img.shields.io/github/stars/sinbad2-ujaen/phonendo.svg?style=for-the-badge
-[stars-url]: https://github.com/sinbad2-ujaen/phonendo/stargazers
-[issues-shield]: https://img.shields.io/github/issues/sinbad2-ujaen/phonendo.svg?style=for-the-badge
-[issues-url]: https://github.com/sinbad2-ujaen/phonendo/issues
-[license-shield]: https://img.shields.io/github/license/sinbad2-ujaen/phonendo.svg?style=for-the-badge
-[license-url]: https://github.com/sinbad2-ujaen/phonendo/LICENSE.txt
-[linkedin-shield]: https://img.shields.io/badge/-LinkedIn-black.svg?style=for-the-badge&logo=linkedin&colorB=555
-[linkedin-url]: https://www.linkedin.com/in/francisco-moya/
-[product-screenshot]: images/system.jpg
+Licencia [MIT](LICENSE.txt).
