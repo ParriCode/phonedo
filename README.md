@@ -12,7 +12,7 @@ de los datos forma parte del diseño y está pendiente de integración.
 | **Manager** | Coordina el flujo, calcula el hash del contenido del evento y gestiona los reintentos por timeout. |
 | **Verifier** | Valida el evento, comprueba el hash y firma el resultado verificado. |
 | **Storage** | Guarda los eventos verificados y gestiona su propia base de datos. |
-| **Publisher** | Se encargará de publicar los datos. Su integración está pendiente. |
+| **Publisher** | Agrupa lecturas Verified del Manager, genera la prueba ZK y cobra la sesión en Stellar. |
 
 ## Arquitectura general
 

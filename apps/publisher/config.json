@@ -1,11 +1,29 @@
 {
-  "enabled": false,
-  "services": {
-    "managers": [],
-    "storages": []
+  "server": {
+    "host": "0.0.0.0",
+    "port": 3005
   },
-  "subscriptions": {},
-  "stream": {
-    "enabled": false
+  "subscriptions": {
+    "managers": [
+      "http://127.0.0.1:7102"
+    ]
+  },
+  "batchSize": 32,
+  "policy": {
+    "minValue": 90,
+    "maxValue": 130,
+    "minCount": 28
+  },
+  "patients": {
+    "default": "GBBO4ZD2YNV3ZBUIBIQAH3VK73Y2RHTSMURUR5LYEK5JMXACK24YN3BC"
+  },
+  "signer": {
+    "keyPath": "build/verifier_dev_key.json"
+  },
+  "circuitsPath": "../../circuits",
+  "stellar": {
+    "contractId": "CAPZ2O7LPTRGJ2Q7TTHMCHOKRZ4T7KU5I4E74M2U3YUTC3XONIQDOP2D",
+    "source": "alex",
+    "network": "testnet"
   }
 }
