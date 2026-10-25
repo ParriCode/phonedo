@@ -26,6 +26,13 @@ fi
 if ! "$WEB_PYTHON" -c 'import aiohttp' >/dev/null 2>&1; then
     "$WEB_PYTHON" -m pip install 'aiohttp>=3.9,<4'
 fi
+# La web es React + Vite: se compila en apps/web/dist antes de servirla.
+if command -v npm >/dev/null 2>&1; then
+    (cd "$ROOT_DIR/apps/web" && { [[ -d node_modules ]] || npm ci; } && npm run build)
+elif [[ ! -f "$ROOT_DIR/apps/web/dist/operator.html" ]]; then
+    echo 'Instala Node.js 20 o superior para compilar la web (apps/web).' >&2
+    exit 1
+fi
 echo "Panel: http://127.0.0.1:${WEB_PORT:-8080}/operator.html · Ctrl+C para parar."
 echo 'Los servicios se despliegan en Docker y siguen ejecutándose al cerrar la web.'
 if ! command -v docker >/dev/null 2>&1; then

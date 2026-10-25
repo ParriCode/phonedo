@@ -1,32 +1,24 @@
 # Service Network · Canvas View
 
-El operador activo usa estos módulos ES, sin compilación ni dependencias npm.
-Se arranca con `./tools/web.sh`; el frontend antiguo de Leptos no interviene.
+Lógica del lienzo del operador, sin React ni dependencias del navegador. Los
+componentes que la pintan están en `src/components/canvas` (ver el
+[README de la web](../README.md)).
 
 | Módulo | Responsabilidad |
 | --- | --- |
 | `models.js` | Servicios y conexiones normalizados; runtime, máquina, organización y tags. |
 | `state.js` | Posiciones, selección, viewport y persistencia local por despliegue. |
-| `canvas.js` | Montaje y actualización de la vista; nodos DOM estables. |
-| `interactions.js` | Arrastre, pan, zoom y teclado mediante Pointer Events. |
-| `node.js`, `edge.js` | Tarjetas y geometría de conexiones en coordenadas del mundo. |
-| `sidebar.js` | Inspector seleccionado, reutilizando los controles existentes. |
-| `configuration/` | Esquemas por servicio, borradores y formulario Visual/JSON con estilos propios. |
-| `layout.js` | Auto layout y cálculo de Fit view, sin dependencias del navegador. |
+| `layout.js` | Auto layout y cálculo de Fit view. |
+| `edge.js` | Geometría de las conexiones en coordenadas del mundo. |
+| `configuration/` | Esquemas por servicio, borradores y estilos del editor Visual/JSON de React. |
 | `api.js` | Cliente del backend local, sin conocimiento del canvas. |
-| `index.js` | Adaptador de integración y ciclo de vida. |
 | `styles.css` | Clases semánticas del lienzo, nodos, conexiones e inspector. |
 
-`operator.js` aporta la instantánea y las acciones Docker/Reader. El canvas no
-conoce URLs de administración ni credenciales. Para otro backend o despliegue,
-cambia ese adaptador y su `storageKey`, no los componentes de interacción.
+En React, `ServiceCanvas` guarda un `CanvasState` por montaje: los datos que llegan
+del sondeo no recalculan posiciones y los gestos no dependen del repintado global.
+`useCanvasInteractions` enlaza los Pointer Events y los libera al desmontar.
 `machineId`, `runtime`, `organization` y `tags` permiten ampliar el modelo a
 máquinas remotas y grupos; no implican que esas operaciones estén implementadas.
-
-Los repintados del operador conservan el elemento raíz del canvas. El controlador
-actualiza nodos por ID y no recalcula posiciones al recibir datos. Durante un
-gesto se aplaza el repintado global. Los listeners y el ResizeObserver se liberan
-al desmontar el controlador.
 
 Uso: arrastrar un nodo para colocarlo; arrastrar el fondo o mantener Espacio para
 mover el lienzo; rueda o botones +/- para zoom. Las flechas del teclado mueven el
@@ -38,9 +30,9 @@ campos adicionales. Reader aplica cambios en directo; los otros contenedores
 gestionados se reinician al guardar. Para servicios externos solo genera un archivo.
 Los borradores quedan en memoria y no se guardan secretos en localStorage.
 
-Pruebas de geometría, persistencia, modelo y API, sin instalar paquetes:
+Pruebas de geometría, persistencia, modelo y API (incluidas en `npm test`):
 
 ```sh
 cd apps/web
-npm test
+node --test service_network/tests/*.test.js
 ```

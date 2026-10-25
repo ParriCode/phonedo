@@ -1,4 +1,5 @@
 .service-config { margin: 1.25rem 0; min-width: 0; }
+.config-content { border: 0; margin: 0; padding: 0; min-width: 0; }
 .config-heading, .config-list__heading { display: flex; align-items: center; justify-content: space-between; gap: .5rem; }
 .config-heading h3 { margin: 0; }
 .config-dirty { color: #986016; font-size: .7rem; }

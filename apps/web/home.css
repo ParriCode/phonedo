@@ -1,0 +1,25 @@
+/* Portada: consola del operador y casos de uso. */
+body { background: var(--navy-950); color: #fff; min-height: 100vh; display: grid; grid-template-rows: 1fr; }
+.split-home { display: grid; grid-template-columns: 1fr 1fr; min-height: 0; }
+@media (min-width: 801px) { body { height: 100vh; min-height: 640px; } }
+.half { display: flex; flex-direction: column; justify-content: center; gap: 22px; padding: clamp(32px, 6vw, 80px); text-decoration: none; color: #fff; }
+.half .badge { width: 56px; height: 56px; border-radius: 14px; display: grid; place-items: center; }
+.half h1, .half h2 { transition: transform .2s ease; transform-origin: left center; margin: 0; font-size: clamp(30px, 4vw, 52px); letter-spacing: -1.4px; line-height: 1.05; }
+.half p { margin: 0; max-width: 420px; font-size: 16px; color: rgb(255 255 255 / 70%); }
+.half .go { display: inline-flex; align-items: center; gap: 10px; font-weight: 600; }
+.operator { background: radial-gradient(800px 500px at 20% 10%, rgb(39 167 196 / 20%), transparent 60%), linear-gradient(180deg, var(--navy-950), var(--navy-900)); transition: filter .2s; }
+.operator:hover { filter: brightness(1.15); }
+.half:hover h1, .half:hover h2 { transform: scale(1.07); }
+a.use-case:hover { background: rgb(255 255 255 / 4%); }
+.operator .badge { background: var(--gold); color: #fff; }
+.operator .go { color: var(--gold); }
+.use-cases { display: grid; grid-template-rows: minmax(0, 1fr) minmax(0, 1fr) auto; background: var(--navy-800); border-left: 1px solid rgb(255 255 255 / 10%); }
+.use-case { gap: 12px; padding: clamp(20px, 3vw, 40px) clamp(32px, 6vw, 80px); }
+.use-case + .use-case { border-top: 1px solid rgb(255 255 255 / 10%); }
+.use-case .badge { width: 44px; height: 44px; background: rgb(255 255 255 / 10%); color: var(--mint); }
+.use-case .badge .icon { width: 22px !important; height: 22px !important; }
+.more { padding: 6px 0 10px; text-align: center; font-size: 18px; line-height: 1; letter-spacing: 6px; color: rgb(255 255 255 / 55%); border-top: 1px solid rgb(255 255 255 / 10%); }
+.use-case .tag { display: inline-block; align-self: flex-start; font-size: 12px; padding: 3px 10px; border-radius: 999px; border: 1px solid rgb(255 255 255 / 25%); color: rgb(255 255 255 / 65%); }
+.use-case .label { font-size: 12px; font-weight: 700; letter-spacing: 1.6px; text-transform: uppercase; color: var(--gold); }
+.use-case h2 { font-size: clamp(22px, 2.6vw, 32px); }
+@media (max-width: 800px) { .split-home { grid-template-columns: 1fr; } .use-cases { border-left: 0; border-top: 1px solid rgb(255 255 255 / 10%); grid-template-rows: auto auto auto; } }

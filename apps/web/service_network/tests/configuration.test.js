@@ -2,7 +2,6 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { ConfigurationDraft, writePath } from '../configuration/model.js';
 import { configurationSchema } from '../configuration/schema.js';
-import { renderConfiguration } from '../configuration/editor.js';
 
 test('Los cambios visuales conservan opciones desconocidas y secretos ocultos',()=>{
   const source={services:{verifiers:[{url:'http://verifier:5000',token:'••••••',extra:true}]},extension:{enabled:true}};
@@ -88,14 +87,4 @@ test('JSON no cambia identidad en directo ni campos impuestos por Docker o varia
 test('Las rutas no permiten contaminar prototipos',()=>{
   assert.throws(()=>writePath({},['__proto__','polluted'],true));
   assert.equal({}.polluted,undefined);
-});
-
-test('Todos los componentes ofrecen modo visual y JSON con texto escapado',()=>{
-  for(const kind of ['reader','manager','verifier','storage','publisher']){
-    const html=renderConfiguration({id:kind,kind,config:{readerId:'<script>',managerId:'<script>'},lang:'es'});
-    assert.match(html,/data-config-action="visual" aria-pressed="true"/);
-    assert.match(html,/data-config-action="json"/);
-    assert.doesNotMatch(html,/<textarea/);
-    assert.doesNotMatch(html,/<script>/);
-  }
 });
