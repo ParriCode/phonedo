@@ -169,7 +169,7 @@ const DEMO_NETWORK = [
   { id: 'manager-1', kind: 'manager', name: 'manager', org: 'hospital', url: 'http://localhost:7102', managers: [] },
   { id: 'verifier-1', kind: 'verifier', name: 'verifier', org: 'hospital', url: 'http://localhost:7103', managers: ['manager-1'] },
   { id: 'storage-1', kind: 'storage', name: 'storage', org: 'hospital', url: 'http://localhost:7104', managers: ['manager-1'] },
-  { id: 'publisher-1', kind: 'publisher', name: 'publisher', org: 'hospital', url: 'http://localhost:3005', managers: ['manager-1'] },
+  { id: 'publisher-1', kind: 'publisher', name: 'publisher', org: 'hospital', url: 'http://localhost:7105', managers: ['manager-1'] },
 ];
 
 const state = {
@@ -645,7 +645,11 @@ function drawLinks() {
   const edges = [];
   for (const node of state.network) {
     for (const managerId of node.managers) {
-      if (node.kind === 'reader') edges.push([node.id, managerId, 'http']);
+    if (node.kind === 'reader') {
+      const config = typeof operatorState !== 'undefined' ? operatorState.readers[node.id]?.config : null;
+      if (!config || config.httpEnabled) edges.push([node.id, managerId, 'http']);
+      else if (config.streamEnabled) edges.push([node.id, managerId, 'sse']);
+    }
       else if (node.kind === 'publisher') edges.push([managerId, node.id, 'sse']);
       else edges.push([managerId, node.id, 'http']);
     }
@@ -658,7 +662,7 @@ function drawLinks() {
     if (!a || !b) return '';
     const bend = Math.max(30, (b.x - a.x) / 2);
     const d = `M${a.x},${a.y} C${a.x + bend},${a.y} ${b.x - bend},${b.y} ${b.x},${b.y}`;
-    const active = type === 'chain' ? state.net === 'live' && state.status[from] === 'up' : state.status[from] === 'up';
+    const active = typeof operatorState !== 'undefined' && Date.now() - ((type === 'chain' ? operatorState.paid[from] : operatorState.active[from]) || 0) < 6000;
     const dot = active ? `<circle r="3.6" class="${type}"><animateMotion dur="${type === 'chain' ? 2.4 : 1.8}s" repeatCount="indefinite" path="${d}"/></circle>` : '';
     return `<path class="${type}" d="${d}"/>${dot}`;
   }).join('');
@@ -913,7 +917,6 @@ function init() {
     refresh();
     setInterval(refresh, CONFIG.refreshMs);
   }
-  if (route() === 'operator') checkAll();
 }
 
 init();

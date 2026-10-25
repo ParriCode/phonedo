@@ -45,6 +45,6 @@ class ReaderService:
             'schemaVersion': 'phonendo.device.v1',
             'readerId': self.core.reader_id,
             'deviceId': device.device_id, 'deviceType': device.device_type,
-            'creationDatetime': device.creation_datetime,
+            'creationDatetime': getattr(device, 'creation_datetime', None),
             'sensors': [sensor.sensor_id for sensor in device.list_sensors()]
         }
