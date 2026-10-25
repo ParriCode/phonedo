@@ -179,8 +179,9 @@ payment code. Everything Stellar is built at the event.
   `stellar contract id asset --asset USDC:<issuer> --network testnet`.
 - Accounts: use Stellar CLI key aliases (`--source <alias>`). Never write
   secret keys or seed phrases in code, config, docs or commits.
-- The Circle faucet gave no testnet USDC on 25 Oct, so the first end-to-end run
-  pays in native XLM. Same wasm; only the `token` argument of the deploy changes.
+- The Circle faucet first gave no testnet USDC, so the first claim paid native XLM.
+  USDC arrived later on 25 Oct and the USDC instance is funded (20 USDC).
+  Same wasm; only the `token` argument of the deploy changes.
 - In the pitch, name the curve we use (BLS12-381), not BN254.
 
 ## Testnet deployments
@@ -188,8 +189,11 @@ payment code. Everything Stellar is built at the event.
 | What | Value |
 | --- | --- |
 | `adherence`, paying XLM (used for the first claim) | `CAPZ2O7LPTRGJ2Q7TTHMCHOKRZ4T7KU5I4E74M2U3YUTC3XONIQDOP2D` |
-| `adherence`, paying USDC (not funded yet) | `CBF2MBQ6W4S6LD3JSIM3NNZET5KBUKOADRZSKIYZRZBAXRM6OJZCNSFI` |
+| `adherence`, paying USDC (funded with 20 USDC; used by the Publisher) | `CBF2MBQ6W4S6LD3JSIM3NNZET5KBUKOADRZSKIYZRZBAXRM6OJZCNSFI` |
 | First on-chain claim (proof + signature verified, 5 XLM paid) | `891b2fe1504a9d9c0a34146828e9caac9527a41e3d467eaecf5a994c145c0aa1` |
+| Fund the USDC contract (20 USDC) | `f791426c649045fc02dfbbf7cc69d1b6796292d53da0a4455a6499a0657dc4fa` |
+| First USDC claim (manual, 5 USDC paid) | `0ba0adb7ca42e09350f71eec15c09d252dcfacf13b6cc3672afab8017ce78033` |
+| First end-to-end USDC claim (simulated pulse Reader through the Publisher) | `2a345e9fdf594fc385107a2e1a2e973d3cb16f5274fc14e763bbe9dc0406ef47` |
 
 Both use policy 90-130 bpm, 28 of 32 readings, payout 5 units, and the
 development Verifier key from `circuits/build/verifier_dev_key.json`. A new
