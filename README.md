@@ -227,14 +227,15 @@ tiene un servidor HTTP concreto para estas consultas.
 
 [`apps/web`](apps/web/index.html) es una web estática sin compilación ni dependencias:
 se abre con doble clic en `index.html` o se publica tal cual en cualquier hosting
-estático (GitHub Pages, Netlify, Vercel). Tiene cuatro vistas, en inglés y español:
+estático (GitHub Pages, Netlify, Vercel). `index.html` solo explica el flujo y lleva a
+tres paneles, cada uno en su propia página y sin enlaces entre ellos (pensados para
+desplegarse por separado; sus direcciones están en `CONFIG.panels` de `app.js`):
 
-- **Inicio**: problema, funcionamiento, privacidad y pagos reales en directo.
-- **Consola del operador**: mapa de la red donde se añaden Readers, Managers,
-  Verifiers, Storages y Publishers por organización, se comprueba si responden y se
-  descarga su configuración JSON (mismo formato que `deploy/docker/*.json`).
-- **Paciente**: pagos recibidos por una cuenta Stellar.
-- **Aseguradora**: sesiones verificadas y pagadas, sin acceso a las lecturas.
+- [`operator.html`](apps/web/operator.html): consola del operador. Mapa de Readers,
+  Managers, Verifiers, Storages y Publishers por organización, comprobación de si
+  responden y descarga de su configuración JSON (mismo formato que `deploy/docker/*.json`).
+- [`patient.html`](apps/web/patient.html): pagos recibidos por una cuenta Stellar.
+- [`insurer.html`](apps/web/insurer.html): pagos realizados por el contrato.
 
 Los pagos se leen en el navegador desde los eventos `session_paid` del RPC público de
 testnet. Si el RPC no responde, la web lo indica y muestra las transacciones ya

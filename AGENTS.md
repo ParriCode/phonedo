@@ -133,7 +133,7 @@ phonedo/
 │   ├── verifier/         # validation and signature of Verified events
 │   ├── storage/          # LevelDB store of Verified events
 │   ├── publisher/        # batches Verified readings, proves and calls claim()
-│   └── web/              # static site (no build): landing, operator console, patient, insurer; reads session_paid live from testnet RPC
+│   └── web/              # static site (no build): index.html launcher + operator/patient/insurer.html, independent pages sharing app.js/styles.css; payouts read live from testnet RPC
 ├── circuits/             # Circom circuits, inputs/ examples, scripts/ (setup, prove, soroban)
 ├── contracts/            # Soroban contract `adherence` (Rust): claim() verifies signature + proof and pays
 ├── deploy/

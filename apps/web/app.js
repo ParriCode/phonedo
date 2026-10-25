@@ -10,8 +10,8 @@ const CONFIG = {
   ],
   policy: { min: 90, max: 130, minCount: 28, batch: 32, payout: 5 },
   demoPatient: 'GBBO4ZD2YNV3ZBUIBIQAH3VK73Y2RHTSMURUR5LYEK5JMXACK24YN3BC',
-  // Cada panel tiene su propia dirección: hoy son rutas de esta web, mañana pueden ser servicios aparte.
-  panels: { operator: '#/operator', patient: '#/patient', insurer: '#/insurer' },
+  // Cada panel es una página independiente; mañana cada dirección puede ser un servicio aparte.
+  panels: { operator: 'operator.html', patient: 'patient.html', insurer: 'insurer.html' },
   refreshMs: 15000,
   decimals: 7,
 };
@@ -25,11 +25,19 @@ const KNOWN = [
 
 const I18N = {
   en: {
-    'launch.eyebrow': 'Phonendo', 'launch.title': 'Choose a panel',
-    'launch.lead': 'Sensor readings become on-chain proofs: Reader, Manager, Verifier, Publisher and the Stellar contract. Each panel works on its own.',
-    'panel.operator.t': 'Operator console', 'panel.operator.p': 'Services of the deployment: add, check and export configuration.',
-    'panel.patient.t': 'Patient panel', 'panel.patient.p': 'Payouts received by a Stellar account.',
-    'panel.insurer.t': 'Insurer panel', 'panel.insurer.p': 'Payouts made by the contract.', 'launch.open': 'Open',
+    'launch.eyebrow': 'Phonendo on Stellar', 'launch.title': 'Choose a panel',
+    'launch.lead': 'Sensor readings are verified and signed by services the hospital runs. A Stellar smart contract then checks a zero-knowledge proof of those readings and pays, without the readings ever being published.',
+    'launch.panels': 'Panels', 'launch.open': 'Open',
+    'stage.reader.t': 'Reader', 'stage.reader.p': 'Collects sensor readings',
+    'stage.manager.t': 'Manager', 'stage.manager.p': 'Routes events, retries failures',
+    'stage.verifier.t': 'Verifier', 'stage.verifier.p': 'Checks and signs readings',
+    'stage.publisher.t': 'Publisher', 'stage.publisher.p': 'Builds the proof, calls claim()',
+    'stage.contract.t': 'Stellar contract', 'stage.contract.p': 'Verifies the proof and pays',
+    'panel.operator.t': 'Operator console', 'panel.operator.p': 'The services of a deployment: map, reachability check of each one, and their configuration files.',
+    'panel.patient.t': 'Patient panel', 'panel.patient.p': 'Payouts received by a Stellar account, read from the contract events.',
+    'panel.insurer.t': 'Insurer panel', 'panel.insurer.p': 'Payouts made by the contract, each with its transaction on the explorer.',
+    'launch.note': 'Each panel is an independent page that does not link to the others; they will be deployed as separate services. Payout data comes live from the Stellar testnet RPC.',
+    'launch.proof': 'Real transactions on testnet:',
     'op.laneDesc.reader': 'Collect sensor data', 'op.laneDesc.manager': 'Route and retry events', 'op.laneDesc.verifier': 'Check and sign, keep history',
     'op.laneDesc.publisher': 'Prove and claim', 'op.laneDesc.chain': 'Verify and pay',
     'op.filter': 'Organisation', 'op.filter.all': 'All', 'op.nodes': 'nodes',
@@ -38,7 +46,6 @@ const I18N = {
     'op.how1': 'Readers collect sensor data and push it to a Manager.', 'op.how2': 'The Manager routes each event and retries on failure.',
     'op.how3': 'Verifiers check and sign it. Storage keeps the history.', 'op.how4': 'The Publisher proves the session and calls the contract.',
     'op.how5': 'The Stellar contract verifies the proof and pays.',
-    'nav.home': 'Panels', 'nav.operator': 'Operator console', 'nav.patient': 'Patient', 'nav.insurer': 'Insurer',
     'footer.built': 'Built on Stellar testnet', 'footer.contract': 'View the contract on Stellar Expert',
     'net.checking': 'Connecting to testnet…', 'net.live': 'Stellar testnet · live', 'net.error': 'Testnet unreachable · snapshot',
     'kpi.paid': 'Paid out', 'kpi.sessions': 'Verified sessions', 'kpi.patients': 'Patients rewarded', 'kpi.last': 'Last payout',
@@ -83,11 +90,19 @@ const I18N = {
     'time.now': 'just now', 'time.unknown': '25 Oct 2026',
   },
   es: {
-    'launch.eyebrow': 'Phonendo', 'launch.title': 'Elige un panel',
-    'launch.lead': 'Las lecturas de los sensores se convierten en pruebas en cadena: Reader, Manager, Verifier, Publisher y el contrato de Stellar. Cada panel funciona por separado.',
-    'panel.operator.t': 'Consola del operador', 'panel.operator.p': 'Servicios del despliegue: añadir, comprobar y exportar su configuración.',
-    'panel.patient.t': 'Panel del paciente', 'panel.patient.p': 'Pagos recibidos por una cuenta Stellar.',
-    'panel.insurer.t': 'Panel de la aseguradora', 'panel.insurer.p': 'Pagos realizados por el contrato.', 'launch.open': 'Abrir',
+    'launch.eyebrow': 'Phonendo sobre Stellar', 'launch.title': 'Elige un panel',
+    'launch.lead': 'Las lecturas de los sensores las verifican y firman servicios que ejecuta el hospital. Un contrato inteligente de Stellar comprueba después una prueba de conocimiento cero de esas lecturas y paga, sin que las lecturas se publiquen nunca.',
+    'launch.panels': 'Paneles', 'launch.open': 'Abrir',
+    'stage.reader.t': 'Reader', 'stage.reader.p': 'Recoge lecturas de sensores',
+    'stage.manager.t': 'Manager', 'stage.manager.p': 'Reparte eventos y reintenta fallos',
+    'stage.verifier.t': 'Verifier', 'stage.verifier.p': 'Comprueba y firma lecturas',
+    'stage.publisher.t': 'Publisher', 'stage.publisher.p': 'Crea la prueba y llama a claim()',
+    'stage.contract.t': 'Contrato Stellar', 'stage.contract.p': 'Verifica la prueba y paga',
+    'panel.operator.t': 'Consola del operador', 'panel.operator.p': 'Los servicios de un despliegue: mapa, comprobación de cada uno y sus archivos de configuración.',
+    'panel.patient.t': 'Panel del paciente', 'panel.patient.p': 'Pagos recibidos por una cuenta Stellar, leídos de los eventos del contrato.',
+    'panel.insurer.t': 'Panel de la aseguradora', 'panel.insurer.p': 'Pagos realizados por el contrato, cada uno con su transacción en el explorador.',
+    'launch.note': 'Cada panel es una página independiente que no enlaza con las demás; se desplegarán como servicios separados. Los pagos se leen en directo del RPC de Stellar testnet.',
+    'launch.proof': 'Transacciones reales en testnet:',
     'op.laneDesc.reader': 'Recogen datos del sensor', 'op.laneDesc.manager': 'Reparten y reintentan eventos', 'op.laneDesc.verifier': 'Comprueban y firman, guardan histórico',
     'op.laneDesc.publisher': 'Prueban y cobran', 'op.laneDesc.chain': 'Verifica y paga',
     'op.filter': 'Organización', 'op.filter.all': 'Todas', 'op.nodes': 'nodos',
@@ -96,7 +111,6 @@ const I18N = {
     'op.how1': 'Los Readers recogen datos del sensor y los envían a un Manager.', 'op.how2': 'El Manager reparte cada evento y reintenta si falla.',
     'op.how3': 'Los Verifiers lo comprueban y firman. Storage guarda el histórico.', 'op.how4': 'El Publisher prueba la sesión y llama al contrato.',
     'op.how5': 'El contrato de Stellar verifica la prueba y paga.',
-    'nav.home': 'Paneles', 'nav.operator': 'Consola del operador', 'nav.patient': 'Paciente', 'nav.insurer': 'Aseguradora',
     'footer.built': 'Construido sobre Stellar testnet', 'footer.contract': 'Ver el contrato en Stellar Expert',
     'net.checking': 'Conectando con testnet…', 'net.live': 'Stellar testnet · en directo', 'net.error': 'Testnet sin conexión · copia',
     'kpi.paid': 'Pagado', 'kpi.sessions': 'Sesiones verificadas', 'kpi.patients': 'Pacientes premiados', 'kpi.last': 'Último pago',
@@ -368,24 +382,15 @@ function pageHead(prefix, extra = '') {
 }
 
 // ---------- Inicio ----------
-// Esquema fijo de la red para la portada: reader, manager, verifier/storage, publisher y contrato.
-function miniNetwork() {
-  const boxes = [['cpu', 'Reader', 14, 56], ['hub', 'Manager', 112, 56], ['shield', 'Verifier', 210, 22], ['db', 'Storage', 210, 90], ['send', 'Publisher', 308, 56], ['contract', 'Stellar', 406, 56]];
-  const edges = [[0, 1], [1, 2], [1, 3], [1, 4], [4, 5]];
-  const at = (i, side) => [boxes[i][2] + (side ? 82 : 0), boxes[i][3] + 20];
-  return `<svg class="mini-net" viewBox="0 0 500 160" aria-hidden="true">
-    ${edges.map(([f, t2], i) => { const [x1, y1] = at(f, 1); const [x2, y2] = at(t2, 0); const m = (x1 + x2) / 2; const d = `M${x1},${y1} C${m},${y1} ${m},${y2} ${x2},${y2}`;
-      return `<path d="${d}" class="${t2 === 5 ? 'chain' : ''}"/><circle r="3.2" class="${t2 === 5 ? 'chain' : ''}"><animateMotion dur="${2 + i * 0.4}s" repeatCount="indefinite" path="${d}"/></circle>`; }).join('')}
-    ${boxes.map(([icon, label, x, y], i) => `<g transform="translate(${x} ${y})"><rect width="82" height="40" rx="9" class="${i === 5 ? 'contract' : ''}"/><text x="41" y="25" text-anchor="middle">${label}</text></g>`).join('')}
-  </svg>`;
-}
-
 function viewHome() {
-  const panel = (key, icon, cls) => `<a class="panel-card ${cls}" href="${CONFIG.panels[key]}">
+  const tx = [['891b2fe1504a9d9c0a34146828e9caac9527a41e3d467eaecf5a994c145c0aa1', '5 XLM'],
+    ['0ba0adb7ca42e09350f71eec15c09d252dcfacf13b6cc3672afab8017ce78033', '5 USDC'],
+    ['2a345e9fdf594fc385107a2e1a2e973d3cb16f5274fc14e763bbe9dc0406ef47', '5 USDC']];
+  const stages = [['cpu', 'reader'], ['hub', 'manager'], ['shield', 'verifier'], ['send', 'publisher'], ['contract', 'contract']];
+  const panel = (key, icon) => `<a class="panel-card" href="${CONFIG.panels[key]}">
     <span class="panel-icon">${ic(icon)}</span>
     <h2>${t(`panel.${key}.t`)}</h2>
     <p>${t(`panel.${key}.p`)}</p>
-    ${key === 'operator' ? miniNetwork() : ''}
     <span class="panel-open">${t('launch.open')} ${ic('arrow', 'icon tiny')}</span>
   </a>`;
   return `
@@ -393,10 +398,15 @@ function viewHome() {
     <span class="eyebrow">${t('launch.eyebrow')}</span>
     <h1>${t('launch.title')}</h1>
     <p class="lead">${t('launch.lead')}</p>
+    <ol class="pipeline">${stages.map(([icon, key]) => `<li>${ic(icon)}<b>${t(`stage.${key}.t`)}</b><small>${t(`stage.${key}.p`)}</small></li>`).join('')}</ol>
+    <h2 class="launch-h">${t('launch.panels')}</h2>
     <div class="panel-grid">
-      ${panel('operator', 'hub', 'main')}
-      ${panel('patient', 'user', '')}
-      ${panel('insurer', 'building', '')}
+      ${panel('operator', 'hub')}${panel('patient', 'user')}${panel('insurer', 'building')}
+    </div>
+    <p class="launch-note">${t('launch.note')}</p>
+    <div class="launch-proof">
+      <b>${t('launch.proof')}</b>
+      ${tx.map(([hash, label]) => `<a href="${txUrl(hash)}" target="_blank" rel="noopener">${label} · <span class="mono">${esc(short(hash, 6, 4))}</span> ${ic('external', 'icon tiny')}</a>`).join('')}
     </div>
   </div></section>`;
 }
@@ -867,24 +877,17 @@ function viewInsurer() {
 // ---------- Navegación ----------
 const VIEWS = { home: viewHome, operator: viewOperator, patient: viewPatient, insurer: viewInsurer };
 
+// Cada página HTML declara su panel en <body data-panel>: no hay navegación entre paneles.
 function route() {
-  const name = location.hash.replace(/^#\/?/, '').split('/')[0];
+  const name = document.body.dataset.panel;
   return VIEWS[name] ? name : 'home';
 }
 
-let lastRoute = null;
 function render() {
-  const name = route();
-  const app = $('#app');
   const scroll = window.scrollY;
-  app.innerHTML = VIEWS[name]();
-  document.querySelectorAll('[data-route]').forEach((a) => {
-    if (a.dataset.route === name) a.setAttribute('aria-current', 'page');
-    else a.removeAttribute('aria-current');
-  });
-  if (name === lastRoute) window.scrollTo(0, scroll);
-  else { window.scrollTo(0, 0); lastRoute = name; }
-  if (name === 'operator') requestAnimationFrame(drawLinks);
+  $('#app').innerHTML = VIEWS[route()]();
+  window.scrollTo(0, scroll);
+  if (route() === 'operator') requestAnimationFrame(drawLinks);
 }
 
 function applyLang(lang) {
@@ -903,17 +906,14 @@ function init() {
   app.addEventListener('change', (e) => { if (route() === 'operator') onOperatorChange(e); });
   app.addEventListener('submit', onPatientSubmit);
   document.querySelectorAll('[data-lang]').forEach((b) => b.addEventListener('click', () => applyLang(b.dataset.lang)));
-  const menu = $('#menu-toggle');
-  menu.addEventListener('click', () => {
-    const open = $('#nav').classList.toggle('open');
-    menu.setAttribute('aria-expanded', open);
-  });
-  window.addEventListener('hashchange', () => { $('#nav').classList.remove('open'); render(); });
   window.addEventListener('resize', () => { if (route() === 'operator') drawLinks(); });
   applyLang(storageGet('phonendo.lang') === 'es' ? 'es' : 'en');
-  refresh();
-  setInterval(refresh, CONFIG.refreshMs);
-  checkAll();
+  if (route() === 'home') $('#net-pill').hidden = true;
+  else {
+    refresh();
+    setInterval(refresh, CONFIG.refreshMs);
+  }
+  if (route() === 'operator') checkAll();
 }
 
 init();
