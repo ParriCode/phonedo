@@ -39,27 +39,23 @@ def load_storage(tmp_path: Path, monkeypatch):
     return module
 
 
-def test_storage_register_device_accepts_message_payload(tmp_path, monkeypatch):
+def test_storage_accepts_event_without_device_registration(tmp_path, monkeypatch):
     storage = load_storage(tmp_path, monkeypatch)
+    message = {
+        "key": "event-1",
+        "value": {
+            "readerId": "reader", "deviceId": "unknown-device",
+            "payload": {"temperature": 23}, "status": "Verified",
+            "verifierSign": "test-signature",
+        },
+    }
     try:
-        response = storage.app.test_client().post(
-            "/registerDevice",
-            json={
-                "token": "token_storage",
-                "message": {
-                    "key": "prueba1",
-                    "value": {
-                        "deviceId": "prueba1",
-                        "deviceType": "device",
-                        "registeredByReader": "reader",
-                        "registrationDatetime": 1780589929568,
-                        "managerHash": "113319ff543e41f0bb84c60da92d425231e990da7c70ac215d35cd9153577fad",
-                    },
-                },
-            },
-        )
-
+        client = storage.app.test_client()
+        response = client.post("/events", json={"token": "token_storage", "message": message})
         assert response.status_code == 200
-        assert storage.my_db.read("prueba1")["deviceId"] == "prueba1"
+        assert response.get_json() == message
+        assert storage.my_db.read("event-1") == message["value"]
+        assert client.post("/registerDevice", json={}).status_code == 404
+        assert client.get("/devices/unknown-device").status_code == 404
     finally:
         storage.my_db.close()

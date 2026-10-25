@@ -1,7 +1,7 @@
 # Manager
 
 Coordina la recepción, verificación y almacenamiento de las observaciones.
-Consulta el dispositivo en Storage, calcula el hash del contenido Captured y lo
+Calcula el hash del contenido Captured y lo
 manda al Verifier. Solo guarda el evento Verified tras una verificación positiva.
 Publisher está pendiente de integración.
 
@@ -23,7 +23,6 @@ produce el Verifier.
 | Ruta | Uso |
 | --- | --- |
 | `GET /` | Comprobar que el servicio responde. |
-| `POST /registerDevice` | Registrar un dispositivo en Storage. |
 | `POST /newEvent` | Recibir y procesar una observación. |
 
 Los POST requieren `token` en el JSON, igual a `API_TOKEN_MANAGER`.
@@ -34,7 +33,6 @@ Los POST requieren `token` en el JSON, igual a `API_TOKEN_MANAGER`.
 | Verificado y guardado | `200 Verified` |
 | Timeout; pendiente en memoria | `202 Pending` |
 | Rechazo explícito del Verifier | `422 Rejected` |
-| Dispositivo no registrado | `404 Failed` |
 | Fallo de servicio interno | `502 Failed` |
 
 Un token inválido devuelve 401; campos ausentes, 400. Un fallo al calcular el hash
@@ -78,11 +76,11 @@ funcionan aunque el `/stream` propio esté deshabilitado. El SSE publica sin
 esperar a los suscriptores ni ofrece replay o confirmación de recepción.
 El Manager conserva un máximo de `MANAGER_QUEUE_SIZE` correlaciones SSE en memoria;
 al reiniciar se pierden. Ignora resultados ajenos, alterados respecto al Captured
-o ya recibidos de la misma fuente. Al recibir un resultado consulta el dispositivo
-y guarda por HTTP; si esa llamada tiene timeout, entra en la cola habitual.
+o ya recibidos de la misma fuente. Al recibir un resultado guarda por HTTP; si esa llamada tiene timeout, entra en la cola habitual.
 
 Desde que llega un `/newEvent` válido de un `readerId`, su SSE se ignora hasta
-reiniciar el Manager. Los dispositivos deben estar registrados previamente.
+reiniciar el Manager. Cada observación contiene `readerId` y `deviceId`; no requiere
+registro previo ni consultas de dispositivos. Storage decide cómo organizar su base de datos.
 
 ## Configuración y reintentos
 

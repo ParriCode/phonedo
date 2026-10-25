@@ -57,16 +57,14 @@ def test_json_preserves_native_values(value):
 
 def test_core_emits_original_observation_without_serializing(monkeypatch):
     from reader_core.core import ReaderCore
-    sent, registered = [], []
-    core = ReaderCore(reader_id='reader', on_observation=sent.append,
-                      on_register_device=registered.append)
+    sent = []
+    core = ReaderCore(reader_id='reader', on_observation=sent.append)
     observation = Observation('temperature', 24.6, datetime.now(timezone.utc),
                               '', '', device_id='board', sensor_id='temp')
     assert not hasattr(Observation, 'to_dict')
     assert core.ingest(observation)
     assert sent[0] is observation
-    assert registered[0] is core.get_device('board')
-    assert registered[0].get_sensor('temp').procedure == ''
+    assert core.get_device('board').get_sensor('temp').procedure == ''
     created = core.create_observation('board', 'temp', value=25)
     assert len(sent) == 1
     assert created.simple_result == 25
@@ -102,7 +100,7 @@ bool output(const Observation& observation) {
     return true;
 }
 int main() {
-    ReaderCore core("reader", true, true, nullptr, output);
+    ReaderCore core("reader", true, true, output);
     Observation observation("temperature", "24.6", "timestamp", "", "",
                             "board", "temp", "C", "original-id");
     Observation invalid = observation;

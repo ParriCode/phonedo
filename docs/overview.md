@@ -106,7 +106,7 @@ La plataforma debe de ser capaz de:
     Un dato en bruto es recodigo por un sensor, el cual se encuentra en un dispositivo
     dicho dispositivo envía los datos en bruto al reader , el reader estandariza lo recibido y lo envía al manager.
 
-    1. Matching / registro del dispositivo
+    1. Identificación del dispositivo en la observación
     2. Recepción de datos
     3. Procesamiento de datos + Storage -> estado "Captured"
     4. Verification
@@ -115,7 +115,7 @@ La plataforma debe de ser capaz de:
     7. Storage -> estado "Published" / fin del ciclo
     
 
-    El manager registra los datos 
+    El Manager coordina la verificación; Storage organiza y guarda los eventos verificados.
 # 5. Ontology
     una ontología común que comunique 
 
@@ -246,7 +246,7 @@ firma del mensaje
 
 La firma del Manager debería significar:
 
-Este dato ha sido aceptado por un Manager concreto como procedente de un device registrado.
+Este dato ha sido aceptado por un Manager concreto como procedente de un device identificado en la observación.
 
 No significa que el dato sea médicamente correcto o válido. Solo certifica procedencia dentro del sistema Phonendo.
 
@@ -285,7 +285,7 @@ Token:
 
 Manager signature:
     Certifica procedencia.
-    “Este dato viene de este device registrado y ha sido aceptado por este Manager.”
+    “Este dato viene de este device identificado en la observación y ha sido aceptado por este Manager.”
 
 Verifier signature:
     Certifica validación.
@@ -349,7 +349,6 @@ Así, quien lea el dato publicado puede decidir:
 
 2. Manager:
    valida token
-   comprueba que el device está registrado
    calcula payloadHash
    firma procedencia
    guarda evento como Captured
@@ -402,7 +401,7 @@ Vale , Aquí tengo una dictomía ,
 
 # Problemática De Identificación Y Semántica En Sensores Bluetooth
 
-Durante la integración de sensores Bluetooth en Phonendo aparece una limitación importante: no siempre es posible obtener de forma automática toda la información necesaria para registrar un dispositivo y construir observaciones semánticas completas.
+Durante la integración de sensores Bluetooth en Phonendo aparece una limitación importante: no siempre es posible obtener de forma automática toda la información necesaria para identificar un dispositivo y construir observaciones semánticas completas.
 
 En transports como RFCOMM, el Reader recibe principalmente un flujo de bytes desde un puerto serie virtual, por ejemplo /dev/rfcomm0. Ese flujo puede contener mediciones, pero no garantiza por sí mismo información como la MAC real del dispositivo remoto, el tipo de dispositivo, el identificador del sensor, la propiedad observada, el procedimiento de medición o la entidad observada.
 
@@ -697,7 +696,7 @@ mensaje recibido
   -> completar metadatos
   -> aplicar fallback si falta informacion
   -> construir Observation
-  -> registrar/enviar mediante ReaderCore
+  -> enviar mediante ReaderCore
 ```
 
 La regla general de prioridad es:
@@ -767,7 +766,7 @@ stateDiagram-v2
 
     RawUnknown --> ConstruirObservation
     ConstruirObservation --> EnviarCore
-    EnviarCore --> EsperandoDato: ReaderCore registra/envia
+    EnviarCore --> EsperandoDato: ReaderCore envia
 
     Descartado --> EsperandoDato: registrar motivo
 ```
@@ -875,13 +874,11 @@ classDiagram
     }
 
     class ReaderCore {
-        +register_device(device) None
         +ingest(observation) bool
         +send_observation(observation) None
     }
 
     class ManagerClient {
-        +register_device(reader_id, device) None
         +send_observation_json(payload, reader_id, device_id) None
     }
 

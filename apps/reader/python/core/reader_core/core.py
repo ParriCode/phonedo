@@ -20,7 +20,6 @@ class ReaderCore:
         allow_new_sensors: bool = True,
 
 
-        on_register_device: Optional[Callable[[Device], None]] = None,
         on_observation: Optional[Callable[[Observation], None]] = None,
     ) -> None:
         self.reader_id = reader_id or str(uuid4())
@@ -28,17 +27,7 @@ class ReaderCore:
         self.allow_new_devices = allow_new_devices
         self.allow_new_sensors = allow_new_sensors
 
-        self.on_register_device = on_register_device
         self.on_observation = on_observation
-
-
-    def register_device(self, device: Device) -> None:
-        """
-        Registra el dispositivo localmente y notifica al adaptador configurado.
-        """
-        self.add_device(device)
-        if self.on_register_device is not None:
-            self.on_register_device(device)
 
 
     def add_device(self, device: Device) -> None:
@@ -84,7 +73,7 @@ class ReaderCore:
             if not self.allow_new_devices:
                 return False
             device = Device(device_id=device_id, device_type="device")
-            self.register_device(device)
+            self.add_device(device)
 
         if not device.has_sensor(sensor_id):
             if not self.allow_new_sensors:

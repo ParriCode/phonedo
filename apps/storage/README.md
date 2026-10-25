@@ -1,7 +1,7 @@
 # Storage
 
-Guarda dispositivos y eventos en LevelDB. El Manager consulta aquí los dispositivos
-y envía los eventos después de una verificación positiva. Storage no verifica
+Guarda eventos en LevelDB. El Manager envía los eventos después de una
+verificación positiva. Storage no verifica
 por sí mismo el hash ni la firma del evento.
 
 ## Endpoints
@@ -10,8 +10,6 @@ por sí mismo el hash ni la firma del evento.
 | --- | --- | --- |
 | `GET /` | Leer todos los registros. | Sin token. |
 | `GET /raw` | Leer todos los registros. | Sin token. |
-| `GET /devices/<device_id>` | Consultar un dispositivo. | Bearer o cabecera `X-Storage-Token`. |
-| `POST /registerDevice` | Guardar un dispositivo. | `token` en el JSON. |
 | `GET /stream` | Eventos guardados, en vivo. | Bearer `API_TOKEN_STORAGE`. |
 | `POST /events` | Guardar un evento. | `token` en el JSON. |
 
@@ -81,3 +79,5 @@ escribirlo, tanto si llegó por HTTP como por una suscripción. No ofrece histor
 `/stream/storage` de Managers. Puede consumir aunque su stream propio esté apagado,
 o exponer su stream sin suscribirse a nadie. `outputStreams` no se utiliza en
 Storage; su salida general es `/stream`.
+
+Storage recibe eventos sin altas previas de dispositivos y gestiona su propia base de datos.

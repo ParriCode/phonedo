@@ -42,9 +42,6 @@ class StreamOutput:
     def __init__(self, stream: ObservationStream):
         self.stream = stream
 
-    def register_device(self, reader_id, device):
-        pass
-
     def publish(self, reader_id, observation):
         from .serialization import observation_event
         self.stream.publish(observation_event(reader_id, observation))

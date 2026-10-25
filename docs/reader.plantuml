@@ -10,9 +10,7 @@ package "Core (sin HTTP ni hardware)" {
     +reader_id: str
     +allow_new_devices: bool = True
     +allow_new_sensors: bool = True
-    +on_register_device: Callable(Device)
     +on_observation: Callable(Observation)
-    +register_device(device)
     +add_device(device)
     +get_device(device_id)
     +remove_device(device_id)
@@ -53,13 +51,11 @@ package "Core (sin HTTP ni hardware)" {
 package "Service y outputs" {
   class ReaderService {
     +ingest(observation): bool
-    +register_device_output(device)
     +publish(observation)
     +metadata(stream_enabled=False)
     +devices()
   }
   interface ObservationOutput {
-    +register_device(reader_id, device)
     +publish(reader_id, observation)
   }
   class StreamOutput
@@ -89,7 +85,7 @@ package "Server HTTP opcional" {
     +queue_size: int = 256
   }
 }
-ReaderCore o-- "0..*" Device : registro local
+ReaderCore o-- "0..*" Device : dispositivos locales
 Device o-- "0..*" Sensor
 Sensor ..> Observation : construye
 ReaderCore ..> Observation : valida y emite el objeto

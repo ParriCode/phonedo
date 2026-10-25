@@ -11,7 +11,7 @@ de los datos forma parte del diseño y está pendiente de integración.
 | **Reader** | Recoge observaciones y las expone mediante un stream SSE. |
 | **Manager** | Coordina el flujo, calcula el hash del contenido del evento y gestiona los reintentos por timeout. |
 | **Verifier** | Valida el evento, comprueba el hash y firma el resultado verificado. |
-| **Storage** | Guarda los dispositivos registrados y los eventos verificados. |
+| **Storage** | Guarda los eventos verificados y gestiona su propia base de datos. |
 | **Publisher** | Se encargará de publicar los datos. Su integración está pendiente. |
 
 ## Arquitectura general

@@ -13,11 +13,11 @@ component Storage as S
 component "Publisher\n(pendiente)" as P #FFF2CC
 
 R --> M : Observaciones por SSE\nManager se suscribe a Reader /stream
-R --> M : Alternativa HTTP: /registerDevice y /newEvent
+R --> M : Alternativa HTTP: /newEvent
 M --> V : HTTP /verify: evento Captured con hash\nRespuesta: Verified firmado o rechazo
 M --> V : SSE /stream/verifier del Manager\nVerifier se suscribe (opcional)
 V --> M : SSE /stream del Verifier\nManager se suscribe y continúa el guardado
-M --> S : HTTP: registrar y consultar dispositivos\nguardar únicamente eventos Verified
+M --> S : HTTP: guardar eventos Verified
 M --> S : SSE /stream/storage del Manager\nStorage se suscribe (opcional)
 S --> M : SSE /stream de Storage\nConfirmación después del guardado
 M ..> P : Publicación futura\nLlamada desactivada

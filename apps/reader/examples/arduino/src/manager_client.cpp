@@ -84,22 +84,6 @@ void ManagerClient::appendJsonField(
     }
 }
 
-void ManagerClient::appendJsonNumberField(
-    String& out,
-    const char* key,
-    unsigned long value,
-    bool comma
-) {
-    out += '"';
-    out += key;
-    out += F("\":");
-    out += String(value);
-
-    if (comma) {
-        out += ',';
-    }
-}
-
 bool ManagerClient::postJson(const String& url, const String& body) {
     lastError = "";
     lastResponseBody = "";
@@ -175,33 +159,4 @@ bool ManagerClient::sendObservationJSON(
     body += '}';
 
     return postJson(buildUrl(sendObservationPath), body);
-}
-
-bool ManagerClient::registerDevice(
-    const String& readerId,
-    const Device& device
-) {
-    if (readerId.length() == 0) {
-        lastError = "readerId is empty";
-        return false;
-    }
-
-    if (!device.isValid()) {
-        lastError = "device is invalid";
-        return false;
-    }
-
-    String body;
-    body.reserve(360);
-
-    body += '{';
-    appendJsonField(body, "token", token);
-    appendJsonField(body, "schemaVersion", "phonendo.event.v1");
-    appendJsonField(body, "readerId", readerId);
-    appendJsonField(body, "deviceId", String(device.deviceId.c_str()));
-    appendJsonField(body, "deviceType", String(device.deviceType.c_str()));
-    appendJsonNumberField(body, "creationDatetime", millis(), false);
-    body += '}';
-
-    return postJson(buildUrl("/registerDevice"), body);
 }

@@ -81,79 +81,10 @@ def log_request(response):
     return response
 
 
-def storage_token_from_request():
-    auth_header = request.headers.get("Authorization", "")
-    if auth_header.startswith("Bearer "):
-        return auth_header.removeprefix("Bearer ").strip()
-
-    return (
-        request.headers.get("X-Storage-Token")
-        or request.headers.get("token")
-        or request.headers.get("Token")
-    )
-
 @app.get("/")
 def home():
     data = my_db.read_all()
     return jsonify(data), 200
-
-
-@app.post("/registerDevice")
-def store_device():
-    try:
-        Logger.debug("device_received", body=sanitize_body(request.json))
-        #checkear el token
-        if not request.json.get("token") or request.json.get("token") != storage_config.token:
-            Logger.warning("storage_device_register_not_authorized")
-            return "Not authorized", 401
-
-        if not request.json.get("message"):
-            Logger.warning("storage_device_register_bad_request")
-            return "Bad request", 403
-        #Obtener el mensaje
-        message = request.json["message"]
-        Logger.debug("storage_device_register_message", storedMessage=message)
-
-        my_db.write(message["key"], message["value"])
-
-        Logger.info("device_registered", deviceId=message["key"])
-        return jsonify(message), 200
-
-    except Exception as error:
-        Logger.error("storage_device_register_failed", error=str(error))
-        return "Internal server error", 500
-
-
-@app.get("/devices/<device_id>")
-def get_device(device_id):
-    try:
-
-        Logger.debug("storage_device_lookup", deviceId=device_id)
-
-        token = storage_token_from_request()
-
-        if not token or token != storage_config.token:
-            Logger.warning("storage_device_lookup_not_authorized", deviceId=device_id)
-            return jsonify({"error": "Not authorized"}), 401
-
-        device = my_db.read(device_id)
-
-        Logger.debug("storage_device_lookup_result", deviceId=device_id, found=bool(device))
-
-
-        if not device:
-            Logger.warning("device_not_found", deviceId=device_id)
-            return jsonify({"error": "Device not found"}), 404
-
-        Logger.info("device_found", deviceId=device_id)
-        return jsonify({
-            "key": device_id,
-            "value": device
-        }), 200
-
-    except Exception as error:
-        Logger.error("storage_device_lookup_failed", deviceId=device_id, error=str(error))
-        return jsonify({"error": "Internal server error"}), 500
 
 
 @app.post("/events")

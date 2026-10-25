@@ -12,14 +12,12 @@ participant Storage as S
 participant "Publisher\n(pendiente)" as P #FFF2CC
 
 note over R,S
-  Dispositivo previamente registrado en Storage.
+  Cada observación incluye readerId y deviceId, sin alta previa.
   Flujo operativo: SSE desde Reader; verificación y guardado por HTTP.
 end note
 M -> R : Suscribirse a /stream
 R --> M : Observación (SSE)
 note over R,M : Alternativa: POST /newEvent; tiene prioridad para ese readerId.
-M -> S : Consultar dispositivo
-S --> M : Dispositivo registrado
 note over M : Preparar evento Captured y calcular el hash del contenido.
 M -> V : Verificar evento (HTTP /verify)
 alt Verificación positiva

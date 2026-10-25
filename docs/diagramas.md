@@ -1,6 +1,6 @@
 # Diagramas de Phonendo
 
-Actualizados: 23/10/2026. Basados en el Reader base Python, sin plataformas ni hardware específicos.
+Actualizados: 24/10/2026. Basados en el Reader base Python, sin plataformas ni hardware específicos.
 
 | Diagrama | Fuente | SVG | PNG |
 | --- | --- | --- | --- |
@@ -11,6 +11,9 @@ Actualizados: 23/10/2026. Basados en el Reader base Python, sin plataformas ni h
 Los generales muestran únicamente Reader, Manager, Verifier, Storage y Publisher.
 El UML interno del Reader se conserva. Los diagramas internos de los demás servicios
 quedan para una revisión posterior.
+
+Las observaciones llevan `readerId` y `deviceId`; no hay registro previo ni consultas de dispositivos.
+Storage organiza su base de datos a partir de los eventos recibidos.
 
 El flujo operativo usa SSE desde el Reader y HTTP para verificar y guardar Verified.
 El Verifier también consume el SSE de Managers y publica resultados para varios

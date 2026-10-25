@@ -22,14 +22,12 @@
 
 class ReaderCore {
 public:
-    using OnRegisterCallback = std::function<void(Device&)>;
     using OnObservationCallback = std::function<bool(const Observation&)>;
 
     ReaderCore(
         const std::string& readerId = "",
         bool allowNewDevices = true,
         bool allowNewSensors = true,
-        OnRegisterCallback onRegister = nullptr,
         OnObservationCallback onObservation = nullptr
     );
 
@@ -42,7 +40,6 @@ public:
     bool addDevicePointer(Device* device, bool owned);
 
     bool addDevice(Device& device);
-    bool registerDevice(Device& device);
 
     bool removeDevice(const std::string& deviceId);
 
@@ -70,7 +67,6 @@ public:
     const std::string& getReaderId() const;
     const std::string& getLastError() const;
 
-    void setOnRegisterCallback(OnRegisterCallback callback);
     void setOnObservationCallback(OnObservationCallback callback);
 
 private:
@@ -86,7 +82,6 @@ private:
     Sensor* ownedSensors[PHONENDO_MAX_SENSORS];
     std::uint8_t ownedSensorsCount;
 
-    OnRegisterCallback onRegister;
     OnObservationCallback onObservation;
 
 };

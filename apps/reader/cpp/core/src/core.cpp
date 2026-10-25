@@ -6,7 +6,6 @@ ReaderCore::ReaderCore(
     const std::string& readerId,
     bool allowNewDevices,
     bool allowNewSensors,
-    OnRegisterCallback onRegister,
     OnObservationCallback onObservation
 )
     : readerId(readerId.empty() ? generateReaderId() : readerId),
@@ -15,7 +14,6 @@ ReaderCore::ReaderCore(
       lastError(""),
       devicesCount(0),
       ownedSensorsCount(0),
-      onRegister(onRegister),
       onObservation(onObservation) {
     for (std::uint8_t i = 0; i < PHONENDO_MAX_DEVICES; i++) {
         devices[i] = nullptr;
@@ -76,20 +74,6 @@ bool ReaderCore::addDevicePointer(Device* device, bool owned) {
 
 bool ReaderCore::addDevice(Device& device) {
     return addDevicePointer(&device, false);
-}
-
-bool ReaderCore::registerDevice(Device& device) {
-    lastError.clear();
-
-    if (!addDevicePointer(&device, false)) {
-        return false;
-    }
-
-    if (onRegister != nullptr) {
-        onRegister(device);
-    }
-
-    return true;
 }
 
 bool ReaderCore::removeDevice(const std::string& deviceId) {
@@ -227,10 +211,6 @@ bool ReaderCore::ingest(
         }
 
         device = newDevice;
-
-        if (onRegister != nullptr) {
-            onRegister(*device);
-        }
     }
 
     if (!device->hasSensor(sensorId)) {
@@ -303,10 +283,6 @@ const std::string& ReaderCore::getReaderId() const {
 
 const std::string& ReaderCore::getLastError() const {
     return lastError;
-}
-
-void ReaderCore::setOnRegisterCallback(OnRegisterCallback callback) {
-    onRegister = callback;
 }
 
 void ReaderCore::setOnObservationCallback(OnObservationCallback callback) {

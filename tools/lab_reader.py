@@ -59,7 +59,7 @@ async def run(path):
             device = core.get_device(device_id)
             if device is None:
                 device = Device(device_id, body.get('deviceType', 'sensor'))
-                core.register_device(device)
+                core.add_device(device)
             device.add_sensor(Sensor(sensor_id=sensor_id, observable_property=body.get('property', 'temperature'),
                 procedure='lab', feature_of_interest=body.get('feature', 'lab'), unit=body.get('unit', '')))
         elif action == 'emit':
@@ -106,7 +106,7 @@ async def run(path):
             device = Device(saved['id'], saved['type'])
             for sensor in saved['sensors']:
                 device.add_sensor(Sensor(**sensor))
-            core.register_device(device)
+            core.add_device(device)
         for body in state.get('periodic', []):
             key = (body['device'], body['sensor'])
             specifications[key] = body

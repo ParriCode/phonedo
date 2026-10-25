@@ -25,6 +25,7 @@ class ProcessingTests(unittest.TestCase):
         self.env.start()
         self.addCleanup(self.env.stop)
         self.manager = load('manager_test', 'apps/manager/manager.py')
+        self.addCleanup(self.manager.core.close)
         self.verifier = load('verifier_test', 'apps/verifier/verifier.py')
         self.body = dict(token='test', deviceId='device', readerId='reader',
                          payload={'temperature': 25}, payloadFormat='application/json', eventType='observation')
@@ -42,7 +43,7 @@ class ProcessingTests(unittest.TestCase):
     def request(self, exchange=None):
         send = exchange or self.exchange
         client = self.manager.manager_client
-        with patch.object(client, 'get_device', return_value={}), \
+        with patch('requests.get', side_effect=AssertionError('No device lookup expected')), \
              patch.object(client, 'verify_event', side_effect=lambda message, **kwargs: send('verifier', {'token': 'verify', 'message': message})), \
              patch.object(client, 'store_event', side_effect=lambda message, **kwargs: send('storage', {'token': 'storage', 'message': message})):
             return self.manager.app.test_client().post('/newEvent', json=self.body)
@@ -62,6 +63,27 @@ class ProcessingTests(unittest.TestCase):
         self.assertEqual(result.status_code, 422)
         with patch.dict(os.environ, {'MANAGER_PASSWORD': 'different'}):
             self.assertFalse(self.verifier.verify_event(self.captured))
+
+    def test_removed_registration_route(self):
+        response = self.manager.app.test_client().post('/registerDevice', json=self.body)
+        self.assertEqual(response.status_code, 404)
+
+    def test_verified_stream_needs_no_storage_http_or_device_lookup(self):
+        core = self.manager.core
+        config = self.manager.manager_config
+        with patch.multiple(config, verifier_url_list=[], storage_url_list=[],
+                            stream_enabled=False, output_verifiers=True, output_storages=True), \
+             patch('requests.get', side_effect=AssertionError('No device lookup expected')), \
+             patch.object(core.server, 'publish_verified') as publish, \
+             patch.object(core.client, 'store_event') as store:
+            result, status = core.submit_observation(self.body)
+            self.assertEqual(status, 200)
+            verified = copy.deepcopy(core.stream_pending[result['eventId']]['message'])
+            verified['value'].update(status='Verified', verifierSign='test-signature')
+            core.on_verifier_stream_event('verifier', verified)
+            publish.assert_called_once_with(verified)
+            store.assert_not_called()
+            self.assertEqual(len(core.pending_events), 0)
 
     def test_explicit_rejection_discards_without_storage_write(self):
         calls = []

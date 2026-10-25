@@ -70,7 +70,7 @@ bool setupReader() {
     }
 
     if (!reader.hasDevice(device.deviceId)) {
-        return reader.registerDevice(device);
+        return reader.addDevice(device);
     }
 
     return true;

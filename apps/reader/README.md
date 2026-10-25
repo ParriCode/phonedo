@@ -57,7 +57,7 @@ await server.start()
 await server.stop()
 ```
 
-El servicio conecta `on_register_device(Device)` y `on_observation(Observation)`.
+El servicio conecta `on_observation(Observation)`.
 Requiere un core sin callbacks previamente asignados. Puede utilizarse solo,
 sin HTTP ni dependencias externas: `ReaderService(core, outputs=...)`.
 
@@ -140,7 +140,7 @@ ciclo de vida del ejemplo Linux. Los tests de los adaptadores Linux eliminados
 
 El ejemplo Linux carga `apps/reader/config.json` o `READER_CONFIG_PATH`.
 Para otras composiciones: `ManagerOutput.from_config(path)` se pasa en `outputs`
-a `ReaderServer`. Registra dispositivos por `/registerDevice` y entrega
+a `ReaderServer`. Entrega
 observaciones por `/newEvent` a cada destino; un error no impide intentar los demás.
 No hay cola persistente de entrega en este output. El SSE admite múltiples Managers
 suscritos y no espera confirmaciones. El ejemplo Arduino mantiene su adaptador C++;

@@ -8,7 +8,7 @@ from concurrent.futures import ThreadPoolExecutor
 import requests
 from manager_support.logger import Logger
 from manager_support.pending_events import PendingEvents
-from client import DeviceNotRegisteredError, InternalPostError
+from client import InternalPostError
 from manager_support.event_auth import sign_event
 
 class EventRejected(RuntimeError):
@@ -84,7 +84,7 @@ class ManagerCore:
         def send(target):
             branch = copy.deepcopy(message)
             branch['key'] = str(uuid.uuid4())
-            job = {'message': branch, 'stage': 'lookup', 'verified': None, 'verifier': target}
+            job = {'message': branch, 'stage': 'signing', 'verified': None, 'verifier': target}
             result, status = self.attempt_event(job, enqueue=True)
             return {'verifier': target if isinstance(target, str) else target['url'],
                     'result': result, 'httpStatus': status}
@@ -121,7 +121,7 @@ class ManagerCore:
                 return
             pending['sources'].add(source)
         # SSE submission itself never waits; a received result may continue via HTTP.
-        job = {'message': pending['message'], 'verified': message, 'stage': 'lookup_verified'}
+        job = {'message': pending['message'], 'verified': message, 'stage': 'store_verified'}
         self.attempt_event(job, enqueue=True)
 
     def on_storage_stream_event(self, source, message):
@@ -133,35 +133,6 @@ class ManagerCore:
     def process_event(self, job):
         """Keep Captured in memory; persist only a positively verified event."""
         message = job["message"]
-        device_id = message["value"]["deviceId"]
-
-        if job["stage"] == "lookup_verified":
-            try:
-                self.client.get_device_storage(message["value"]["deviceId"])
-                job["stage"] = "store_verified"
-            except DeviceNotRegisteredError:
-                job["stage"] = "discover_device"
-            else: 
-                job["stage"] = "store_verified"
-        if job["stage"] == "lookup":
-            try:
-                self.client.get_device_storage(message["value"]["deviceId"])
-                job["stage"] = "signing"
-            except DeviceNotRegisteredError:
-                job["stage"] = "discover_device"
-            else: 
-                job["stage"] = "signing"
-
-        if job["stage"] == "discover_device":
-            device = self.client.get_device_reader(device_id)
-
-            self.client.register_device_storage(device)
-
-            # El evento todavía necesita pasar por verificación.
-            if job.get("verified") is None:
-                job["stage"] = "signing"
-            else:
-                job["stage"] = "store_verified"
         if job["stage"] == "signing":
             message["value"]["managerHash"] = sign_event(message)
             job["stage"] = "verification"
@@ -204,8 +175,7 @@ class ManagerCore:
             rejected = isinstance(error, EventRejected) or (
                 job["stage"] == "verification" and isinstance(error, InternalPostError)
                 and error.status in (400, 422))
-            status = 422 if rejected else (404 if isinstance(error, DeviceNotRegisteredError)
-                                         else 500 if job["stage"] == "signing" else 502)
+            status = 422 if rejected else (500 if job["stage"] == "signing" else 502)
             Logger.warning("event_discarded" if rejected else "event_processing_failed",
                            eventId=event_id, stage=job["stage"], error=str(error))
             return {"eventId": event_id, "status": "Rejected" if rejected else "Failed",

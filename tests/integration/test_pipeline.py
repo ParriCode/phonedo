@@ -96,10 +96,6 @@ def test_real_pipeline(tmp_path):
         captured = Subscription(urls['manager'] + '/stream/verifier', 'verifier-test')
         verified_a = Subscription(urls['verifier'] + '/stream', 'verifier-test')
         verified_b = Subscription(urls['verifier'] + '/stream', 'verifier-test')
-        registration = {'token': 'manager-test', 'schemaVersion': 'phonendo.device.v1',
-                        'readerId': 'reader-linux', 'deviceId': 'simulated-device',
-                        'deviceType': 'sensor', 'creationDatetime': int(time.time()*1000)}
-        assert requests.post(urls['manager'] + '/registerDevice', json=registration, timeout=5).status_code == 200
         # Real ReaderCore + ReaderServer, emit the same Linux example on an isolated port.
         code = f'''import sys, asyncio
 sys.path[:0] = ['apps/reader', 'apps/reader/python/core', 'apps/reader/python/server']

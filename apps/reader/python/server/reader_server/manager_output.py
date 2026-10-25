@@ -2,7 +2,6 @@
 import json
 import logging
 from pathlib import Path
-import time
 from urllib.error import URLError
 from urllib.request import Request, urlopen
 
@@ -34,14 +33,6 @@ class ManagerOutput:
                 logging.getLogger(__name__).warning('Manager delivery failed: %s: %s', url, error)
                 results.append({'url': url, 'error': str(error)})
         return results
-
-    def register_device(self, reader_id, device):
-        return self._send('/registerDevice', {
-            'schemaVersion': 'phonendo.device.v1',
-            'readerId': reader_id,
-            'deviceId': device.device_id, 'deviceType': device.device_type,
-            'creationDatetime': int(time.time() * 1000),
-        })
 
     def publish(self, reader_id, observation):
         return self._send('/newEvent', observation_event(reader_id, observation))

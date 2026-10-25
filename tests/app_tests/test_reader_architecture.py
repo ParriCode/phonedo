@@ -47,9 +47,6 @@ def test_service_fanout_uses_model_objects_and_reader_identity():
     calls = []
 
     class Output:
-        def register_device(self, reader_id, device):
-            calls.append(('register', reader_id, device))
-
         def publish(self, reader_id, value):
             calls.append(('observation', reader_id, value))
 
@@ -57,9 +54,9 @@ def test_service_fanout_uses_model_objects_and_reader_identity():
     service = ReaderService(core, (Output(), Output()))
     value = observation()
     assert service.ingest(value)
-    assert [call[0] for call in calls] == ['register', 'register', 'observation', 'observation']
+    assert [call[0] for call in calls] == ['observation', 'observation']
     assert all(call[1] == 'reader' for call in calls)
-    assert calls[2][2] is value and calls[3][2] is value
+    assert calls[0][2] is value and calls[1][2] is value
     assert service.devices() == [{'deviceId': 'board', 'deviceType': 'device', 'sensors': ['temperature']}]
     assert service.metadata()['readerId'] == 'reader'
     assert core.remove_device('board')
@@ -94,14 +91,10 @@ def test_cpp_core_builds_without_server_or_arduino_sdk(tmp_path):
 int main() {
     ReaderCore core("reader");
     Device device("board");
-    int registrations = 0;
-    core.setOnRegisterCallback([&](Device&) { ++registrations; });
     assert(core.addDevice(device));
-    assert(registrations == 0);
     assert(core.getDevice("board") == &device);
     assert(core.removeDevice("board"));
-    assert(core.registerDevice(device));
-    assert(registrations == 1);
+    assert(core.addDevice(device));
     Observation value("temperature", "23", "timestamp", "room", "measure", "board", "temp");
     assert(core.ingest(value));
     assert(core.sendObservation(value));
@@ -116,13 +109,8 @@ def test_cpp_service_routes_observations_to_platform_ports(tmp_path):
 #include "reader_service.h"
 #include <cassert>
 struct Output : ObservationOutput {
-    int registered = 0;
     int emitted = 0;
     const Observation* last = nullptr;
-    void registerDevice(const std::string& readerId, const Device& device) override {
-        assert(readerId == "reader" && device.deviceId == "board");
-        ++registered;
-    }
     bool publish(const std::string& readerId, const Observation& observation) override {
         assert(readerId == "reader");
         last = &observation;
@@ -137,7 +125,6 @@ int main() {
     assert(&service.core() == &core);
     Observation value("temperature", "23", "timestamp", "room", "measure", "board", "temp");
     assert(service.ingest(value));
-    assert(first.registered == 1 && second.registered == 1);
     assert(first.emitted == 1 && second.emitted == 1);
     assert(first.last == &value && second.last == &value);
     assert(service.core().removeDevice("board"));
@@ -208,7 +195,6 @@ def test_cpp_service_detaches_from_external_core(tmp_path):
 #include <cassert>
 struct Output : ObservationOutput {
     int calls = 0;
-    void registerDevice(const std::string&, const Device&) override {}
     bool publish(const std::string&, const Observation&) override { ++calls; return true; }
 };
 int main() {

@@ -8,7 +8,6 @@
 class ObservationOutput {
 public:
     virtual ~ObservationOutput() = default;
-    virtual void registerDevice(const std::string& readerId, const Device& device) = 0;
     virtual bool publish(const std::string& readerId, const Observation& observation) = 0;
 };
 

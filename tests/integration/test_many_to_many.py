@@ -44,10 +44,6 @@ def test_many_to_many_http_and_storage_streams(tmp_path):
             start(name, 'verifier', 'verifier.py', {'subscriptions':{'managers':[urls['m1'],urls['m2']]}})
         results = []
         for name in ['m1','m2']:
-            registration = {'token':'m-token','schemaVersion':'phonendo.device.v1',
-                'readerId':name,'deviceId':name+'-device','deviceType':'sensor','creationDatetime':1}
-            response = requests.post(urls[name]+'/registerDevice', json=registration, timeout=5)
-            assert response.status_code == 200, response.text
             # Wait for the real Storage SSE subscribers by observing a probe.
             # Repeat delivery until the SSE-only storage has received an event.
             def emit_and_check():
