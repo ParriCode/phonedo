@@ -237,6 +237,21 @@ desplegarse por separado; sus direcciones están en `CONFIG.panels` de `app.js`)
 - [`patient.html`](apps/web/patient.html): pagos recibidos por una cuenta Stellar.
 - [`insurer.html`](apps/web/insurer.html): pagos realizados por el contrato.
 
+Arranque local sin Docker:
+
+```sh
+./tools/web.sh
+```
+
+Abre dos pestañas automáticamente cuando el servidor responde: la web nueva en
+`http://127.0.0.1:8080` y Stellar Expert en testnet con el primer contrato de
+`apps/publisher/config.json`, o el explorador general si no hay configurados.
+`Ctrl+C` detiene el servidor. Instala Python 3 y el abridor de navegador si faltan
+(Debian/Ubuntu).
+Puedes cambiar el puerto con `WEB_PORT=8081 ./tools/web.sh` y elegir otro JSON
+con `PUBLISHER_CONFIG_PATH=deploy/docker/publisher.json ./tools/web.sh`.
+
+
 Los pagos se leen en el navegador desde los eventos `session_paid` del RPC público de
 testnet. Si el RPC no responde, la web lo indica y muestra las transacciones ya
 confirmadas. La red editada en la consola se guarda solo en ese navegador.
