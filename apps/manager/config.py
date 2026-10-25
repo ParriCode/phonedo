@@ -78,6 +78,8 @@ class ManagerConfig:
         # Services
 
         services = config.get("services", {})
+        from uuid import uuid4
+        self.manager_id = os.getenv('MANAGER_ID') or config.get('managerId') or str(uuid4())
 
         self.verifier_url_list = services.get("verifiers", [])
         self.storage_url_list = services.get("storages", [])

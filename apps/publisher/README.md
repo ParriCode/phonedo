@@ -37,7 +37,25 @@ llama a `claim()` del contrato `contracts/adherence`.
 | `batchSize`, `policy` | Lecturas por lote y política; debe coincidir con la guardada en el contrato. |
 | `patients` | Cuenta G que cobra por `deviceId`; `default` para el resto. |
 | `signer.manager` | Manager al que pide la firma del lote; por defecto el primero de `subscriptions.managers`. |
-| `stellar` | `contractId`, alias `source` de la CLI y `network`. |
+| `stellar` | Alias `source` de la CLI y `network`. El contrato se selecciona con `contracts`. |
+| `contracts` | Mapa `verifierId → contractId`; obligatorio para publicar cada Verifier. |
+
+`verifierId` es su clave pública ed25519 hexadecimal, disponible en
+`GET /metadata` del Verifier. Ejemplo:
+
+```json
+"contracts": {
+  "<clave pública hex del Verifier>": "<contrato desplegado con esa clave>"
+}
+```
+
+Los lotes se separan por `managerId + verifierId + readerId + deviceId`.
+La identidad de observación incluye esos orígenes y `observationId`; un reenvío
+del mismo evento no cuenta otra vez. `signBatch` vuelve al Manager de origen,
+que elige el Verifier por identidad. Varios Managers pueden usar el mismo Verifier.
+El Publisher comprueba también la firma ed25519 antes de llamar al contrato.
+Los contratos antiguos necesitan redesplegarse: el mensaje firmado ahora añade
+los 32 bytes de `verifierId` después de `commitment || sessionId || patient`.
 
 Requiere Node.js con `circuits/` preparado (`npm install`, `npm run setup`,
 `node scripts/sign.js <cuenta G>` crea la clave de desarrollo que el Verifier usa como

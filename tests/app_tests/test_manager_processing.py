@@ -53,7 +53,7 @@ class ProcessingTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json['status'], 'Verified')
         self.assertTrue(self.verifier.verify_event(self.captured))
-        for field, value in [('payload', {'temperature': 99}), ('readerId', 'other'), ('deviceId', 'other'), ('creationDatetime', 1)]:
+        for field, value in [('payload', {'temperature': 99}), ('readerId', 'other'), ('deviceId', 'other'), ('creationDatetime', 1), ('managerId', 'other'), ('observationId', 'other')]:
             forged = copy.deepcopy(self.captured)
             forged['value'][field] = value
             self.assertFalse(self.verifier.verify_event(forged))

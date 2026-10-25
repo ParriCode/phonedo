@@ -115,7 +115,8 @@ impl Adherence {
         }
 
         let config = Self::config(&env);
-        let message = signed_message(&env, &commitment, session_id, &patient)?;
+        let mut message = signed_message(&env, &commitment, session_id, &patient)?;
+        message.append(&Bytes::from_array(&env, &config.verifier_key.to_array()));
         env.crypto()
             .ed25519_verify(&config.verifier_key, &message, &signature);
 

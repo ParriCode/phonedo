@@ -1,4 +1,5 @@
 {
+  "contracts": {},
   "server": {
     "host": "0.0.0.0",
     "port": 3005
@@ -19,7 +20,6 @@
   },
   "circuitsPath": "../../circuits",
   "stellar": {
-    "contractId": "CBF2MBQ6W4S6LD3JSIM3NNZET5KBUKOADRZSKIYZRZBAXRM6OJZCNSFI",
     "source": "alex",
     "network": "testnet"
   }

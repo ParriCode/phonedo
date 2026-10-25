@@ -1,5 +1,11 @@
 # Manager
 
+`managerId` en `config.json` (o `MANAGER_ID`) identifica esta instancia; usa un
+valor distinto por Manager. Sin configurarlo se genera uno por arranque.
+`POST /signBatch` exige `managerId`, `readerId` y `verifierId` además del lote.
+Selecciona el Verifier consultando `/metadata` en las URLs configuradas en
+`services.verifiers` o `subscriptions.verifiers`; nunca firma con otro por defecto.
+
 Coordina la recepción, verificación y almacenamiento de las observaciones.
 Calcula el hash del contenido Captured y lo
 manda al Verifier. Solo guarda el evento Verified tras una verificación positiva.

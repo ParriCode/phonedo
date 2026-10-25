@@ -8,7 +8,7 @@ Groth16 válida de `circuits/` y la firma ed25519 del Verifier sobre el lote.
 `claim(patient, session_id, commitment, signature, proof)` comprueba, en orden:
 
 1. Que `session_id` no se ha cobrado ya.
-2. La firma del Verifier sobre `commitment || session_id (32 bytes) || clave de la cuenta G de patient`.
+2. La firma del Verifier sobre `commitment || session_id (32 bytes) || clave de la cuenta G de patient || verifierId (32 bytes)`.
 3. La prueba con las entradas públicas `[commitment, min_value, max_value, min_count, session_id]`,
    donde rango y mínimo salen de la política guardada, no del que llama.
 4. Si todo es válido, marca la sesión y transfiere `payout` del contrato a `patient`.
@@ -16,6 +16,10 @@ Groth16 válida de `circuits/` y la firma ed25519 del Verifier sobre el lote.
 Cualquiera puede enviar el `claim` (por ejemplo el Publisher): el pago siempre va a la
 paciente firmada. `policy.json` es la política inicial; `payout` va en unidades de 7
 decimales (`50000000` = 5 USDC).
+
+`verifierId` es la clave pública ed25519 guardada en el contrato. Cada Verifier
+usa su propia instancia, seleccionada en `contracts` del Publisher. Este formato
+de firma requiere redesplegar las instancias anteriores.
 
 ## Uso
 

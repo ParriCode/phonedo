@@ -127,7 +127,7 @@ def test_duplicate_http_targets_are_sent_once(core):
         client.store_event(message)
         assert post.call_count == 1
     core.client.config = SimpleNamespace(verifier_url_list=['http://v', 'http://v:80/'],
-                                        stream_enabled=False, output_verifiers=False)
+                                        stream_enabled=False, output_verifiers=False, manager_id='manager-test')
     with patch.object(core, 'attempt_event', return_value=({}, 200)) as attempt:
         core.submit_observation({'readerId':'r', 'deviceId':'d', 'payload':{'value':1},
                                  'payloadFormat':'application/json', 'eventType':'observation'})

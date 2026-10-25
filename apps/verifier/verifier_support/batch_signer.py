@@ -3,7 +3,7 @@
 El Verifier recuerda las lecturas de los eventos que ha verificado. Al firmar un
 lote solo usa esas lecturas, nunca las que envía quien pide la firma.
 Mensaje firmado: commitment (32 B) || sessionId (32 B big-endian) || clave de
-la cuenta G de la paciente (32 B), igual que circuits/scripts/sign.js.
+la cuenta G de la paciente (32 B) || verifierId (32 B), igual que sign.js.
 """
 import base64
 import json
@@ -12,6 +12,7 @@ from collections import OrderedDict
 from pathlib import Path
 
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
 
 from verifier_support.poseidon import BATCH_SIZE, FIELD, batch_commitment
 
@@ -58,6 +59,7 @@ def load_signing_key(path):
 class BatchSigner:
     def __init__(self, private_key, remembered=4096):
         self.private_key = private_key
+        self.verifier_id = private_key.public_key().public_bytes(Encoding.Raw, PublicFormat.Raw).hex()
         self.remembered = remembered
         self.readings = OrderedDict()
         self.lock = threading.Lock()
@@ -69,11 +71,11 @@ class BatchSigner:
         if reading is None:
             return
         with self.lock:
-            self.readings[message['key']] = (value.get('deviceId'), reading)
+            self.readings[message['key']] = (value.get('managerId'), value.get('readerId'), value.get('deviceId'), reading)
             while len(self.readings) > self.remembered:
                 self.readings.popitem(last=False)
 
-    def sign(self, session_id, salt, patient, event_keys):
+    def sign(self, session_id, salt, patient, event_keys, manager_id=None, reader_id=None):
         """Devuelve (commitment hex, firma hex) o lanza ValueError."""
         if isinstance(session_id, bool) or not isinstance(session_id, int) or not 0 < session_id < 2 ** 64:
             raise ValueError('sessionId must be a positive 64-bit integer')
@@ -90,8 +92,10 @@ class BatchSigner:
             known = [self.readings.get(key) for key in event_keys]
         if None in known:
             raise ValueError('eventKeys contains events not verified by this Verifier')
-        if len({device for device, _ in known}) != 1:
-            raise ValueError('eventKeys must belong to one device')
-        commitment = batch_commitment([reading for _, reading in known], salt, session_id).to_bytes(32, 'big')
-        message = commitment + session_id.to_bytes(32, 'big') + patient_key
+        if len({item[:3] for item in known}) != 1:
+            raise ValueError('eventKeys deben pertenecer al mismo Manager, Reader y dispositivo')
+        if known[0][:2] != (manager_id, reader_id):
+            raise ValueError('El origen del lote no coincide con los eventos verificados')
+        commitment = batch_commitment([item[3] for item in known], salt, session_id).to_bytes(32, 'big')
+        message = commitment + session_id.to_bytes(32, 'big') + patient_key + bytes.fromhex(self.verifier_id)
         return commitment.hex(), self.private_key.sign(message).hex()
