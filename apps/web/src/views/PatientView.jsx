@@ -1,19 +1,30 @@
 import { useState } from 'react';
 import { CONFIG } from '../config.js';
 import { isAccount, short, timeAgo } from '../lib/format.js';
-import { stats } from '../lib/stellar.js';
+import { sortedTotals, stats } from '../lib/stellar.js';
 import { useI18n } from '../providers/I18nProvider.jsx';
 import { usePayments } from '../providers/PaymentsProvider.jsx';
 import { Icon } from '../components/Icon.jsx';
-import { Kpi, PageHead, PaymentsTable, PolicyTiles, SnapshotNotice, Totals } from '../components/payments.jsx';
+import { Kpi, PageHead, PaymentsTable, PolicyTiles, SnapshotNotice } from '../components/payments.jsx';
+import { CountUp, SessionRing } from '../components/rehab.jsx';
 
-/** Pagos recibidos por una cuenta Stellar. */
+const REHAB = new Set(CONFIG.contracts.filter((c) => c.useCase === 'rehab').map((c) => c.id));
+
+function Earned({ totals }) {
+  const parts = sortedTotals(totals);
+  if (!parts.length) return <div className="earned"><CountUp value={0} digits={2} /> <small>USDC</small></div>;
+  return parts.map(([asset, amount]) => (
+    <div className="earned" key={asset}><CountUp value={amount} digits={2} /> <small>{asset}</small></div>
+  ));
+}
+
+/** Pagos de rehabilitación cardiaca recibidos por una cuenta Stellar. */
 export function PatientView() {
   const { t, lang } = useI18n();
   const { events } = usePayments();
   const [patient, setPatient] = useState(CONFIG.demoPatient);
   const [invalid, setInvalid] = useState(false);
-  const mine = events.filter((e) => e.patient === patient);
+  const mine = events.filter((e) => e.patient === patient && REHAB.has(e.contractId));
   const s = stats(mine);
 
   const onSubmit = (event) => {
@@ -34,12 +45,13 @@ export function PatientView() {
             <button className="btn btn-gold btn-sm" type="submit">{t('pt.view')}</button>
           </form>
           <small id="patient-error" className="form-error" hidden={!invalid}>{t('pt.invalid')}</small></div>
+        <SessionRing />
       </PageHead>
       <section className="page-body"><div className="wrap">
         <SnapshotNotice />
         <div className="kpi-row">
-          <Kpi label={t('kpi.earned')} value={<Totals totals={s.totals} />} accent />
-          <Kpi label={t('kpi.yourSessions')} value={s.sessions} />
+          <Kpi label={t('kpi.earned')} value={<Earned totals={s.totals} />} accent />
+          <Kpi label={t('kpi.yourSessions')} value={<CountUp value={s.sessions} />} />
           <Kpi label={t('kpi.last')} value={s.last ? timeAgo(s.last.paidAt, lang, t) : '—'} />
           <Kpi label={t('pt.account')} value={<span className="mono">{short(patient, 5, 4)}</span>} />
         </div>

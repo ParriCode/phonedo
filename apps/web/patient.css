@@ -1,0 +1,99 @@
+/* Panel de rehabilitación cardiaca: electrocardiograma rojo de fondo y tarjetas de cristal. */
+.heartbeat { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
+
+body[data-panel="patient"] {
+  background: radial-gradient(1200px 700px at 15% 0%, #134642 0%, transparent 60%), radial-gradient(900px 600px at 100% 100%, #1c3a5f 0%, transparent 55%), var(--navy-950);
+  background-attachment: fixed;
+  color: #eaf6f2;
+}
+body[data-panel="patient"] .topbar,
+body[data-panel="patient"] main,
+body[data-panel="patient"] .footer { position: relative; z-index: 1; }
+body[data-panel="patient"] .topbar { background: rgb(6 32 30 / 55%); }
+body[data-panel="patient"] .footer { background: rgb(6 32 30 / 60%); backdrop-filter: blur(8px); }
+body[data-panel="patient"] .page-head { background: transparent; padding-bottom: 96px; }
+body[data-panel="patient"] .page-head h1 { font-size: clamp(32px, 4.4vw, 56px); letter-spacing: -1.6px; text-shadow: 0 2px 30px rgb(0 0 0 / 40%); }
+body[data-panel="patient"] .page-head .wrap { align-items: center; }
+
+body[data-panel="patient"] .card {
+  background: rgb(8 40 38 / 58%); border: 1px solid rgb(255 255 255 / 12%);
+  backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+  box-shadow: 0 10px 40px rgb(0 0 0 / 28%); color: #eaf6f2;
+  transition: transform .25s ease, border-color .25s ease, box-shadow .25s ease;
+  animation: rise .7s cubic-bezier(.2, .8, .2, 1) both;
+}
+body[data-panel="patient"] .card:hover { transform: translateY(-3px); border-color: rgb(61 220 151 / 45%); box-shadow: 0 14px 48px rgb(61 220 151 / 14%); }
+body[data-panel="patient"] .kpi-row .card:nth-child(2) { animation-delay: .08s; }
+body[data-panel="patient"] .kpi-row .card:nth-child(3) { animation-delay: .16s; }
+body[data-panel="patient"] .kpi-row .card:nth-child(4) { animation-delay: .24s; }
+body[data-panel="patient"] .two-col > .card { animation-delay: .3s; }
+body[data-panel="patient"] .side .card:nth-child(1) { animation-delay: .4s; }
+body[data-panel="patient"] .side .card:nth-child(2) { animation-delay: .5s; }
+@keyframes rise { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: none; } }
+
+body[data-panel="patient"] .kpi span,
+body[data-panel="patient"] .kpi small,
+body[data-panel="patient"] .kpi b small,
+body[data-panel="patient"] .policy span,
+body[data-panel="patient"] .mini-steps { color: rgb(234 246 242 / 66%); }
+body[data-panel="patient"] .kpi b { font-size: clamp(26px, 2.6vw, 34px); font-variant-numeric: tabular-nums; }
+body[data-panel="patient"] .kpi b.accent { color: var(--mint); text-shadow: 0 0 24px rgb(61 220 151 / 45%); }
+
+body[data-panel="patient"] .earned + .earned { font-size: .5em; opacity: .75; }
+body[data-panel="patient"] .table-head { border-bottom-color: rgb(255 255 255 / 10%); }
+body[data-panel="patient"] th { background: rgb(255 255 255 / 6%); color: rgb(234 246 242 / 62%); }
+body[data-panel="patient"] td { border-top-color: rgb(255 255 255 / 8%); }
+body[data-panel="patient"] tbody tr { animation: rise .6s ease both; transition: background .2s; }
+body[data-panel="patient"] tbody tr:hover { background: rgb(61 220 151 / 9%); }
+body[data-panel="patient"] tbody tr:nth-child(2) { animation-delay: .06s; }
+body[data-panel="patient"] tbody tr:nth-child(3) { animation-delay: .12s; }
+body[data-panel="patient"] tbody tr:nth-child(4) { animation-delay: .18s; }
+body[data-panel="patient"] tbody tr:nth-child(5) { animation-delay: .24s; }
+body[data-panel="patient"] td a { color: #7ff0bd; }
+body[data-panel="patient"] tr.fresh td { animation: flashDark 2.5s ease-out; }
+@keyframes flashDark { from { background: rgb(61 220 151 / 35%); } to { background: transparent; } }
+body[data-panel="patient"] .chip { background: rgb(255 255 255 / 10%); color: #eaf6f2; }
+body[data-panel="patient"] .chip-ok { background: rgb(61 220 151 / 18%); color: var(--mint); }
+body[data-panel="patient"] .empty { color: rgb(234 246 242 / 60%); }
+body[data-panel="patient"] .notice { background: rgb(224 165 38 / 20%); color: #ffd98a; }
+
+body[data-panel="patient"] .policy div { background: rgb(255 255 255 / 7%); transition: transform .2s, background .2s; }
+body[data-panel="patient"] .policy div:hover { transform: scale(1.05); background: rgb(61 220 151 / 14%); }
+body[data-panel="patient"] .policy b { color: var(--mint); }
+
+/* Los cuatro pasos se iluminan por turnos, de la pulsera al monedero. */
+body[data-panel="patient"] .mini-steps { list-style: none; padding: 0 0 0 4px; counter-reset: step; }
+body[data-panel="patient"] .mini-steps li { counter-increment: step; position: relative; padding-left: 38px; min-height: 28px; display: flex; align-items: center; animation: stepGlow 8s ease-in-out infinite; }
+body[data-panel="patient"] .mini-steps li::before {
+  content: counter(step); position: absolute; left: 0; width: 26px; height: 26px; border-radius: 50%;
+  display: grid; place-items: center; font-size: 12px; font-weight: 700; color: var(--mint);
+  border: 1.5px solid rgb(61 220 151 / 55%); background: rgb(61 220 151 / 10%);
+}
+body[data-panel="patient"] .mini-steps li:nth-child(2) { animation-delay: 2s; }
+body[data-panel="patient"] .mini-steps li:nth-child(3) { animation-delay: 4s; }
+body[data-panel="patient"] .mini-steps li:nth-child(4) { animation-delay: 6s; }
+@keyframes stepGlow { 0%, 22%, 100% { color: rgb(234 246 242 / 55%); } 5%, 17% { color: #fff; text-shadow: 0 0 16px rgb(61 220 151 / 80%); } }
+
+body[data-panel="patient"] .privacy-list .yes,
+body[data-panel="patient"] .privacy-list .no { animation: breathe 3.2s ease-in-out infinite; }
+@keyframes breathe { 50% { transform: scale(1.2); } }
+
+/* Aro de la sesión: 32 lecturas que se encienden una a una. */
+.ring { position: relative; width: clamp(150px, 16vw, 210px); aspect-ratio: 1; flex: none; }
+.ring::before { content: ''; position: absolute; inset: 22%; border-radius: 50%; background: radial-gradient(circle, rgb(6 32 30 / 92%) 55%, transparent 72%); }
+.ring svg { position: relative; width: 100%; height: 100%; overflow: visible; }
+.ring line { stroke: rgb(255 255 255 / 16%); stroke-width: 3.4; stroke-linecap: round; transition: stroke .15s, filter .15s; }
+.ring line.spare { stroke: rgb(255 255 255 / 9%); }
+.ring line.on { stroke: #ff5a64; filter: drop-shadow(0 0 4px rgb(255 70 80 / 90%)); }
+.ring line.on.spare { stroke: rgb(255 90 100 / 45%); }
+.ring-center { position: absolute; z-index: 1; inset: 0; display: grid; place-content: center; text-align: center; }
+.ring-center b { font-size: clamp(16px, 1.7vw, 22px); letter-spacing: -.6px; color: #fff; font-variant-numeric: tabular-nums; }
+.ring-center span { font-size: 11px; letter-spacing: 1px; text-transform: uppercase; color: rgb(234 246 242 / 60%); max-width: 110px; }
+.ring.paid .ring-center b { color: var(--mint); animation: pop .5s ease-out; text-shadow: 0 0 22px rgb(61 220 151 / 80%); }
+.ring.paid { animation: glow 1.2s ease-out; }
+@keyframes pop { from { transform: scale(.6); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes glow { from { filter: drop-shadow(0 0 40px rgb(61 220 151 / 90%)); } to { filter: none; } }
+
+@media (prefers-reduced-motion: reduce) {
+  body[data-panel="patient"] * { animation: none !important; transition: none !important; }
+}
