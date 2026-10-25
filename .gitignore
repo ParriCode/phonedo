@@ -47,3 +47,5 @@ MANIFEST-*
 *.log
 .idea/
 .vscode/
+
+target/
