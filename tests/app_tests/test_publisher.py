@@ -107,3 +107,11 @@ def test_claim_reads_utf8_output_of_the_cli(monkeypatch):
               + 'e' * 64 + "\\n'.encode('utf-8') + bytes([0x8f]))")
     monkeypatch.setattr(claimer, 'command', lambda *args: [sys.executable, '-c', script])
     assert claimer.claim({'sessionId': 9}, ZERO_ACCOUNT, 'ab', 'cd', 'p.json') == 'e' * 64
+
+
+def test_info_lists_connected_managers_and_logs_exposes_recent_lines(publisher):
+    publisher.manager_subscriptions.connected.add('http://manager:3003/stream')
+    client = publisher.app.test_client()
+    assert client.get('/info').json == [{'peer': 'http://manager:3003', 'transport': 'sse'}]
+    publisher.Logger.info('publisher_batch_ready', sessionId=1)
+    assert 'publisher_batch_ready' in client.get('/logs').json[-1]

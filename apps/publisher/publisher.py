@@ -108,6 +108,17 @@ def healthcheck():
     return "Service is alive", 200
 
 
+@app.get("/info")
+def info():
+    return [{'peer': url.rsplit('/stream', 1)[0], 'transport': 'sse'}
+            for url in sorted(manager_subscriptions.connected)]
+
+
+@app.get("/logs")
+def logs():
+    return list(Logger.instance().messages)
+
+
 threading.Thread(target=worker, daemon=True).start()
 manager_targets = []
 for target in publisher_config.manager_subscriptions:
