@@ -10,6 +10,8 @@ const CONFIG = {
   ],
   policy: { min: 90, max: 130, minCount: 28, batch: 32, payout: 5 },
   demoPatient: 'GBBO4ZD2YNV3ZBUIBIQAH3VK73Y2RHTSMURUR5LYEK5JMXACK24YN3BC',
+  // Cada panel tiene su propia dirección: hoy son rutas de esta web, mañana pueden ser servicios aparte.
+  panels: { operator: '#/operator', patient: '#/patient', insurer: '#/insurer' },
   refreshMs: 15000,
   decimals: 7,
 };
@@ -23,19 +25,15 @@ const KNOWN = [
 
 const I18N = {
   en: {
-    'launch.eyebrow': 'Choose your panel', 'launch.title': 'Verifiable sensor data, <em>without exposing the data</em>',
-    'launch.lead': 'Phonendo connects sensors to Stellar through hospital-controlled services and zero-knowledge proofs. Pick a panel to start.',
-    'launch.op.tag': 'Main panel', 'launch.op.t': 'Operator console',
-    'launch.op.p': 'Design, check and export the whole sensor network of your organisation: readers, managers, verifiers, storage and publishers, wired to the Stellar contract.',
-    'launch.op.b1': 'Add any number of nodes, per organisation', 'launch.op.b2': 'Live reachability check of every service', 'launch.op.b3': 'Download ready-to-run configuration files',
-    'launch.op.btn': 'Open the console',
-    'launch.uc.eyebrow': 'Use case', 'launch.uc.t': 'Cardiac rehabilitation', 'launch.uc.p': 'Two independent views of the same payout.',
-    'launch.pt.t': 'Patient panel', 'launch.pt.p': 'Rewards received for completed sessions.',
-    'launch.in.t': 'Insurer panel', 'launch.in.p': 'Verified payments, without health data.', 'launch.open': 'Open',
+    'launch.eyebrow': 'Phonendo', 'launch.title': 'Choose a panel',
+    'launch.lead': 'Sensor readings become on-chain proofs: Reader, Manager, Verifier, Publisher and the Stellar contract. Each panel works on its own.',
+    'panel.operator.t': 'Operator console', 'panel.operator.p': 'Services of the deployment: add, check and export configuration.',
+    'panel.patient.t': 'Patient panel', 'panel.patient.p': 'Payouts received by a Stellar account.',
+    'panel.insurer.t': 'Insurer panel', 'panel.insurer.p': 'Payouts made by the contract.', 'launch.open': 'Open',
     'op.laneDesc.reader': 'Collect sensor data', 'op.laneDesc.manager': 'Route and retry events', 'op.laneDesc.verifier': 'Check and sign, keep history',
     'op.laneDesc.publisher': 'Prove and claim', 'op.laneDesc.chain': 'Verify and pay',
     'op.filter': 'Organisation', 'op.filter.all': 'All', 'op.nodes': 'nodes',
-    'op.live': 'On-chain activity', 'op.liveEmpty': 'No payouts yet.', 'op.hintTitle': 'Select a node',
+    'op.live': 'Contract events', 'op.liveEmpty': 'No session_paid events yet.', 'op.hintTitle': 'Select a node',
     'op.configHint': 'Its ready-to-run configuration appears here.', 'op.how': 'How data flows',
     'op.how1': 'Readers collect sensor data and push it to a Manager.', 'op.how2': 'The Manager routes each event and retries on failure.',
     'op.how3': 'Verifiers check and sign it. Storage keeps the history.', 'op.how4': 'The Publisher proves the session and calls the contract.',
@@ -43,55 +41,9 @@ const I18N = {
     'nav.home': 'Panels', 'nav.operator': 'Operator console', 'nav.patient': 'Patient', 'nav.insurer': 'Insurer',
     'footer.built': 'Built on Stellar testnet', 'footer.contract': 'View the contract on Stellar Expert',
     'net.checking': 'Connecting to testnet…', 'net.live': 'Stellar testnet · live', 'net.error': 'Testnet unreachable · snapshot',
-    'hero.eyebrow': 'Proof of care on Stellar',
-    'hero.title': 'Rewards for real recovery. <em>Zero</em> health data exposed.',
-    'hero.lead': 'Phonendo turns a heart sensor into a private, verifiable proof that a patient completed their cardiac rehab session, and pays them in USDC on Stellar. The insurer gets the proof. The readings never leave the hospital.',
-    'hero.cta1': 'See live payouts', 'hero.cta2': 'Open the operator console',
-    'hero.p1': 'Groth16 proofs on BLS12-381', 'hero.p2': 'ed25519-signed readings', 'hero.p3': 'Live on Stellar testnet',
-    'flow.private': 'Heart rate · private', 'flow.stays': 'Stays inside the hospital', 'flow.chain': 'On Stellar', 'flow.verified': 'Proof verified',
-    'flow.s1': 'readings in range', 'flow.s2': 'readings on-chain', 'flow.s3': 'per session',
-    'problem.eyebrow': 'The problem', 'problem.title': 'Cardiac rehab works. Patients just don’t finish it.',
-    'problem.lead': 'Payers would gladly reward adherence, but proving it today means handing over raw health data or trusting a self-report.',
-    'problem.1t': 'Patients drop out', 'problem.1p': 'Sessions are long, repetitive and unrewarded. Motivation fades after the first weeks.',
-    'problem.2t': 'Privacy blocks incentives', 'problem.2p': 'Sending heart-rate streams to an insurer is a GDPR and trust problem nobody wants.',
-    'problem.3t': 'Nothing is verifiable', 'problem.3p': 'Self-reported attendance can’t be audited, and a paper form can’t pay anyone.',
-    'how.eyebrow': 'How it works', 'how.title': 'From heartbeat to payout in five steps',
-    'how.lead': 'Every step runs on infrastructure the hospital controls, until a single proof reaches Stellar.',
-    'how.1t': 'Sense', 'how.1p': 'A pulse band streams heart rate to the hospital’s Reader.',
-    'how.2t': 'Sign', 'how.2p': 'The Verifier checks every reading and signs the batch with ed25519.',
-    'how.3t': 'Prove', 'how.3p': 'A zero-knowledge proof shows 28 of 32 readings were within 90–130 bpm, revealing none of them.',
-    'how.4t': 'Verify', 'how.4p': 'The Soroban contract checks the Groth16 proof and the hospital signature on-chain.',
-    'how.5t': 'Pay', 'how.5p': 'The contract pays the patient 5 USDC and emits a public SessionPaid event.',
-    'ledger.eyebrow': 'Privacy by design', 'ledger.title': 'What goes on-chain, and what never does',
-    'ledger.on': 'Public on Stellar', 'ledger.off': 'Never leaves the hospital',
-    'ledger.on1': 'A yes/no proof that the session met the policy', 'ledger.on2': 'The session id, so it can never be paid twice',
-    'ledger.on3': 'The payout and the patient’s wallet address', 'ledger.on4': 'The policy: heart-rate range, minimum readings, reward',
-    'ledger.off1': 'Every single heart-rate reading', 'ledger.off2': 'Device identifiers and exact timestamps',
-    'ledger.off3': 'Medical history and diagnosis', 'ledger.off4': 'Anything linking the wallet to a real identity',
-    'stellar.eyebrow': 'Why Stellar', 'stellar.title': 'Native cryptography, real dollars, public audit trail',
-    'stellar.1p': 'Groth16 proofs are verified natively in the contract with the BLS12-381 pairing host function.',
-    'stellar.1t': 'Zero-knowledge on-chain',
-    'stellar.2t': 'Hospital signature', 'stellar.2p': 'The contract proves the batch came from the hospital’s Verifier key.',
-    'stellar.3t': 'Pays real USDC', 'stellar.3p': 'Payouts go through the USDC Stellar Asset Contract, settled in seconds for a fraction of a cent.',
-    'stellar.4t': 'Anti-replay', 'stellar.4p': 'Each paid session id is stored on-chain: the same proof can never pay twice.',
-    'stellar.5t': 'Auditable events', 'stellar.5p': 'Every payout emits session_paid. This website reads them live from the RPC.',
-    'stellar.6t': 'Transparent policy', 'stellar.6p': 'Range, minimum count and reward are stored by the payer and visible to everyone.',
-    'live.eyebrow': 'Live on testnet', 'live.title': 'Real payouts, read straight from the ledger',
-    'live.lead': 'No database in between: these numbers come from the contract events on Stellar testnet.',
-    'live.all': 'Open the insurer view',
     'kpi.paid': 'Paid out', 'kpi.sessions': 'Verified sessions', 'kpi.patients': 'Patients rewarded', 'kpi.last': 'Last payout',
-    'kpi.readings': 'Readings disclosed', 'kpi.readingsSub': 'the insurer never sees them',
-    'kpi.earned': 'Total earned', 'kpi.yourSessions': 'Sessions completed', 'kpi.onchain': 'Your data on-chain', 'kpi.onchainSub': 'only proofs and payouts',
-    'cases.eyebrow': 'Use cases', 'cases.title': 'One private-proof engine, many payers',
-    'cases.live': 'Live demo', 'cases.next': 'Next',
-    'case1.t': 'Cardiac rehab adherence', 'case1.p': 'An insurer rewards patients who actually complete supervised exercise sessions.',
-    'case2.t': 'Cold-chain compliance', 'case2.p': 'A distributor releases payment only if vaccines stayed between 2 and 8 °C the whole trip.',
-    'case.signal': 'Signal', 'case.rule': 'Rule', 'case.payer': 'Payer', 'case.reward': 'Reward',
-    'case1.signal': 'Heart rate (pulse band)', 'case1.rule': '28 of 32 readings in 90–130 bpm', 'case1.payer': 'Health insurer', 'case1.reward': '5 USDC per session',
-    'case2.signal': 'Temperature (DHT11)', 'case2.rule': 'All readings in 2–8 °C', 'case2.payer': 'Pharma distributor', 'case2.reward': 'Payment on delivery',
-    'cta.title': 'Deploy Phonendo in your hospital', 'cta.lead': 'Add readers, verifiers and publishers for every organisation, export ready-to-run configs, and start paying for verified care.',
-    'cta.btn': 'Design your network',
-    'op.eyebrow': 'Operator console', 'op.title': 'Hospital network', 'op.lead': 'Add as many readers, managers, verifiers, storages and publishers as you need, give each one to an organisation, and export ready-to-run configuration.',
+        'kpi.earned': 'Total earned', 'kpi.yourSessions': 'Sessions completed', 
+    'op.eyebrow': 'Operator console', 'op.title': 'Network', 'op.lead': 'Readers, managers, verifiers, storages and publishers of the deployment, wired to the Stellar contract. Add nodes, check them and export their configuration.',
     'op.check': 'Check all', 'op.export': 'Export deployment', 'op.reset': 'Reset to demo',
     'op.canvas': 'Network map', 'op.legend.http': 'HTTP push', 'op.legend.sse': 'SSE subscription', 'op.legend.chain': 'Stellar transaction',
     'op.lane.reader': 'Readers', 'op.lane.manager': 'Managers', 'op.lane.verifier': 'Verifiers & storage', 'op.lane.publisher': 'Publishers', 'op.lane.chain': 'Stellar',
@@ -106,8 +58,7 @@ const I18N = {
     'kindDesc.reader': 'Collects sensor readings', 'kindDesc.manager': 'Routes and retries events', 'kindDesc.verifier': 'Checks and signs readings',
     'kindDesc.storage': 'Keeps verified history', 'kindDesc.publisher': 'Proves and claims on Stellar',
     'org.hospital': 'Hospital', 'org.insurer': 'Insurer', 'org.lab': 'Lab',
-    'tpl.esp32': 'ESP32 pulse band', 'tpl.esp32d': 'Real heart-rate sensor', 'tpl.pulse': 'Simulated pulse', 'tpl.pulsed': 'For demos and tests',
-    'tpl.dht11': 'DHT11 cold chain', 'tpl.dht11d': 'Temperature sensor',
+    'tpl.pulse': 'Simulated pulse', 'tpl.pulsed': 'simulation: pulse', 'tpl.temperature': 'Simulated temperature', 'tpl.temperatured': 'simulation: temperature',
     'dlg.title': 'Add a node', 'dlg.lead': 'It appears on the map and gets its own configuration file.', 'dlg.kind': 'Type', 'dlg.template': 'Sensor profile',
     'dlg.name': 'Name', 'dlg.url': 'Address (URL)', 'dlg.urlHelp': 'Where the service listens, e.g. http://192.168.1.20:3002', 'dlg.urlError': 'Enter a URL starting with http:// or https://',
     'dlg.cancel': 'Cancel', 'dlg.add': 'Add node',
@@ -132,19 +83,15 @@ const I18N = {
     'time.now': 'just now', 'time.unknown': '25 Oct 2026',
   },
   es: {
-    'launch.eyebrow': 'Elige tu panel', 'launch.title': 'Datos de sensores verificables, <em>sin exponer los datos</em>',
-    'launch.lead': 'Phonendo conecta sensores con Stellar mediante servicios que controla el hospital y pruebas de conocimiento cero. Elige un panel para empezar.',
-    'launch.op.tag': 'Panel principal', 'launch.op.t': 'Consola del operador',
-    'launch.op.p': 'Diseña, comprueba y exporta toda la red de sensores de tu organización: readers, managers, verifiers, storage y publishers, conectados al contrato de Stellar.',
-    'launch.op.b1': 'Añade tantos nodos como quieras, por organización', 'launch.op.b2': 'Comprobación en vivo de cada servicio', 'launch.op.b3': 'Descarga las configuraciones listas para usar',
-    'launch.op.btn': 'Abrir la consola',
-    'launch.uc.eyebrow': 'Caso de uso', 'launch.uc.t': 'Rehabilitación cardíaca', 'launch.uc.p': 'Dos vistas independientes del mismo pago.',
-    'launch.pt.t': 'Panel del paciente', 'launch.pt.p': 'Premios recibidos por las sesiones completadas.',
-    'launch.in.t': 'Panel de la aseguradora', 'launch.in.p': 'Pagos verificados, sin datos de salud.', 'launch.open': 'Abrir',
+    'launch.eyebrow': 'Phonendo', 'launch.title': 'Elige un panel',
+    'launch.lead': 'Las lecturas de los sensores se convierten en pruebas en cadena: Reader, Manager, Verifier, Publisher y el contrato de Stellar. Cada panel funciona por separado.',
+    'panel.operator.t': 'Consola del operador', 'panel.operator.p': 'Servicios del despliegue: añadir, comprobar y exportar su configuración.',
+    'panel.patient.t': 'Panel del paciente', 'panel.patient.p': 'Pagos recibidos por una cuenta Stellar.',
+    'panel.insurer.t': 'Panel de la aseguradora', 'panel.insurer.p': 'Pagos realizados por el contrato.', 'launch.open': 'Abrir',
     'op.laneDesc.reader': 'Recogen datos del sensor', 'op.laneDesc.manager': 'Reparten y reintentan eventos', 'op.laneDesc.verifier': 'Comprueban y firman, guardan histórico',
     'op.laneDesc.publisher': 'Prueban y cobran', 'op.laneDesc.chain': 'Verifica y paga',
     'op.filter': 'Organización', 'op.filter.all': 'Todas', 'op.nodes': 'nodos',
-    'op.live': 'Actividad en cadena', 'op.liveEmpty': 'Aún no hay pagos.', 'op.hintTitle': 'Selecciona un nodo',
+    'op.live': 'Eventos del contrato', 'op.liveEmpty': 'Aún no hay eventos session_paid.', 'op.hintTitle': 'Selecciona un nodo',
     'op.configHint': 'Aquí aparece su configuración lista para usar.', 'op.how': 'Cómo viajan los datos',
     'op.how1': 'Los Readers recogen datos del sensor y los envían a un Manager.', 'op.how2': 'El Manager reparte cada evento y reintenta si falla.',
     'op.how3': 'Los Verifiers lo comprueban y firman. Storage guarda el histórico.', 'op.how4': 'El Publisher prueba la sesión y llama al contrato.',
@@ -152,54 +99,9 @@ const I18N = {
     'nav.home': 'Paneles', 'nav.operator': 'Consola del operador', 'nav.patient': 'Paciente', 'nav.insurer': 'Aseguradora',
     'footer.built': 'Construido sobre Stellar testnet', 'footer.contract': 'Ver el contrato en Stellar Expert',
     'net.checking': 'Conectando con testnet…', 'net.live': 'Stellar testnet · en directo', 'net.error': 'Testnet sin conexión · copia',
-    'hero.eyebrow': 'Prueba de cuidado en Stellar',
-    'hero.title': 'Premios por recuperarte de verdad. <em>Cero</em> datos de salud expuestos.',
-    'hero.lead': 'Phonendo convierte un sensor cardíaco en una prueba privada y verificable de que el paciente completó su sesión de rehabilitación cardíaca, y le paga en USDC sobre Stellar. La aseguradora recibe la prueba. Las lecturas nunca salen del hospital.',
-    'hero.cta1': 'Ver pagos en directo', 'hero.cta2': 'Abrir la consola del operador',
-    'hero.p1': 'Pruebas Groth16 sobre BLS12-381', 'hero.p2': 'Lecturas firmadas con ed25519', 'hero.p3': 'En directo en Stellar testnet',
-    'flow.private': 'Pulso · privado', 'flow.stays': 'Se queda en el hospital', 'flow.chain': 'En Stellar', 'flow.verified': 'Prueba verificada',
-    'flow.s1': 'lecturas en rango', 'flow.s2': 'lecturas en cadena', 'flow.s3': 'por sesión',
-    'problem.eyebrow': 'El problema', 'problem.title': 'La rehabilitación cardíaca funciona. Pero los pacientes la abandonan.',
-    'problem.lead': 'Las aseguradoras premiarían la constancia, pero hoy demostrarla exige entregar datos de salud en bruto o fiarse de lo que dice el paciente.',
-    'problem.1t': 'Los pacientes abandonan', 'problem.1p': 'Las sesiones son largas, repetitivas y sin recompensa. La motivación cae tras las primeras semanas.',
-    'problem.2t': 'La privacidad frena los incentivos', 'problem.2p': 'Enviar el pulso a una aseguradora es un problema de RGPD y de confianza.',
-    'problem.3t': 'Nada es verificable', 'problem.3p': 'La asistencia declarada no se puede auditar, y un formulario en papel no paga a nadie.',
-    'how.eyebrow': 'Cómo funciona', 'how.title': 'Del latido al pago en cinco pasos',
-    'how.lead': 'Todo ocurre en infraestructura que controla el hospital, hasta que una única prueba llega a Stellar.',
-    'how.1t': 'Medir', 'how.1p': 'Una banda de pulso envía la frecuencia cardíaca al Reader del hospital.',
-    'how.2t': 'Firmar', 'how.2p': 'El Verifier comprueba cada lectura y firma el lote con ed25519.',
-    'how.3t': 'Probar', 'how.3p': 'Una prueba de conocimiento cero demuestra que 28 de 32 lecturas estaban entre 90 y 130 lpm, sin revelar ninguna.',
-    'how.4t': 'Verificar', 'how.4p': 'El contrato Soroban comprueba en cadena la prueba Groth16 y la firma del hospital.',
-    'how.5t': 'Pagar', 'how.5p': 'El contrato paga 5 USDC al paciente y emite un evento público SessionPaid.',
-    'ledger.eyebrow': 'Privacidad desde el diseño', 'ledger.title': 'Qué va a la cadena y qué nunca sale',
-    'ledger.on': 'Público en Stellar', 'ledger.off': 'Nunca sale del hospital',
-    'ledger.on1': 'Una prueba sí/no de que la sesión cumple la póliza', 'ledger.on2': 'El id de sesión, para que nunca se pague dos veces',
-    'ledger.on3': 'El pago y la dirección de la cartera del paciente', 'ledger.on4': 'La póliza: rango de pulso, lecturas mínimas, recompensa',
-    'ledger.off1': 'Cada una de las lecturas de pulso', 'ledger.off2': 'Identificadores del dispositivo y horas exactas',
-    'ledger.off3': 'Historial médico y diagnóstico', 'ledger.off4': 'Cualquier vínculo entre la cartera y una identidad real',
-    'stellar.eyebrow': 'Por qué Stellar', 'stellar.title': 'Criptografía nativa, dólares reales y auditoría pública',
-    'stellar.1t': 'Conocimiento cero en cadena', 'stellar.1p': 'Las pruebas Groth16 se verifican dentro del contrato con la función nativa de emparejamiento BLS12-381.',
-    'stellar.2t': 'Firma del hospital', 'stellar.2p': 'El contrato comprueba que el lote viene de la clave del Verifier del hospital.',
-    'stellar.3t': 'Paga USDC reales', 'stellar.3p': 'Los pagos usan el contrato del activo USDC de Stellar: segundos y fracciones de céntimo.',
-    'stellar.4t': 'Sin pagos repetidos', 'stellar.4p': 'Cada sesión pagada se guarda en cadena: la misma prueba nunca cobra dos veces.',
-    'stellar.5t': 'Eventos auditables', 'stellar.5p': 'Cada pago emite session_paid. Esta web los lee en directo del RPC.',
-    'stellar.6t': 'Póliza transparente', 'stellar.6p': 'El rango, el mínimo y la recompensa los fija el pagador y cualquiera puede verlos.',
-    'live.eyebrow': 'En directo en testnet', 'live.title': 'Pagos reales, leídos directamente del ledger',
-    'live.lead': 'Sin base de datos intermedia: estas cifras salen de los eventos del contrato en Stellar testnet.',
-    'live.all': 'Abrir la vista de aseguradora',
     'kpi.paid': 'Pagado', 'kpi.sessions': 'Sesiones verificadas', 'kpi.patients': 'Pacientes premiados', 'kpi.last': 'Último pago',
-    'kpi.readings': 'Lecturas reveladas', 'kpi.readingsSub': 'la aseguradora nunca las ve',
-    'kpi.earned': 'Total ganado', 'kpi.yourSessions': 'Sesiones completadas', 'kpi.onchain': 'Tus datos en cadena', 'kpi.onchainSub': 'solo pruebas y pagos',
-    'cases.eyebrow': 'Casos de uso', 'cases.title': 'Un motor de pruebas privadas, muchos pagadores',
-    'cases.live': 'Demo en directo', 'cases.next': 'Siguiente',
-    'case1.t': 'Constancia en rehabilitación cardíaca', 'case1.p': 'Una aseguradora premia a los pacientes que completan de verdad sus sesiones de ejercicio supervisado.',
-    'case2.t': 'Cadena de frío', 'case2.p': 'Un distribuidor solo libera el pago si las vacunas se mantuvieron entre 2 y 8 °C todo el viaje.',
-    'case.signal': 'Señal', 'case.rule': 'Regla', 'case.payer': 'Pagador', 'case.reward': 'Recompensa',
-    'case1.signal': 'Pulso (banda)', 'case1.rule': '28 de 32 lecturas entre 90 y 130 lpm', 'case1.payer': 'Aseguradora de salud', 'case1.reward': '5 USDC por sesión',
-    'case2.signal': 'Temperatura (DHT11)', 'case2.rule': 'Todas las lecturas entre 2 y 8 °C', 'case2.payer': 'Distribuidor farmacéutico', 'case2.reward': 'Pago a la entrega',
-    'cta.title': 'Despliega Phonendo en tu hospital', 'cta.lead': 'Añade readers, verifiers y publishers para cada organización, exporta configuraciones listas para arrancar y empieza a pagar por cuidados verificados.',
-    'cta.btn': 'Diseña tu red',
-    'op.eyebrow': 'Consola del operador', 'op.title': 'Red del hospital', 'op.lead': 'Añade todos los readers, managers, verifiers, storages y publishers que necesites, asígnalos a una organización y exporta su configuración lista para usar.',
+        'kpi.earned': 'Total ganado', 'kpi.yourSessions': 'Sesiones completadas',
+    'op.eyebrow': 'Consola del operador', 'op.title': 'Red', 'op.lead': 'Readers, managers, verifiers, storages y publishers del despliegue, conectados al contrato de Stellar. Añade nodos, compruébalos y exporta su configuración.',
     'op.check': 'Comprobar todo', 'op.export': 'Exportar despliegue', 'op.reset': 'Volver a la demo',
     'op.canvas': 'Mapa de la red', 'op.legend.http': 'Envío HTTP', 'op.legend.sse': 'Suscripción SSE', 'op.legend.chain': 'Transacción Stellar',
     'op.lane.reader': 'Readers', 'op.lane.manager': 'Managers', 'op.lane.verifier': 'Verifiers y storage', 'op.lane.publisher': 'Publishers', 'op.lane.chain': 'Stellar',
@@ -214,8 +116,7 @@ const I18N = {
     'kindDesc.reader': 'Recoge lecturas del sensor', 'kindDesc.manager': 'Reparte y reintenta eventos', 'kindDesc.verifier': 'Comprueba y firma lecturas',
     'kindDesc.storage': 'Guarda el histórico verificado', 'kindDesc.publisher': 'Prueba y cobra en Stellar',
     'org.hospital': 'Hospital', 'org.insurer': 'Aseguradora', 'org.lab': 'Laboratorio',
-    'tpl.esp32': 'Banda de pulso ESP32', 'tpl.esp32d': 'Sensor cardíaco real', 'tpl.pulse': 'Pulso simulado', 'tpl.pulsed': 'Para demos y pruebas',
-    'tpl.dht11': 'Cadena de frío DHT11', 'tpl.dht11d': 'Sensor de temperatura',
+    'tpl.pulse': 'Pulso simulado', 'tpl.pulsed': 'simulation: pulse', 'tpl.temperature': 'Temperatura simulada', 'tpl.temperatured': 'simulation: temperature',
     'dlg.title': 'Añadir un nodo', 'dlg.lead': 'Aparece en el mapa con su propio archivo de configuración.', 'dlg.kind': 'Tipo', 'dlg.template': 'Perfil del sensor',
     'dlg.name': 'Nombre', 'dlg.url': 'Dirección (URL)', 'dlg.urlHelp': 'Donde escucha el servicio, p. ej. http://192.168.1.20:3002', 'dlg.urlError': 'Escribe una URL que empiece por http:// o https://',
     'dlg.cancel': 'Cancelar', 'dlg.add': 'Añadir nodo',
@@ -244,16 +145,17 @@ const I18N = {
 const KINDS = ['reader', 'manager', 'verifier', 'storage', 'publisher'];
 const KIND_ICON = { reader: 'cpu', manager: 'hub', verifier: 'shield', storage: 'db', publisher: 'send' };
 const LANE_OF = { reader: 0, manager: 1, verifier: 2, storage: 2, publisher: 3 };
-const TEMPLATES = { esp32: 'heart', pulse: 'pulse', dht11: 'thermo' };
+const TEMPLATES = { pulse: 'pulse', temperature: 'thermo' };
 const ORGS = ['hospital', 'insurer', 'lab'];
-const STORE_KEY = 'phonendo.network.v1';
+const STORE_KEY = 'phonendo.network.v2';
 
+// Despliegue local de deploy/docker/compose.yml.
 const DEMO_NETWORK = [
-  { id: 'reader-1', kind: 'reader', name: 'Rehab band 1', org: 'hospital', url: 'http://localhost:7101', template: 'pulse', managers: ['manager-1'] },
-  { id: 'manager-1', kind: 'manager', name: 'Hospital manager', org: 'hospital', url: 'http://localhost:7102', managers: [] },
-  { id: 'verifier-1', kind: 'verifier', name: 'Hospital verifier', org: 'hospital', url: 'http://localhost:7103', managers: ['manager-1'] },
-  { id: 'storage-1', kind: 'storage', name: 'Clinical storage', org: 'hospital', url: 'http://localhost:7104', managers: ['manager-1'] },
-  { id: 'publisher-1', kind: 'publisher', name: 'Rehab publisher', org: 'hospital', url: 'http://localhost:3005', managers: ['manager-1'] },
+  { id: 'reader-1', kind: 'reader', name: 'reader-docker', org: 'hospital', url: 'http://localhost:7101', template: 'pulse', managers: ['manager-1'] },
+  { id: 'manager-1', kind: 'manager', name: 'manager', org: 'hospital', url: 'http://localhost:7102', managers: [] },
+  { id: 'verifier-1', kind: 'verifier', name: 'verifier', org: 'hospital', url: 'http://localhost:7103', managers: ['manager-1'] },
+  { id: 'storage-1', kind: 'storage', name: 'storage', org: 'hospital', url: 'http://localhost:7104', managers: ['manager-1'] },
+  { id: 'publisher-1', kind: 'publisher', name: 'publisher', org: 'hospital', url: 'http://localhost:3005', managers: ['manager-1'] },
 ];
 
 const state = {
@@ -479,96 +381,22 @@ function miniNetwork() {
 }
 
 function viewHome() {
-  const s = stats(state.events);
-  const steps = [['heart', 1], ['shield', 2], ['lock', 3], ['contract', 4], ['coin', 5]];
-  const features = [
-    ['bls12_381.pairing_check', 1], ['ed25519_verify', 2], ['token::Client · USDC SAC', 3],
-    ['storage().persistent()', 4], ['events: session_paid', 5], ['set_policy()', 6],
-  ];
+  const panel = (key, icon, cls) => `<a class="panel-card ${cls}" href="${CONFIG.panels[key]}">
+    <span class="panel-icon">${ic(icon)}</span>
+    <h2>${t(`panel.${key}.t`)}</h2>
+    <p>${t(`panel.${key}.p`)}</p>
+    ${key === 'operator' ? miniNetwork() : ''}
+    <span class="panel-open">${t('launch.open')} ${ic('arrow', 'icon tiny')}</span>
+  </a>`;
   return `
   <section class="hero launcher"><div class="wrap">
     <span class="eyebrow">${t('launch.eyebrow')}</span>
     <h1>${t('launch.title')}</h1>
     <p class="lead">${t('launch.lead')}</p>
-    <div class="launch-grid">
-      <a class="launch-main" href="#/operator">
-        <div class="launch-main-top"><span class="chip chip-hot">${ic('star', 'icon tiny')}${t('launch.op.tag')}</span></div>
-        <div class="launch-main-body">
-          <div>
-            <h2>${t('launch.op.t')}</h2>
-            <p>${t('launch.op.p')}</p>
-            <ul class="tick-list">${[1, 2, 3].map((n) => `<li>${ic('check')}${t(`launch.op.b${n}`)}</li>`).join('')}</ul>
-            <span class="btn btn-gold">${t('launch.op.btn')} ${ic('arrow')}</span>
-          </div>
-          ${miniNetwork()}
-        </div>
-      </a>
-      <div class="launch-side">
-        <div class="launch-uc-head"><span class="eyebrow">${t('launch.uc.eyebrow')}</span><b>${t('launch.uc.t')}</b><small>${t('launch.uc.p')}</small></div>
-        <a class="launch-small" href="#/patient">${ic('user')}<span><b>${t('launch.pt.t')}</b><small>${t('launch.pt.p')}</small></span><em>${t('launch.open')} ${ic('arrow', 'icon tiny')}</em></a>
-        <a class="launch-small" href="#/insurer">${ic('building')}<span><b>${t('launch.in.t')}</b><small>${t('launch.in.p')}</small></span><em>${t('launch.open')} ${ic('arrow', 'icon tiny')}</em></a>
-      </div>
-    </div>
-  </div></section>
-
-  <section class="section"><div class="wrap">
-    <div class="section-head"><span class="eyebrow dark">${t('problem.eyebrow')}</span><h2>${t('problem.title')}</h2><p>${t('problem.lead')}</p></div>
-    <div class="problem-grid">
-      ${[['clock', 'coral'], ['eye', 'gold'], ['alert', 'sky']].map(([icon, tone], i) => `
-        <article class="card problem"><div class="badge tone-${tone}">${ic(icon)}</div><h3>${t(`problem.${i + 1}t`)}</h3><p>${t(`problem.${i + 1}p`)}</p></article>`).join('')}
-    </div>
-  </div></section>
-
-  <section class="section dark" id="how"><div class="wrap">
-    <div class="section-head"><span class="eyebrow">${t('how.eyebrow')}</span><h2>${t('how.title')}</h2><p>${t('how.lead')}</p></div>
-    <div class="steps">
-      ${steps.map(([icon, n]) => `<article class="step">${ic(icon)}<h3>${t(`how.${n}t`)}</h3><p>${t(`how.${n}p`)}</p></article>`).join('')}
-    </div>
-  </div></section>
-
-  <section class="section alt"><div class="wrap">
-    <div class="section-head"><span class="eyebrow dark">${t('ledger.eyebrow')}</span><h2>${t('ledger.title')}</h2></div>
-    <div class="split">
-      <div class="card ledger-col onchain"><h3>${ic('star')}${t('ledger.on')}</h3><ul>
-        ${[1, 2, 3, 4].map((n) => `<li>${ic('check')}<span>${t(`ledger.on${n}`)}</span></li>`).join('')}
-      </ul></div>
-      <div class="card ledger-col offchain"><h3>${ic('building')}${t('ledger.off')}</h3><ul>
-        ${[1, 2, 3, 4].map((n) => `<li>${ic('eye-off')}<span>${t(`ledger.off${n}`)}</span></li>`).join('')}
-      </ul></div>
-    </div>
-  </div></section>
-
-  <section class="section"><div class="wrap">
-    <div class="section-head"><span class="eyebrow dark">${t('stellar.eyebrow')}</span><h2>${t('stellar.title')}</h2></div>
-    <div class="stellar-grid">
-      ${features.map(([code, n]) => `<article class="card feature"><code>${esc(code)}</code><h3>${t(`stellar.${n}t`)}</h3><p>${t(`stellar.${n}p`)}</p></article>`).join('')}
-    </div>
-  </div></section>
-
-  <section class="section alt"><div class="wrap">
-    <div class="section-head"><span class="eyebrow dark">${t('live.eyebrow')}</span><h2>${t('live.title')}</h2><p>${t('live.lead')}</p></div>
-    ${snapshotNotice()}
-    <div class="live-strip">
-      ${kpi(t('kpi.paid'), totalsText(s.totals), '', true)}
-      ${kpi(t('kpi.sessions'), s.sessions)}
-      ${kpi(t('kpi.patients'), s.patients)}
-      ${kpi(t('kpi.readings'), '0', t('kpi.readingsSub'))}
-    </div>
-    <div class="card table-card">
-      <div class="table-head"><h2>${t('in.table')}</h2><a class="btn btn-line btn-sm" href="#/insurer">${t('live.all')} ${ic('arrow', 'icon tiny')}</a></div>
-      ${paymentsTable(state.events, { limit: 5 })}
-    </div>
-  </div></section>
-
-  <section class="section"><div class="wrap">
-    <div class="section-head"><span class="eyebrow dark">${t('cases.eyebrow')}</span><h2>${t('cases.title')}</h2></div>
-    <div class="cases">
-      ${[[1, 'heart', 'chip-ok', 'cases.live'], [2, 'thermo', 'chip-info', 'cases.next']].map(([n, icon, chip, label]) => `
-        <article class="card case">
-          <div class="case-top"><div class="node-icon big">${ic(icon)}</div><span class="chip ${chip}">${t(label)}</span></div>
-          <h3>${t(`case${n}.t`)}</h3><p>${t(`case${n}.p`)}</p>
-          <dl>${['signal', 'rule', 'payer', 'reward'].map((k) => `<dt>${t(`case.${k}`)}</dt><dd>${t(`case${n}.${k}`)}</dd>`).join('')}</dl>
-        </article>`).join('')}
+    <div class="panel-grid">
+      ${panel('operator', 'hub', 'main')}
+      ${panel('patient', 'user', '')}
+      ${panel('insurer', 'building', '')}
     </div>
   </div></section>`;
 }
@@ -669,8 +497,8 @@ function detailPanel() {
       <h3>${ic('contract', 'icon tiny')}adherence · Soroban</h3>
       <dl class="kv">
         ${CONFIG.contracts.map((c) => `<dt>${c.asset}</dt><dd class="mono"><a href="${CONFIG.explorer}/contract/${c.id}" target="_blank" rel="noopener">${short(c.id, 8, 6)}</a></dd>`).join('')}
-        <dt>${t('in.policy')}</dt><dd>${CONFIG.policy.min}–${CONFIG.policy.max} bpm · ${CONFIG.policy.minCount}/${CONFIG.policy.batch} · ${CONFIG.policy.payout}</dd>
-        <dt>${t('kpi.sessions')}</dt><dd>${state.events.length}</dd>
+        <dt>claim()</dt><dd>Groth16 BLS12-381 + ed25519</dd>
+        <dt>session_paid</dt><dd>${state.events.length}</dd>
       </dl>
       <p class="tip">${t('op.contractTip')}</p>
     </div></div>`;
@@ -740,7 +568,7 @@ function configFor(node) {
         stream: { enabled: true },
       };
       if (node.template === 'pulse') config.simulation = 'pulse';
-      if (node.template === 'dht11') config.simulation = 'temperature';
+      if (node.template === 'temperature') config.simulation = 'temperature';
       return config;
     }
     case 'manager':
@@ -843,7 +671,7 @@ function nodeDialog(kind) {
           ${Object.keys(TEMPLATES).map((k) => `<button type="button" class="choice" data-template="${k}" aria-pressed="${k === draft.template}">${ic(TEMPLATES[k])}<b>${t(`tpl.${k}`)}</b><span>${t(`tpl.${k}d`)}</span></button>`).join('')}
         </div></div>` : ''}
         <div class="field-row">
-          <div class="field"><label for="f-name">${t('dlg.name')}</label><input id="f-name" required value="${esc(`${t(`kind.${draft.kind}`)} ${count}`)}"></div>
+          <div class="field"><label for="f-name">${t('dlg.name')}</label><input id="f-name" required value="${esc(`${draft.kind}-${count}`)}"></div>
           <div class="field"><label for="f-org">${t('op.org')}</label><select id="f-org">${ORGS.map((o) => `<option value="${o}">${t(`org.${o}`)}</option>`).join('')}</select></div>
         </div>
         <div class="field"><label for="f-url">${t('dlg.url')}</label><input id="f-url" inputmode="url" value="http://localhost:${defaults[draft.kind]}"><small id="f-url-help">${t('dlg.urlHelp')}</small></div>
@@ -971,7 +799,7 @@ function viewPatient() {
       ${kpi(t('kpi.earned'), totalsText(s.totals), '', true)}
       ${kpi(t('kpi.yourSessions'), s.sessions)}
       ${kpi(t('kpi.last'), s.last ? esc(timeAgo(s.last.paidAt)) : '—')}
-      ${kpi(t('kpi.onchain'), '0', t('kpi.onchainSub'))}
+      ${kpi(t('pt.account'), `<span class="mono">${esc(short(state.patient, 5, 4))}</span>`)}
     </div>
     <div class="two-col">
       <div class="card table-card">
@@ -1012,7 +840,7 @@ function viewInsurer() {
       ${kpi(t('kpi.paid'), totalsText(s.totals), '', true)}
       ${kpi(t('kpi.sessions'), s.sessions)}
       ${kpi(t('kpi.patients'), s.patients)}
-      ${kpi(t('kpi.readings'), '0', t('kpi.readingsSub'))}
+      ${kpi(t('kpi.last'), s.last ? esc(timeAgo(s.last.paidAt)) : '—')}
     </div>
     <div class="two-col">
       <div class="card table-card">
