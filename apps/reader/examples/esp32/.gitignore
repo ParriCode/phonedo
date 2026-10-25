@@ -1,0 +1,3 @@
+# Credenciales reales: se copian de src/secrets.example.h
+src/secrets.h
+.pio/
