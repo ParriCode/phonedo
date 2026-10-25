@@ -204,13 +204,14 @@ payment code. Everything Stellar is built at the event.
 | What | Value |
 | --- | --- |
 | `adherence`, paying XLM (used for the first claim) | `CAPZ2O7LPTRGJ2Q7TTHMCHOKRZ4T7KU5I4E74M2U3YUTC3XONIQDOP2D` |
-| `adherence`, paying USDC (funded with 20 USDC; used by the Publisher) | `CBF2MBQ6W4S6LD3JSIM3NNZET5KBUKOADRZSKIYZRZBAXRM6OJZCNSFI` |
+| `adherence`, paying USDC, current format (rehabilitation, 0.1 USDC per session; used by the Publisher) | `CD3ZLDTB7QKJLMAIBSCL75TRHE6IUZ27RW5FLWNB4F3GUQENZZZSM45H` |
+| `adherence`, paying USDC, previous signature format (retired) | `CBF2MBQ6W4S6LD3JSIM3NNZET5KBUKOADRZSKIYZRZBAXRM6OJZCNSFI` |
 | First on-chain claim (proof + signature verified, 5 XLM paid) | `891b2fe1504a9d9c0a34146828e9caac9527a41e3d467eaecf5a994c145c0aa1` |
 | Fund the USDC contract (20 USDC) | `f791426c649045fc02dfbbf7cc69d1b6796292d53da0a4455a6499a0657dc4fa` |
 | First USDC claim (manual, 5 USDC paid) | `0ba0adb7ca42e09350f71eec15c09d252dcfacf13b6cc3672afab8017ce78033` |
 | First end-to-end USDC claim (simulated pulse Reader through the Publisher) | `2a345e9fdf594fc385107a2e1a2e973d3cb16f5274fc14e763bbe9dc0406ef47` |
 | `adherence` for cold chain (2-8 °C, USDC, same Verifier key) | `CDNPBN6HZP4PZKRFOOA2PYC772KF4THXTJNKHBS5Y33HCAVDWCVO5SRE` |
-| First cold-chain claim (simulated temperature Reader through the Publisher, 50 USDC) | `639fcfddd74ddcd1344a26cd1638ac5f66e12a7bc2f69be04da8fb7815a9efb6` |
+| First cold-chain claim (simulated temperature Reader through the Publisher, 5 USDC) | `639fcfddd74ddcd1344a26cd1638ac5f66e12a7bc2f69be04da8fb7815a9efb6` |
 
 Both use policy 90-130 bpm, 28 of 32 readings, payout 5 units, and the
 development Verifier key from `circuits/build/verifier_dev_key.json`. A new

@@ -96,8 +96,10 @@ docker compose -f deploy/docker/compose.yml up --build -d --wait
 curl http://127.0.0.1:7105/info
 ```
 
-El Reader simulado de Docker emite pulso de 95 a 120 (`"simulation": "pulse"` en
-`deploy/docker/reader.json`), dentro de la política de rehabilitación (90-130). Con
-temperaturas de 20 a 30 sus lotes no cumplirían y no se cobrarían.
+El Reader simulado de Docker (`"simulation": "demo"` en `deploy/docker/reader.json`)
+emite 32 lecturas de pulso de 95 a 120, que cumplen la política de rehabilitación
+(90-130), y después 32 de temperatura de 2 a 8 °C para la cadena de frío, que se
+cobra en el contrato de `devices` de `deploy/docker/publisher.json`. Con temperaturas
+de 20 a 30 sus lotes no cumplirían y no se cobrarían.
 
 [Arquitectura general](../../docs/diagramas.md).
