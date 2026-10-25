@@ -3,7 +3,7 @@ import json
 import queue
 from flask import Response, abort, request
 
-def stream_response(stream, token):
+def stream_response(stream, token, on_close=None):
     supplied = request.headers.get('Authorization', '')
     if not token or not hmac.compare_digest(supplied, 'Bearer ' + token):
         abort(401)
@@ -23,6 +23,9 @@ def stream_response(stream, token):
                 yield ('event: observation\nid: ' + str(event['key']) + '\ndata: '
                        + json.dumps(event, ensure_ascii=False, separators=(',', ':')) + '\n\n')
 
-    return Response(events(), mimetype='text/event-stream',
-                    headers={'Cache-Control': 'no-cache', 'X-Accel-Buffering': 'no'})
+    response = Response(events(), mimetype='text/event-stream',
+                        headers={'Cache-Control': 'no-cache', 'X-Accel-Buffering': 'no'})
+    if on_close:
+        response.call_on_close(on_close)
+    return response
 

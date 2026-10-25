@@ -49,7 +49,7 @@ class ReaderStreamTests(unittest.TestCase):
         self.assertEqual(get.call_args_list[1].args[0], 'http://reader/stream')
         self.assertEqual(get.call_args_list[1].kwargs['headers']['Authorization'], 'Bearer reader-secret')
 
-    def test_http_reader_takes_priority_over_stream(self):
+    def test_http_reader_selected_before_stream(self):
         with patch.dict(os.environ, {'MANAGER_PASSWORD': 'test-secret',
                                       'API_TOKEN_MANAGER': 'manager-token',
                                       'PHONENDO_LOGGING': 'false'}):
@@ -61,13 +61,11 @@ class ReaderStreamTests(unittest.TestCase):
                     'readerId': 'r1', 'deviceId': 'd1', 'payloadFormat': 'application/json',
                     'payload': {'value': 1}}
             with patch.object(manager.core, 'attempt_event', return_value=({'status': 'Verified'}, 200)) as process:
-                manager.core.on_reader_stream_event({key: value for key, value in body.items() if key != 'token'})
-                self.assertEqual(process.call_count, 1)
                 response = manager.app.test_client().post('/newEvent', json=body)
                 self.assertEqual(response.status_code, 200)
-                self.assertEqual(process.call_count, 2)
+                self.assertEqual(process.call_count, 1)
                 manager.core.on_reader_stream_event({key: value for key, value in body.items() if key != 'token'})
-                self.assertEqual(process.call_count, 2)
+                self.assertEqual(process.call_count, 1)
             manager.core.pending_events.close()
 
 

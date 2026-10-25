@@ -19,7 +19,8 @@ de los datos forma parte del diseño y está pendiente de integración.
 ![Relaciones entre los servicios de Phonendo](docs/phonendo.svg)
 
 El Manager consume las observaciones del Reader por SSE. Si un mismo Reader envía
-eventos por `/newEvent`, esa entrada HTTP tiene prioridad sobre su stream.
+eventos por `/newEvent`, el Manager permite solo el primer transporte seleccionado
+para ese Reader (HTTP o SSE) durante su ejecución.
 La verificación admite HTTP o SSE. El guardado puede utilizar HTTP o las
 suscripciones de Storage a las salidas del Manager.
 El Verifier también consume streams de Managers y publica resultados por SSE;

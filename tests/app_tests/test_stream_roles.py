@@ -34,7 +34,7 @@ def test_targeted_outputs_without_own_stream():
         api_token_manager='m', api_token_verifier='v', api_token_storage='s')
     server = ManagerServer(app, config)
     assert app.test_client().get('/stream').status_code == 404
-    response = app.test_client().get('/stream/verifier', headers={'Authorization':'Bearer v'}, buffered=False)
+    response = app.test_client().get('/stream/verifier', headers={'Authorization':'Bearer v', 'X-Phonendo-Service-URL':'http://v'}, buffered=False)
     next(response.response)
     server.publish_captured({'key':'target','value':{}})
     assert b'target' in next(response.response)

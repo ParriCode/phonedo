@@ -1,15 +1,20 @@
 """Manager HTTP routes and SSE endpoints."""
 import os
 import time
-from flask import g, request
+import threading
+import hmac
+from flask import g, request, abort
 from manager_support.logger import Logger
 from manager_support.event_stream import EventStream
 from manager_support.server_stream import stream_response
+from manager_support.transport import endpoint, http_endpoints
 
 
 class ManagerServer:
     def __init__(self, app, config):
         self.config = config
+        self._connections = set()
+        self._connections_lock = threading.Lock()
         self.own_stream = EventStream()
         if config.stream_enabled:
             app.add_url_rule('/stream', 'stream',
@@ -18,10 +23,40 @@ class ManagerServer:
         self.storage_stream = EventStream()
         if config.output_verifiers:
             app.add_url_rule('/stream/verifier', 'stream_verifier',
-                             lambda: self._response(self.verifier_stream, config.api_token_verifier))
+                             lambda: self._service_response('verifier', self.verifier_stream, config.api_token_verifier))
         if config.output_storages:
             app.add_url_rule('/stream/storage', 'stream_storage',
-                             lambda: self._response(self.storage_stream, config.api_token_storage))
+                             lambda: self._service_response('storage', self.storage_stream, config.api_token_storage))
+
+    def _service_response(self, service, stream, token):
+        if not token or not hmac.compare_digest(request.headers.get('Authorization', ''), 'Bearer ' + token):
+            abort(401)
+        try:
+            source = endpoint(request.headers.get('X-Phonendo-Service-URL', ''))
+        except ValueError:
+            Logger.warning('stream_identity_required', service=service)
+            return {'error': 'X-Phonendo-Service-URL must identify the subscribing service'}, 400
+        key = (service, source)
+        uses_http = source in http_endpoints(self.config, service)
+        with self._connections_lock:
+            if uses_http or key in self._connections:
+                Logger.warning('redundant_transport_rejected', service=service, url=source,
+                               selected='http' if uses_http else 'sse',
+                               rejected='sse')
+                return {'error': 'A transport is already selected for this service'}, 409
+            self._connections.add(key)
+        Logger.info('transport_selected', service=service, url=source, transport='sse')
+        released = False
+        def release():
+            nonlocal released
+            with self._connections_lock:
+                if released:
+                    return
+                released = True
+                self._connections.discard(key)
+            Logger.info('stream_connection_released', service=service, url=source)
+        response = stream_response(stream, token, on_close=release)
+        return response
 
     _response = staticmethod(stream_response)
 
@@ -99,7 +134,7 @@ def register_routes(app, core):
             Logger.warning("manager_new_event_bad_request", missing="eventType")
             return {"error": "eventType is required"}, 400
 
-        # Once a Reader uses HTTP, its SSE observations are ignored for this process.
-        core.prefer_http(reader_id)
+        if not core.prefer_http(reader_id):
+            return {'error': 'This Reader already uses SSE with this Manager'}, 409
 
         return core.submit_observation(body)

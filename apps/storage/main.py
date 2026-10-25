@@ -147,7 +147,8 @@ if storage_config.manager_subscriptions:
         target = {'url': target} if isinstance(target, str) else dict(target)
         target['url'] = target['url'].rstrip('/') + '/stream/storage'
         manager_targets.append(target)
-manager_subscriptions = StreamClient(manager_targets, storage_config.token, consume_manager_event)
+manager_subscriptions = StreamClient(manager_targets, storage_config.token, consume_manager_event,
+                                     service_url=storage_config.public_url)
 manager_subscriptions.start()
 atexit.register(manager_subscriptions.close)
 

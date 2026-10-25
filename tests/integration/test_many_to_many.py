@@ -18,6 +18,7 @@ def test_many_to_many_http_and_storage_streams(tmp_path):
     urls = {name: f'http://127.0.0.1:{ports[name]}' for name in names}
     processes, logs = [], []
     def start(name, service, entry, config):
+        config.setdefault('server', {})['publicUrl'] = urls[name]
         path = tmp_path / (name + '.json')
         path.write_text(json.dumps(config))
         env = {**os.environ, service.upper() + '_CONFIG_PATH': str(path),

@@ -1,5 +1,11 @@
 # Verifier
 
+Si se configura `subscriptions.managers`, define `server.publicUrl` (o
+`VERIFIER_PUBLIC_URL`) con la URL base del Verifier usada por los Managers,
+por ejemplo `http://verifier:5000`. El suscriptor envía esta identidad en
+`X-Phonendo-Service-URL`. El Manager rechaza con 409 la conexión SSE si ya
+utiliza HTTP con este Verifier o existe otra suscripción activa de él.
+
 Valida los eventos Captured recibidos del Manager: comprueba sus campos, formato,
 fecha y hash del contenido. Si los acepta, produce un evento Verified con firma
 RSA/SHA-256. Un rechazo no se publica como resultado verificado.

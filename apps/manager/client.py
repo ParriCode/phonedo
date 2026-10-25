@@ -3,6 +3,7 @@
 import requests
 
 from manager_support.logger import Logger
+from manager_support.transport import endpoint, http_endpoints
 
 
 class InternalPostError(RuntimeError):
@@ -23,9 +24,15 @@ class ManagerClient:
         targets = getattr(self.config, service + '_url_list')
         if not targets:
             raise RuntimeError(f'No {service} configured in services.{service}s')
+        seen = set()
         for target in targets:
             target = {'url': target} if isinstance(target, str) else target
-            yield target['url'].rstrip('/'), target.get(
+            base = endpoint(target)
+            if base in seen:
+                Logger.warning('duplicate_destination_ignored', service=service, url=base)
+                continue
+            seen.add(base)
+            yield base, target.get(
                 'token', getattr(self.config, 'api_token_' + service))
 
     def _broadcast(self, service, path, message, completed=None):
@@ -81,10 +88,8 @@ class ManagerClient:
         except ValueError:
             return response.text
 
-    def consume_reader_stream(self, reader_url: str, on_event, stop_event) -> None:
+    def consume_reader_stream(self, reader_url: str, on_event, stop_event, core=None):
         """Consume one Reader SSE connection; caller handles reconnection."""
-        import json
-
         target = {'url': reader_url} if isinstance(reader_url, str) else reader_url
         base_url = target['url'].rstrip('/')
         headers = {}
@@ -104,9 +109,23 @@ class ManagerClient:
                 or capabilities.get('stream') is not True):
             raise ValueError(f'Reader at {base_url} has no usable stream metadata')
 
+        if core is not None and not core.acquire_reader_stream(reader_id):
+            # A selected HTTP transport must not trigger repeated SSE attempts.
+            return False
+        try:
+            self._read_reader_stream(base_url, headers, reader_id, on_event, stop_event, core)
+        finally:
+            if core is not None:
+                core.release_reader_stream(reader_id)
+        return True
+
+    def _read_reader_stream(self, base_url, headers, reader_id, on_event, stop_event, core=None):
+        import json
         with requests.get(f'{base_url}/stream', headers=headers, stream=True,
                           timeout=(self.timeout, 30)) as response:
             response.raise_for_status()
+            if core is not None:
+                core.activate_reader_stream(reader_id)
             event_type = None
             data = []
             for line in response.iter_lines(decode_unicode=True):
@@ -133,18 +152,25 @@ class ManagerClient:
                 elif line.startswith('data:'):
                     data.append(line[5:].lstrip())
 
-    def start_reader_subscriptions(self, on_event):
+    def start_reader_subscriptions(self, on_event, core=None):
         """Start configured Reader subscriptions and return a stop function."""
         import threading
 
         stop_event = threading.Event()
         threads = []
+        seen = set()
         if self.config.reader_subscriptions:
             for reader_url in self.config.reader_subscriptions:
+                source = endpoint(reader_url)
+                if source in seen:
+                    Logger.warning('duplicate_subscription_ignored', service='reader', url=source)
+                    continue
+                seen.add(source)
                 def run(url=reader_url):
                     while not stop_event.is_set():
                         try:
-                            self.consume_reader_stream(url, on_event, stop_event)
+                            if self.consume_reader_stream(url, on_event, stop_event, core) is False:
+                                return
                         except (requests.RequestException, ValueError) as error:
                             Logger.warning('reader_stream_disconnected', url=url, error=str(error))
                         stop_event.wait(5)
@@ -161,13 +187,19 @@ class ManagerClient:
 
     def start_subscriptions(self, core):
         from manager_support.stream_client import StreamClient
-        stops = [self.start_reader_subscriptions(core.on_reader_stream_event)]
+        stops = [self.start_reader_subscriptions(core.on_reader_stream_event, core)]
         for service, targets, callback in (
                 ('verifier', self.config.verifier_subscriptions, core.on_verifier_stream_event),
                 ('storage', self.config.storage_subscriptions, core.on_storage_stream_event)):
+            seen = set()
             for entry in targets:
                 target = {'url': entry} if isinstance(entry, str) else dict(entry)
-                source = target['url'].rstrip('/')
+                source = endpoint(target)
+                if source in http_endpoints(self.config, service) or source in seen:
+                    Logger.warning('redundant_subscription_ignored', service=service, url=source,
+                                   selected='http' if source in http_endpoints(self.config, service) else 'sse')
+                    continue
+                seen.add(source)
                 target['url'] = source + '/stream'
                 client = StreamClient([target], getattr(self.config, 'api_token_' + service),
                     lambda message, source=source, callback=callback: callback(source, message))

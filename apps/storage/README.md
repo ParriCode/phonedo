@@ -1,5 +1,11 @@
 # Storage
 
+Si se configura `subscriptions.managers`, define `server.publicUrl` (o
+`STORAGE_PUBLIC_URL`) con la URL base del Storage usada por los Managers,
+por ejemplo `http://storage:5000`. El suscriptor envía esta identidad en
+`X-Phonendo-Service-URL`. El Manager rechaza con 409 la conexión SSE si ya
+utiliza HTTP con este Storage o existe otra suscripción activa de él.
+
 Guarda eventos en LevelDB. El Manager envía los eventos después de una
 verificación positiva. Storage no verifica
 por sí mismo el hash ni la firma del evento.

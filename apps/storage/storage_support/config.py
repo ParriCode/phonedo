@@ -10,7 +10,10 @@ class StorageConfig:
         data = json.loads(path.read_text(encoding='utf-8'))
         self.host = data.get('server', {}).get('host', '0.0.0.0')
         self.port = int(os.getenv('PORT_STORAGE', data.get('server', {}).get('port', 5000)))
+        self.public_url = os.getenv('STORAGE_PUBLIC_URL') or data.get('server', {}).get('publicUrl')
         self.database_path = os.getenv('PHONENDO_DB_PATH', data.get('databasePath', '/tmp/phonendo_db_path'))
         self.manager_subscriptions = data.get('subscriptions', {}).get('managers', [])
+        if self.manager_subscriptions and not self.public_url:
+            raise ValueError('Storage SSE subscriptions require server.publicUrl or STORAGE_PUBLIC_URL')
         self.stream_enabled = data.get('stream', {}).get('enabled', True)
         self.token = os.getenv('API_TOKEN_STORAGE', data.get('token', ''))

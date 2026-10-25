@@ -6,13 +6,14 @@ from .logger import Logger
 
 
 class StreamClient:
-    def __init__(self, urls, token, on_event, retry_seconds=5):
+    def __init__(self, urls, token, on_event, retry_seconds=5, service_url=None):
         self.urls = urls
         self.token = token
         self.on_event = on_event
         self.retry_seconds = retry_seconds
         self.stopped = threading.Event()
         self.threads = []
+        self.service_url = service_url
 
     def start(self):
         if self.threads:
@@ -29,6 +30,8 @@ class StreamClient:
         while not self.stopped.is_set():
             try:
                 headers = {'Authorization': 'Bearer ' + token} if token else {}
+                if self.service_url:
+                    headers['X-Phonendo-Service-URL'] = self.service_url
                 with requests.get(url, headers=headers, stream=True, timeout=(10, 30)) as response:
                     response.raise_for_status()
                     kind, data = '', []

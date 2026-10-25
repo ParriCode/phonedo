@@ -8,7 +8,7 @@ Publisher está pendiente de integración.
 ## Organización
 
 - `manager.py`: configuración y arranque.
-- `core.py`: procesamiento, prioridad HTTP y cola de reintentos.
+- `core.py`: procesamiento, selección de transporte por Reader y cola de reintentos.
 - `server.py`: endpoints HTTP y streams de salida.
 - `client.py`: comunicaciones con otros servicios y consumo del Reader.
 - `config.py`: configuración del servicio.
@@ -34,6 +34,7 @@ Los POST requieren `token` en el JSON, igual a `API_TOKEN_MANAGER`.
 | Timeout; pendiente en memoria | `202 Pending` |
 | Rechazo explícito del Verifier | `422 Rejected` |
 | Fallo de servicio interno | `502 Failed` |
+| Reader con SSE ya seleccionado | `409 Conflict` |
 
 Un token inválido devuelve 401; campos ausentes, 400. Un fallo al calcular el hash
 devuelve 500. Las respuestas de procesamiento incluyen `eventId`; los fallos y
@@ -78,9 +79,33 @@ El Manager conserva un máximo de `MANAGER_QUEUE_SIZE` correlaciones SSE en memo
 al reiniciar se pierden. Ignora resultados ajenos, alterados respecto al Captured
 o ya recibidos de la misma fuente. Al recibir un resultado guarda por HTTP; si esa llamada tiene timeout, entra en la cola habitual.
 
-Desde que llega un `/newEvent` válido de un `readerId`, su SSE se ignora hasta
-reiniciar el Manager. Cada observación contiene `readerId` y `deviceId`; no requiere
+Cada Reader utiliza un único transporte con este Manager: el primer `/newEvent`
+válido selecciona HTTP; un SSE establecido selecciona SSE. Con HTTP seleccionado,
+el Manager no abre el stream de ese Reader. Con SSE seleccionado, `/newEvent`
+devuelve 409. La selección dura hasta reiniciar el Manager, también durante una
+desconexión SSE; el stream puede reconectarse, sin abrir conexiones simultáneas
+para el mismo `readerId`. Un intento SSE fallido antes de establecerse libera la
+reserva y permite HTTP. Cada observación contiene `readerId` y `deviceId`; no requiere
 registro previo ni consultas de dispositivos. Storage decide cómo organizar su base de datos.
+
+Para Verifier y Storage, los destinos de `services` seleccionan HTTP. El Manager
+omite sus suscripciones SSE a esos mismos destinos y rechaza con 409 las
+suscripciones entrantes redundantes a `/stream/verifier` y `/stream/storage`.
+Otros destinos pueden usar SSE simultáneamente. También se eliminan URLs repetidas
+de las listas y se rechaza una segunda conexión SSE activa del mismo servicio.
+
+Los Verifiers y Storages que se suscriben deben configurar `server.publicUrl`
+(o `VERIFIER_PUBLIC_URL` / `STORAGE_PUBLIC_URL`) con su URL base, igual a la usada
+en la configuración del Manager. La envían en `X-Phonendo-Service-URL`, junto al
+Bearer habitual. Sin identidad válida, las salidas específicas devuelven 400.
+Se normalizan barras finales, mayúsculas del host y puertos HTTP(S) por defecto;
+los alias DNS distintos deben configurarse con una misma URL canónica. `/stream`
+general queda destinado a monitorización; los servicios usan las salidas específicas.
+
+Los logs `transport_selected`, `redundant_transport_rejected`,
+`redundant_subscription_ignored`, `duplicate_subscription_ignored` y
+`duplicate_destination_ignored` explican la selección o exclusión por servicio.
+No se deduplican observaciones ni se cambian sus IDs o hashes.
 
 ## Configuración y reintentos
 

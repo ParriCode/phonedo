@@ -10,6 +10,7 @@ from manager_support.logger import Logger
 from manager_support.pending_events import PendingEvents
 from client import InternalPostError
 from manager_support.event_auth import sign_event
+from manager_support.transport import endpoint
 
 class EventRejected(RuntimeError):
     pass
@@ -25,6 +26,8 @@ class ManagerCore:
         self.client = client
         self.server = server
         self.http_readers = set()
+        self.sse_readers = set()
+        self.active_reader_streams = set()
         self.stream_pending = OrderedDict()
         self.stream_lock = threading.Lock()
         self.stream_capacity = queue_size
@@ -35,7 +38,33 @@ class ManagerCore:
 
     def prefer_http(self, reader_id):
         with self.lock_for_reader(reader_id):
+            if reader_id in self.sse_readers or reader_id in self.active_reader_streams:
+                Logger.warning('redundant_transport_rejected', service='reader', readerId=reader_id,
+                               selected='sse', rejected='http')
+                return False
+            if reader_id not in self.http_readers:
+                Logger.info('transport_selected', service='reader', readerId=reader_id, transport='http')
             self.http_readers.add(reader_id)
+            return True
+
+    def acquire_reader_stream(self, reader_id):
+        with self.lock_for_reader(reader_id):
+            if reader_id in self.http_readers or reader_id in self.active_reader_streams:
+                Logger.warning('redundant_transport_rejected', service='reader', readerId=reader_id,
+                               selected='http' if reader_id in self.http_readers else 'sse', rejected='sse')
+                return False
+            self.active_reader_streams.add(reader_id)
+            return True
+
+    def activate_reader_stream(self, reader_id):
+        with self.lock_for_reader(reader_id):
+            self.sse_readers.add(reader_id)
+            Logger.info('transport_selected', service='reader', readerId=reader_id, transport='sse')
+
+    def release_reader_stream(self, reader_id):
+        with self.lock_for_reader(reader_id):
+            self.active_reader_streams.discard(reader_id)
+            Logger.info('reader_stream_released', readerId=reader_id)
 
     def close(self):
         self.pending_events.close()
@@ -68,7 +97,15 @@ class ManagerCore:
             },
         }
         # Each HTTP Verifier has its own event and retry state.
-        targets = self.client.config.verifier_url_list
+        targets = []
+        seen = set()
+        for target in self.client.config.verifier_url_list:
+            source = endpoint(target)
+            if source in seen:
+                Logger.warning('duplicate_destination_ignored', service='verifier', url=source)
+                continue
+            seen.add(source)
+            targets.append(target)
         if (self.client.config.stream_enabled or self.client.config.output_verifiers):
             message["value"]["managerHash"] = sign_event(message)
             if self.client.config.output_verifiers:
@@ -113,7 +150,7 @@ class ManagerCore:
             return
         with self.stream_lock:
             pending = self.stream_pending.get(message.get('key'))
-            if pending is None or source in pending['sources']:
+            if pending is None or source in pending[' sources']:
                 return
             original = pending['message']['value']
             if any(message['value'].get(key) != value for key, value in original.items() if key != 'status'):

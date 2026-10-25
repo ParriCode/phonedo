@@ -326,9 +326,12 @@ for target in verifier_config.get('subscriptions', {}).get('managers', []):
     target = {'url': target} if isinstance(target, str) else dict(target)
     target['url'] = target['url'].rstrip('/') + '/stream/verifier'
     manager_targets.append(target)
+service_url = os.getenv('VERIFIER_PUBLIC_URL') or verifier_config.get('server', {}).get('publicUrl')
+if manager_targets and not service_url:
+    raise ValueError('Verifier SSE subscriptions require server.publicUrl or VERIFIER_PUBLIC_URL')
 manager_subscriptions = StreamClient(
     manager_targets,
-    os.getenv("API_TOKEN_VERIFIER", ""), consume_manager_event,
+    os.getenv("API_TOKEN_VERIFIER", ""), consume_manager_event, service_url=service_url,
 )
 manager_subscriptions.start()
 atexit.register(manager_subscriptions.close)

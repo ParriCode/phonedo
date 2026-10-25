@@ -70,7 +70,8 @@ def test_real_pipeline(tmp_path):
     config.write_text(json.dumps({'subscriptions': {'readers': [urls['reader']]}, 'services': {'verifiers': [urls['verifier']], 'storages': [urls['storage']]},
                                  'stream': {'enabled': True}, 'outputStreams': {'verifiers': True}}))
     verifier_config = tmp_path / 'verifier.json'
-    verifier_config.write_text(json.dumps({'subscriptions': {'managers': [urls['manager']]}}))
+    verifier_config.write_text(json.dumps({'server': {'publicUrl': urls['verifier']},
+                                         'subscriptions': {'managers': [urls['manager']]}}))
     env = {**os.environ, 'VERIFIER_CONFIG_PATH': str(verifier_config), 'MANAGER_PASSWORD': 'integration-only', 'API_TOKEN_MANAGER': 'manager-test',
            'API_TOKEN_STORAGE': 'storage-test', 'API_TOKEN_VERIFIER': 'verifier-test',
            'API_TOKEN_READER': '', 'MANAGER_CONFIG_PATH': str(config),
@@ -93,7 +94,11 @@ def test_real_pipeline(tmp_path):
         start('verifier', ['apps/verifier/verifier.py'])
         for name in ('storage', 'manager', 'verifier'):
             wait_for(lambda name=name: requests.get(urls[name] + '/', timeout=1).status_code == 200)
-        captured = Subscription(urls['manager'] + '/stream/verifier', 'verifier-test')
+        # General monitoring stream; the actual Verifier uses HTTP exclusively.
+        captured = Subscription(urls['manager'] + '/stream', 'manager-test')
+        redundant = requests.get(urls['manager'] + '/stream/verifier', headers={
+            'Authorization':'Bearer verifier-test', 'X-Phonendo-Service-URL':urls['verifier']}, timeout=3)
+        assert redundant.status_code == 409
         verified_a = Subscription(urls['verifier'] + '/stream', 'verifier-test')
         verified_b = Subscription(urls['verifier'] + '/stream', 'verifier-test')
         # Real ReaderCore + ReaderServer, emit the same Linux example on an isolated port.
@@ -114,7 +119,7 @@ asyncio.run(main.main())
                          if value.get('status') == 'Verified' and value.get('payload') == original['value']['payload']), None)
         persisted = wait_for(stored_event)
         stored = persisted['value']
-        # HTTP and SSE verification may produce different signature timestamps.
+        # Verify the HTTP result and its persisted copy.
         public_key = serialization.load_pem_private_key(
             json.loads((ROOT / 'apps/verifier/keys.json').read_text())['privateKey'].encode(), None).public_key()
         def check_signature(message):
@@ -146,7 +151,7 @@ asyncio.run(main.main())
         manager.terminate()
         manager.wait(timeout=5)
         settings = json.loads(config.read_text())
-        settings['services']['verifiers'] = [urls['storage']]
+        settings['services']['verifiers'] = []
         settings['stream']['enabled'] = False
         settings['subscriptions']['verifiers'] = [urls['verifier']]
         settings['subscriptions']['storages'] = [urls['storage']]
@@ -160,7 +165,7 @@ asyncio.run(main.main())
             body = {'token': 'manager-test', 'readerId': 'http-test', 'deviceId': 'simulated-device',
                     'eventType': 'observation', 'payloadFormat': 'application/json', 'payload': {'sseOnly': True}}
             reply = requests.post(urls['manager'] + '/newEvent', json=body, timeout=5)
-            assert reply.status_code == 502
+            assert reply.status_code == 200
             time.sleep(.5)
             while not verified_a.events.empty():
                 event = verified_a.events.get_nowait()
