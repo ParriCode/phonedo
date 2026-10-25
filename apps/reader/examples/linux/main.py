@@ -25,19 +25,56 @@ COLD_CHAIN = {"deviceId": "simulated-cold-chain", "sensorId": "simulated-cold-ch
               "intervalSeconds": 1}
 
 
+PRESETS = {"temperature": TEMPERATURE, "pulse": PULSE, "coldchain": COLD_CHAIN}
+# Pulso y cadena de frío uno detrás de otro, un lote de 32 lecturas cada vez, sin mezclarlos.
+DEMO = {"sequence": ["pulse", "coldchain"], "readings": 32, "rounds": 1}
+
+
 def simulation_settings(settings):
     """Bloque `simulation` del config: `"pulse"`, `"temperature"`, `"coldchain"` o un objeto que sobrescribe campos."""
     simulation = settings.get('simulation', 'temperature')
     if isinstance(simulation, str):
-        return dict({"temperature": TEMPERATURE, "pulse": PULSE, "coldchain": COLD_CHAIN}[simulation])
+        return dict(PRESETS[simulation])
     return {**TEMPERATURE, **simulation}
+
+
+def simulation_steps(settings):
+    """Etapas de la simulación como pares (ajustes, nº de lecturas); `None` = sin fin.
+
+    `"demo"` o `{"sequence": [...], "readings": 32, "rounds": 1}` encadena presets, y al acabar el Reader se queda en silencio.
+    """
+    simulation = settings.get('simulation', 'temperature')
+    if simulation == 'demo':
+        simulation = DEMO
+    if isinstance(simulation, dict) and 'sequence' in simulation:
+        sequence = [dict(PRESETS[name]) for name in simulation['sequence']]
+        return [(step, simulation.get('readings', 32)) for _ in range(simulation.get('rounds', 1)) for step in sequence]
+    return [(simulation_settings(settings), None)]
+
+
+async def emit(core, simulation, count):
+    """Emite `count` lecturas simuladas (o sin fin si es `None`)."""
+    emitted = 0
+    while count is None or emitted < count:
+        core.ingest(Observation(
+            device_id=simulation["deviceId"],
+            sensor_id=simulation["sensorId"],
+            observable_property=simulation["property"],
+            simple_result=round(random.uniform(simulation["min"], simulation["max"]), 2),
+            unit=simulation["unit"],
+            phenomenon_time=datetime.now(timezone.utc),
+            feature_of_interest=simulation["featureOfInterest"],
+            procedure="random-simulation",
+        ))
+        emitted += 1
+        await asyncio.sleep(simulation["intervalSeconds"])
 
 
 async def main():
     config_path = Path(os.getenv('READER_CONFIG_PATH', str(READER_DIR / 'config.json')))
     settings = json.loads(config_path.read_text()) if config_path.exists() else {}
     core = ReaderCore(reader_id=settings.get('readerId', 'reader-linux'))
-    simulation = simulation_settings(settings)
+    steps = simulation_steps(settings)
     server_settings = dict(settings.get('server', {'enabled': True}))
     server_settings['stream_enabled'] = settings.get('stream', {}).get('enabled', True)
     server_config = ServerConfig(**server_settings)
@@ -46,19 +83,10 @@ async def main():
               if output.managers else ReaderServer(core, server_config))
     try:
         await server.start()
-        print(f"Lecturas simuladas ({simulation['property']}): http://127.0.0.1:3002/stream")
-        while True:
-            core.ingest(Observation(
-                device_id=simulation["deviceId"],
-                sensor_id=simulation["sensorId"],
-                observable_property=simulation["property"],
-                simple_result=round(random.uniform(simulation["min"], simulation["max"]), 2),
-                unit=simulation["unit"],
-                phenomenon_time=datetime.now(timezone.utc),
-                feature_of_interest=simulation["featureOfInterest"],
-                procedure="random-simulation",
-            ))
-            await asyncio.sleep(simulation["intervalSeconds"])
+        for simulation, count in steps:
+            print(f"Lecturas simuladas ({simulation['property']}): http://127.0.0.1:3002/stream")
+            await emit(core, simulation, count)
+        await asyncio.Event().wait()
     finally:
         await server.stop()
 
