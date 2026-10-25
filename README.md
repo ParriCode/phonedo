@@ -223,6 +223,23 @@ Reader Python, Manager, Verifier, Storage y Publisher exponen, sin token:
 Las rutas de procesamiento conservan su autenticación. Reader C++ todavía no
 tiene un servidor HTTP concreto para estas consultas.
 
+## Web de Phonendo
+
+[`apps/web`](apps/web/index.html) es una web estática sin compilación ni dependencias:
+se abre con doble clic en `index.html` o se publica tal cual en cualquier hosting
+estático (GitHub Pages, Netlify, Vercel). Tiene cuatro vistas, en inglés y español:
+
+- **Inicio**: problema, funcionamiento, privacidad y pagos reales en directo.
+- **Consola del operador**: mapa de la red donde se añaden Readers, Managers,
+  Verifiers, Storages y Publishers por organización, se comprueba si responden y se
+  descarga su configuración JSON (mismo formato que `deploy/docker/*.json`).
+- **Paciente**: pagos recibidos por una cuenta Stellar.
+- **Aseguradora**: sesiones verificadas y pagadas, sin acceso a las lecturas.
+
+Los pagos se leen en el navegador desde los eventos `session_paid` del RPC público de
+testnet. Si el RPC no responde, la web lo indica y muestra las transacciones ya
+confirmadas. La red editada en la consola se guarda solo en ese navegador.
+
 ## Panel de observación
 
 El [frontend del panel de observación](apps/control/frontend/README.md) permite

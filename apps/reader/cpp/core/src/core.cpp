@@ -288,3 +288,7 @@ const std::string& ReaderCore::getLastError() const {
 void ReaderCore::setOnObservationCallback(OnObservationCallback callback) {
     onObservation = callback;
 }
+
+bool ReaderCore::hasOnObservationCallback() const {
+    return onObservation != nullptr;
+}

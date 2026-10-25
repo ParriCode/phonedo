@@ -23,6 +23,7 @@ def observation_to_dict(observation: Observation) -> dict:
 def observation_event(reader_id: str, observation: Observation) -> dict:
     return {
         "eventType": "observation", "readerId": reader_id,
+        "observationId": observation.observation_id,
         "deviceId": observation.device_id, "payloadFormat": "application/json",
         "payload": observation_to_dict(observation),
     }

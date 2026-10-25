@@ -26,8 +26,12 @@ class PublisherConfig:
         self.signer_manager = data.get('signer', {}).get('manager') or (managers[0] if managers else '')
         self.circuits_path = (BASE_DIR / data.get('circuitsPath', '../../circuits')).resolve()
         self.stellar = dict(data.get('stellar', {}))
+        self.contracts = data.get('contracts', {})
         if os.getenv('PUBLISHER_STELLAR_SOURCE'):
             self.stellar['source'] = os.environ['PUBLISHER_STELLAR_SOURCE']
 
     def patient_for(self, device_id):
         return self.patients.get(device_id) or self.patients.get('default')
+
+    def contract_for(self, verifier_id):
+        return self.contracts.get(verifier_id)

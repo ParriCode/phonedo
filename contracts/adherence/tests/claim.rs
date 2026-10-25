@@ -123,6 +123,7 @@ fn sign(s: &Setup, commitment: &[u8; 32], session_id: u64, patient_key: &[u8; 32
     message.extend_from_slice(&[0; 24]);
     message.extend_from_slice(&session_id.to_be_bytes());
     message.extend_from_slice(patient_key);
+    message.extend_from_slice(&s.verifier.verifying_key().to_bytes());
     BytesN::from_array(&s.env, &s.verifier.sign(&message).to_bytes())
 }
 
@@ -174,6 +175,19 @@ fn rejects_signature_for_other_patient() {
     let session = session_id(&s.args);
     let signature = sign(&s, &hex_array(&s.args["commitment"]), session, &[1; 32]);
 
+    let _ = claim(&s, session, &signature);
+}
+
+#[test]
+#[should_panic]
+fn rejects_signature_without_verifier_identity() {
+    let s = setup(default_policy());
+    let session = session_id(&s.args);
+    let mut message = hex_array::<32>(&s.args["commitment"]).to_vec();
+    message.extend_from_slice(&[0; 24]);
+    message.extend_from_slice(&session.to_be_bytes());
+    message.extend_from_slice(&s.patient_key);
+    let signature = BytesN::from_array(&s.env, &s.verifier.sign(&message).to_bytes());
     let _ = claim(&s, session, &signature);
 }
 

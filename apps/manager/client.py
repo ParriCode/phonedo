@@ -79,12 +79,30 @@ class ManagerClient:
     def sign_batch(self, batch: dict):
         """Pide la firma del lote; solo la da el Verifier que verificó sus eventos."""
         error = None
-        for base, token in self._targets('verifier'):
+        verifier_id = batch.get('verifierId')
+        if not verifier_id:
+            raise RuntimeError('verifierId es obligatorio')
+        targets = list(self.config.verifier_url_list) + list(getattr(self.config, 'verifier_subscriptions', []))
+        seen = set()
+        for target in targets:
+            target = {'url': target} if isinstance(target, str) else target
+            base = endpoint(target)
+            if base in seen:
+                continue
+            seen.add(base)
+            token = target.get('token', self.config.api_token_verifier)
             try:
+                metadata = requests.get(base + '/metadata', timeout=self.timeout)
+                metadata.raise_for_status()
+                if metadata.json().get('verifierId') != verifier_id:
+                    continue
+                Logger.info('batch_verifier_selected', verifierId=verifier_id, url=base)
                 return self._post(base + '/signBatch', dict(batch, token=token))
             except (requests.RequestException, InternalPostError) as failure:
                 error = failure
-        raise error
+        if error:
+            raise error
+        raise RuntimeError('No hay un Verifier conectado con ese verifierId')
 
     def _post(self, url: str, body: dict):
         sanitized = dict(body)

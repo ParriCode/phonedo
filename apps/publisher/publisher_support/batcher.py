@@ -1,4 +1,4 @@
-"""Agrupa lecturas Verified de cada dispositivo en lotes de tamaño fijo."""
+"""Agrupa lecturas Verified por Manager, Verifier, Reader y dispositivo."""
 import threading
 
 
@@ -24,24 +24,33 @@ class SessionBatcher:
         self.remembered = remembered
         self.lock = threading.Lock()
 
-    def add(self, message):
+    def add(self, message, manager_url=None, manager_token=None):
         """Añade el evento y devuelve el lote cuando el dispositivo llega a `size`."""
         reading = reading_from_event(message)
         if reading is None:
             return None
         value = message['value']
         device_id = value.get('deviceId')
+        fields = ('managerId', 'verifierId', 'readerId', 'observationId', 'deviceId')
+        if any(not isinstance(value.get(field), str) or not value[field] for field in fields):
+            return None
+        if not isinstance(message.get('key'), str) or not message['key']:
+            return None
+        identity = tuple(value[field] for field in fields[:4])
+        origin = tuple(value[field] for field in ('managerId', 'verifierId', 'readerId', 'deviceId'))
         with self.lock:
             # El stream no garantiza entregas únicas: cada evento cuenta una vez.
-            if message.get('key') in self.seen:
+            if identity in self.seen:
                 return None
-            self.seen[message.get('key')] = True
+            self.seen[identity] = True
             if len(self.seen) > self.remembered:
                 self.seen.pop(next(iter(self.seen)))
-            batch = self.pending.setdefault(device_id, {'deviceId': device_id, 'readings': [], 'eventKeys': [],
+            batch = self.pending.setdefault(origin, {**{field: value[field] for field in fields if field != 'observationId'},
+                                                        'managerUrl': manager_url, 'managerToken': manager_token,
+                                                        'deviceId': device_id, 'readings': [], 'eventKeys': [],
                                                         'startedAt': int(value.get('creationDatetime', 0))})
             batch['readings'].append(reading)
             batch['eventKeys'].append(message.get('key'))
             if len(batch['readings']) < self.size:
                 return None
-            return self.pending.pop(device_id)
+            return self.pending.pop(origin)

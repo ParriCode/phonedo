@@ -49,5 +49,5 @@ std::string Sensor::generateSensorId() {
 std::string Sensor::defaultPhenomenonTime() {
     auto now = std::chrono::system_clock::now().time_since_epoch();
     auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(now).count();
-    return std::to_string(ms);
+    return isoUtcFromEpochMillis(ms);
 }

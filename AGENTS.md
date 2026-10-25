@@ -86,9 +86,9 @@ End-to-end flow:
    (`apps/verifier/verifier_support/poseidon.py`, identical to the circuit) and
    signs it with **ed25519** (Soroban verifies ed25519 natively; it cannot verify
    RSA). The same key also signs each Verified event (`verifierSign`). Signed
-   message (96 bytes):
+   message (128 bytes):
    `commitment (32 B, big-endian) || sessionId (32 B, big-endian) || ed25519
-   public key of the patient's G account (32 B)`. The key is
+   public key of the patient's G account (32 B) || verifierId (32 B)`. The key is
    `apps/verifier/signing_key.json` (gitignored JWK, copied by
    `tools/generate_configs.sh` from `circuits/build/verifier_dev_key.json`, the
    key the deployed contract trusts). `circuits/scripts/sign.js` is the reference
@@ -109,6 +109,14 @@ End-to-end flow:
    who gets paid.
 7. The dashboard reads contract events and links the tx on stellar.expert.
 
+Identidad: `managerId + verifierId + readerId + observationId`; `verifierId` es
+la clave pública ed25519 hex. Publisher separa lotes por Manager/Verifier/Reader/
+dispositivo, conserva la URL/token del SSE de origen y pide `signBatch` a ese
+Manager indicando Verifier y Reader. El Manager descubre `/metadata` de sus
+Verifiers HTTP y selecciona la identidad indicada. Un mismo Verifier puede servir
+a varios Managers. Publisher configura `contracts: {"<verifierId>": "<contractId>"}`.
+El mensaje firmado nuevo requiere redesplegar los contratos anteriores.
+
 On-chain: only the commitment, public parameters, session id, proof result and
 payment. Never readings or personal data.
 
@@ -124,7 +132,8 @@ phonedo/
 │   ├── manager/          # flow coordination, managerHash, retries
 │   ├── verifier/         # validation and signature of Verified events
 │   ├── storage/          # LevelDB store of Verified events
-│   └── publisher/        # batches Verified readings, proves and calls claim()
+│   ├── publisher/        # batches Verified readings, proves and calls claim()
+│   └── web/              # static site (no build): landing, operator console, patient, insurer; reads session_paid live from testnet RPC
 ├── circuits/             # Circom circuits, inputs/ examples, scripts/ (setup, prove, soroban)
 ├── contracts/            # Soroban contract `adherence` (Rust): claim() verifies signature + proof and pays
 ├── deploy/
