@@ -140,6 +140,8 @@ class ReaderServer:
 
     
     async def observations(self, request):
+        if not self.config.stream_enabled:
+            raise web.HTTPConflict(text='SSE desactivado en la configuración del Reader')
         response = web.StreamResponse(headers={
             "Content-Type": "text/event-stream",
             "Cache-Control": "no-cache",

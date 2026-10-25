@@ -239,9 +239,33 @@ desplegarse por separado; sus direcciones están en `CONFIG.panels` de `app.js`)
 - [`patient.html`](apps/web/patient.html): pagos recibidos por una cuenta Stellar.
 - [`insurer.html`](apps/web/insurer.html): pagos realizados por el contrato.
 
+Arranque local sin Docker:
+
+```sh
+./tools/web.sh
+```
+
+Abre dos pestañas automáticamente cuando el servidor responde: el operador en
+`http://127.0.0.1:8080/operator.html` y Stellar Expert en testnet con el primer contrato de
+`apps/publisher/config.json`, o el explorador general si no hay configurados.
+`Ctrl+C` detiene el servidor. Instala Python 3 y el abridor de navegador si faltan
+(Debian/Ubuntu). Prepara `.venv` e instala `aiohttp` si falta.
+Puedes cambiar el puerto con `WEB_PORT=8081 ./tools/web.sh` y elegir otro JSON
+con `PUBLISHER_CONFIG_PATH=deploy/docker/publisher.json ./tools/web.sh`.
+
+
 Los pagos se leen en el navegador desde los eventos `session_paid` del RPC público de
 testnet. Si el RPC no responde, la web lo indica y muestra las transacciones ya
 confirmadas. La red editada en la consola se guarda solo en ese navegador.
+
+El operador servido por `tools/web.sh` permite crear Readers Python reales,
+añadir dispositivos y sensores, emitir pulsos individuales o 32 lecturas y cambiar
+HTTP push, SSE, tokens y Managers en directo. Los Readers viven en memoria y se
+detienen al cerrar el script; los secretos no se guardan en el navegador. La API
+de control escucha solo en loopback y exige el mismo origen para las acciones.
+Servicios externos: logs consultados cada 3 segundos; la edición requiere una API
+propia y no está habilitada. SSE exige configurar la suscripción en el Manager.
+El recorrido visual confirma únicamente pasos observados, sin simular pagos.
 
 ## Panel de observación
 

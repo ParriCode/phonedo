@@ -73,6 +73,12 @@ SSE refleja conexiones activas; HTTP, destinos configurados o clientes recibidos
 
 New pieces: `circuits/` (Circom + snarkjs) and a Soroban contract in Rust.
 
+`tools/web.sh` sirve el operador con `tools/web_runtime.py` (aiohttp local).
+Crea Readers reales en memoria, gestiona dispositivos/sensores y pulsos; configura
+push HTTP/SSE y tokens en vivo. Consulta logs externos mediante un puente local
+limitado a IPs privadas/loopback. Los servicios externos no se editan. El operador
+en `apps/web/operator.js` muestra únicamente confirmaciones observadas.
+
 End-to-end flow:
 
 1. Sensor -> Reader -> Manager -> Verifier -> Storage (existing pipeline). Each
