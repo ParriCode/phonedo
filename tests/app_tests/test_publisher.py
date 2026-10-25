@@ -96,3 +96,14 @@ def test_claim_command_and_already_claimed_error():
     failed = MagicMock(returncode=1, stdout='', stderr='error: HostError: Error(Contract, #1)')
     with patch('subprocess.run', return_value=failed), pytest.raises(ClaimFailed, match='ya cobrada'):
         claimer.claim({'sessionId': 9}, ZERO_ACCOUNT, 'ab', 'cd', 'p.json')
+
+
+def test_claim_reads_utf8_output_of_the_cli(monkeypatch):
+    """La CLI imprime emojis en UTF-8; en Windows el decodificador por defecto (cp1252) fallaba."""
+    from publisher_support.stellar import StellarClaimer
+
+    claimer = StellarClaimer('CCONTRACT', 'alex')
+    script = ("import sys; sys.stdout.buffer.write('\\u2705 https://stellar.expert/explorer/testnet/tx/"
+              + 'e' * 64 + "\\n'.encode('utf-8') + bytes([0x8f]))")
+    monkeypatch.setattr(claimer, 'command', lambda *args: [sys.executable, '-c', script])
+    assert claimer.claim({'sessionId': 9}, ZERO_ACCOUNT, 'ab', 'cd', 'p.json') == 'e' * 64

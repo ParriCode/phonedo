@@ -49,7 +49,8 @@ pip install -r requirements.txt
 API_TOKEN_MANAGER=demo-manager python publisher.py
 ```
 
-El Reader simulado de Docker emite temperaturas de 20 a 30, así que con la política
-de rehabilitación (90-130) sus lotes no cumplen y no se cobran.
+El Reader simulado de Docker emite pulso de 95 a 120 (`"simulation": "pulse"` en
+`deploy/docker/reader.json`), dentro de la política de rehabilitación (90-130). Con
+temperaturas de 20 a 30 sus lotes no cumplirían y no se cobrarían.
 
 [Arquitectura general](../../docs/diagramas.md).

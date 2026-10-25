@@ -26,7 +26,8 @@ class StellarClaimer:
     def claim(self, batch, patient, commitment_hex, signature_hex, proof_file):
         """Envía el claim y devuelve el hash de la transacción."""
         result = subprocess.run(self.command(batch, patient, commitment_hex, signature_hex, proof_file),
-                                capture_output=True, text=True, timeout=self.timeout)
+                                capture_output=True, text=True, encoding='utf-8', errors='replace',
+                                timeout=self.timeout)
         output = result.stdout + result.stderr
         if result.returncode != 0:
             if ALREADY_CLAIMED in output:

@@ -19,7 +19,7 @@
   },
   "circuitsPath": "../../circuits",
   "stellar": {
-    "contractId": "CAPZ2O7LPTRGJ2Q7TTHMCHOKRZ4T7KU5I4E74M2U3YUTC3XONIQDOP2D",
+    "contractId": "CBF2MBQ6W4S6LD3JSIM3NNZET5KBUKOADRZSKIYZRZBAXRM6OJZCNSFI",
     "source": "alex",
     "network": "testnet"
   }

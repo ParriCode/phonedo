@@ -20,7 +20,7 @@ class Prover:
 
     def _node(self, *args):
         return subprocess.run(['node', *args], cwd=self.circuits_path, capture_output=True,
-                              text=True, timeout=self.timeout)
+                              text=True, encoding='utf-8', errors='replace', timeout=self.timeout)
 
     def prove(self, batch):
         """Devuelve el compromiso (hex) y la ruta de la prueba para el contrato."""

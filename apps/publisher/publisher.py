@@ -77,7 +77,7 @@ def process_batch(batch):
         return tx_hash
     except BatchNotMet:
         Logger.info('publisher_session_not_met', sessionId=session_id, deviceId=batch['deviceId'])
-    except (ClaimFailed, RuntimeError, ValueError, OSError) as error:
+    except Exception as error:  # un lote que falla no debe parar el worker de los siguientes
         Logger.error('publisher_session_failed', sessionId=session_id, deviceId=batch['deviceId'], error=str(error))
     return None
 
