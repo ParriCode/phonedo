@@ -4,7 +4,7 @@ const crypto = require("crypto");
 const fs = require("fs");
 const path = require("path");
 const snarkjs = require("snarkjs");
-const { getCurveFromName } = require("ffjavascript");
+const { useSingleThreadCurve, run } = require("./curve");
 
 const ROOT = path.resolve(__dirname, "..");
 const BUILD = path.join(ROOT, "build");
@@ -26,15 +26,16 @@ async function main() {
     compile("range_adherence", ["--r1cs", "--wasm"]);
     compile("commit", ["--wasm"]);
 
-    const curve = await getCurveFromName("bls12381");
+    console.log("Generando claves (unos minutos)...");
+    const curve = await useSingleThreadCurve();
     const ptau0 = path.join(BUILD, "pot_0000.ptau");
     const ptau1 = path.join(BUILD, "pot_0001.ptau");
     const ptau = path.join(BUILD, "pot_final.ptau");
     await snarkjs.powersOfTau.newAccumulator(curve, PTAU_POWER, ptau0);
     await snarkjs.powersOfTau.contribute(ptau0, ptau1, "phonendo", entropy());
     await snarkjs.powersOfTau.preparePhase2(ptau1, ptau);
-    await curve.terminate();
 
+    console.log("Fase 1 lista, generando la clave del circuito...");
     const zkey0 = path.join(BUILD, "range_adherence_0000.zkey");
     const zkey = path.join(BUILD, "range_adherence.zkey");
     await snarkjs.zKey.newZKey(path.join(BUILD, "range_adherence.r1cs"), ptau, zkey0);
@@ -46,7 +47,4 @@ async function main() {
     console.log("Claves generadas en build/");
 }
 
-main().then(() => process.exit(0), (err) => {
-    console.error(err);
-    process.exit(1);
-});
+run(main);

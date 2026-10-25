@@ -22,16 +22,21 @@ temperatura en cadena de frío.
 ## Uso
 
 Requiere Node.js, `circom` 2.2 en el PATH y las dependencias de `npm install`.
+`setup` tarda unos minutos porque trabaja en un solo hilo.
 
 ```sh
 npm install
 npm run setup                          # compila y genera las claves en build/
 npm run prove                          # prueba inputs/session.json y la verifica
 npm run prove -- inputs/session_fail.json   # lote fuera de rango: no hay prueba
-npm run soroban                        # build/soroban_args.json para verify_proof
+npm run soroban                        # argumentos para el contrato en build/
+node scripts/sign.js <cuenta G>        # firma de desarrollo del lote
 ```
 
-`soroban_args.json` contiene la clave de verificación, la prueba y las entradas
-públicas en el formato del verificador Groth16 BLS12-381 de
+`npm run soroban` escribe la clave de verificación (`soroban_vk.json`), la prueba
+(`soroban_proof.json`) y todo junto (`soroban_args.json`) en el formato del
+contrato de `contracts/`, el mismo que el verificador Groth16 BLS12-381 de
 [soroban-examples](https://github.com/stellar/soroban-examples/tree/main/groth16_verifier).
+`sign.js` firma el lote como lo hará el Verifier, con una clave de desarrollo que
+guarda en `build/`; solo sirve para probar antes de tenerlo integrado.
 La ceremonia de `setup` es de un solo participante y solo vale para desarrollo.

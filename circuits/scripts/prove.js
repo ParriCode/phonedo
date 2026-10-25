@@ -3,6 +3,7 @@
 const fs = require("fs");
 const path = require("path");
 const snarkjs = require("snarkjs");
+const { useSingleThreadCurve, run } = require("./curve");
 
 const ROOT = path.resolve(__dirname, "..");
 const BUILD = path.join(ROOT, "build");
@@ -22,6 +23,7 @@ async function computeCommitment(batch) {
 async function main() {
     const inputFile = path.resolve(process.argv[2] || path.join(ROOT, "inputs", "session.json"));
     const batch = JSON.parse(fs.readFileSync(inputFile, "utf8"));
+    await useSingleThreadCurve();
 
     const commitment = await computeCommitment(batch);
     let result;
@@ -54,7 +56,4 @@ async function main() {
     if (!valid) process.exitCode = 1;
 }
 
-main().then(() => process.exit(process.exitCode || 0), (err) => {
-    console.error(err.message || err);
-    process.exit(1);
-});
+run(main);
