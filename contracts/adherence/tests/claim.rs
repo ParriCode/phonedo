@@ -176,3 +176,17 @@ fn rejects_signature_for_other_patient() {
 
     let _ = claim(&s, session, &signature);
 }
+
+#[test]
+fn rejects_tampered_proof() {
+    let s = setup(default_policy());
+    let session = session_id(&s.args);
+    let commitment = BytesN::from_array(&s.env, &hex_array::<32>(&s.args["commitment"]));
+    let signature = sign(&s, &hex_array(&s.args["commitment"]), session, &s.patient_key);
+    let mut tampered = proof(&s.env, &s.args);
+    tampered.a = tampered.c.clone();
+
+    let result = s.client.try_claim(&s.patient, &session, &commitment, &signature, &tampered);
+    assert_eq!(result.map(|_| ()).map_err(|err| err.unwrap()), Err(Error::InvalidProof));
+    assert!(!s.client.is_claimed(&session));
+}
