@@ -1,5 +1,17 @@
 {
-  "contracts": {},
+  "contracts": {
+    "f81644f872ed5dffb58f92b71972f7bacaa9081b9f34416900635caf403e1490": "CD3ZLDTB7QKJLMAIBSCL75TRHE6IUZ27RW5FLWNB4F3GUQENZZZSM45H"
+  },
+  "devices": {
+    "simulated-cold-chain": {
+      "contractId": "CDNPBN6HZP4PZKRFOOA2PYC772KF4THXTJNKHBS5Y33HCAVDWCVO5SRE",
+      "policy": {
+        "minValue": 2,
+        "maxValue": 8,
+        "minCount": 32
+      }
+    }
+  },
   "server": {
     "host": "0.0.0.0",
     "port": 3005

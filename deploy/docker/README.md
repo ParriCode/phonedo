@@ -12,10 +12,27 @@ Desde la raíz del proyecto, con Docker y Docker Compose instalados:
 docker compose -f deploy/docker/compose.yml up --build -d --wait
 ```
 
-El ejemplo usa credenciales de demostración y un Reader de pulso simulado
-(95-120 BPM). El Publisher consume el SSE del Manager y prepara lotes de 32.
-Para probar el cobro real, prepara antes `circuits/` con `npm run setup` y
-`node scripts/sign.js`; el alias Stellar también debe existir en el contenedor.
+El ejemplo usa credenciales de demostración y un Reader simulado (`"demo"`): 32 lecturas
+de pulso (95-120 BPM) y luego 32 de temperatura de transporte (2-8 °C). El Publisher
+consume el SSE del Manager y prepara lotes de 32.
+
+## Cobro real en testnet
+
+Prepara antes `circuits/` con `npm run setup`. El Publisher firma con una cuenta de
+Stellar cuya clave secreta recibe por entorno y que nunca entra en la imagen. Crea
+`deploy/docker/.env` (ignorado por git) con la clave de tu alias:
+
+```sh
+echo "STELLAR_SECRET_KEY=$(stellar keys show alex)" > deploy/docker/.env
+```
+
+En PowerShell: `"STELLAR_SECRET_KEY=$(stellar keys show alex)" | Set-Content -Encoding ascii deploy/docker/.env`.
+
+El contenedor crea con ella el alias `alex`. `deploy/docker/publisher.json` indica a qué
+contrato va cada caso: `contracts` por `verifierId` (rehabilitación) y `devices` por
+dispositivo (cadena de frío). Sin `.env` el Publisher prepara los lotes pero no cobra.
+El Reader arranca cuando el Publisher ya escucha, para que no pierda lecturas; si
+repites la demo, reinícialo: `docker compose -f deploy/docker/compose.yml restart reader`.
 
 | Servicio | Puerto local | Comprobación |
 | --- | --- | --- |
