@@ -21,6 +21,8 @@ public:
     std::string deviceId;
     std::string deviceType;
     std::string platform;
+    // Opcional: ISO 8601; vacío se publica como null.
+    std::string creationDatetime;
 
     bool isValid() const;
 

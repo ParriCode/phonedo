@@ -25,18 +25,46 @@ static std::string escapeJson(const std::string& value) {
     return escaped;
 }
 
+std::string jsonString(const std::string& value) {
+    return "\"" + escapeJson(value) + "\"";
+}
+
+std::string jsonStringOrNull(const std::string& value) {
+    return value.empty() ? std::string("null") : jsonString(value);
+}
+
+static std::string simpleResultJson(const Observation& observation) {
+    switch (observation.resultType) {
+        case ResultType::Number:
+        case ResultType::Boolean:
+        case ResultType::RawJson:
+            return observation.simpleResult.empty() ? std::string("null") : observation.simpleResult;
+        case ResultType::Null:
+            return "null";
+        case ResultType::Text:
+        default:
+            return jsonString(observation.simpleResult);
+    }
+}
+
 std::string observationToJson(const Observation& observation) {
     std::ostringstream json;
     json << "{"
-         << "\"observation_id\":\"" << escapeJson(observation.observationId) << "\","
-         << "\"observable_property\":\"" << escapeJson(observation.observableProperty) << "\","
-         << "\"simple_result\":\"" << escapeJson(observation.simpleResult) << "\","
-         << "\"phenomenon_time\":\"" << escapeJson(observation.phenomenonTime) << "\","
-         << "\"feature_of_interest\":\"" << escapeJson(observation.featureOfInterest) << "\","
-         << "\"procedure\":\"" << escapeJson(observation.procedure) << "\","
-         << "\"device_id\":\"" << escapeJson(observation.deviceId) << "\","
-         << "\"sensor_id\":\"" << escapeJson(observation.sensorId) << "\","
-         << "\"unit\":\"" << escapeJson(observation.unit) << "\""
+         << "\"observation_id\":" << jsonString(observation.observationId) << ","
+         << "\"observable_property\":" << jsonString(observation.observableProperty) << ","
+         << "\"simple_result\":" << simpleResultJson(observation) << ","
+         << "\"phenomenon_time\":" << jsonString(normalizePhenomenonTime(observation.phenomenonTime)) << ","
+         << "\"feature_of_interest\":" << jsonString(observation.featureOfInterest) << ","
+         << "\"procedure\":" << jsonString(observation.procedure) << ","
+         << "\"device_id\":" << jsonString(observation.deviceId) << ","
+         << "\"sensor_id\":" << jsonString(observation.sensorId) << ","
+         << "\"unit\":" << jsonStringOrNull(observation.unit)
          << "}";
     return json.str();
+}
+
+std::string observationEventToJson(const std::string& readerId, const Observation& observation) {
+    return "{\"eventType\":\"observation\",\"readerId\":" + jsonString(readerId)
+        + ",\"deviceId\":" + jsonString(observation.deviceId)
+        + ",\"payloadFormat\":\"application/json\",\"payload\":" + observationToJson(observation) + "}";
 }
