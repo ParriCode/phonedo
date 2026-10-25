@@ -1,0 +1,15 @@
+{
+  "name": "phonendo-circuits",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Circuito ZK de Phonendo: lecturas en rango sin revelar los datos",
+  "scripts": {
+    "setup": "node scripts/setup.js",
+    "prove": "node scripts/prove.js",
+    "soroban": "node scripts/soroban.js"
+  },
+  "dependencies": {
+    "circomlib": "^2.0.5",
+    "snarkjs": "^0.7.6"
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "name": "PhonendoReaderServer",
+  "version": "0.1.0",
+  "description": "Portable Reader application ports and JSON serialization",
+  "build": {
+    "srcDir": "src",
+    "includeDir": "include"
+  },
+  "dependencies": {
+    "PhonendoReaderCore": "*"
+  },
+  "frameworks": "*",
+  "platforms": "*"
+}

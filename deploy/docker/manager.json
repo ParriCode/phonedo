@@ -1,0 +1,26 @@
+{
+  "server": {
+    "host": "0.0.0.0",
+    "port": 3003
+  },
+  "services": {
+    "verifiers": [
+      "http://verifier:5000"
+    ],
+    "storages": [
+      "http://storage:5000"
+    ]
+  },
+  "stream": {
+    "enabled": true
+  },
+  "subscriptions": {
+    "readers": [],
+    "verifiers": [],
+    "storages": []
+  },
+  "outputStreams": {
+    "verifiers": true,
+    "storages": true
+  }
+}

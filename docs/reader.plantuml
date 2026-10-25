@@ -1,0 +1,114 @@
+@startuml reader
+!pragma layout smetana
+skinparam classAttributeIconSize 0
+skinparam packageStyle rectangle
+hide empty members
+title Reader base — dominio, servicio y servidor Python
+
+package "Core (sin HTTP ni hardware)" {
+  class ReaderCore {
+    +reader_id: str
+    +allow_new_devices: bool = True
+    +allow_new_sensors: bool = True
+    +on_observation: Callable(Observation)
+    +add_device(device)
+    +get_device(device_id)
+    +remove_device(device_id)
+    +create_observation(device_id, sensor_id, value, phenomenon_time)
+    +ingest(observation, send=True): bool
+    +send_observation(observation)
+  }
+  class Device {
+    +device_id: str
+    +device_type: str
+    +platform: str
+    +add_sensor(sensor)
+    +get_sensor(sensor_id)
+    +remove_sensor(sensor_id)
+    +list_sensors()
+  }
+  class Sensor {
+    +sensor_id: str
+    +device_id: str
+    +observable_property: str
+    +procedure: str
+    +feature_of_interest: str
+    +unit: str
+    +build_observation(raw_value, phenomenon_time)
+  }
+  class Observation {
+    +observation_id: str
+    +device_id: str
+    +sensor_id: str
+    +observable_property: str
+    +simple_result: Any
+    +phenomenon_time: datetime
+    +feature_of_interest: str
+    +procedure: str
+    +unit: str
+  }
+}
+package "Service y outputs" {
+  class ReaderService {
+    +ingest(observation): bool
+    +publish(observation)
+    +metadata(stream_enabled=False)
+    +devices()
+  }
+  interface ObservationOutput {
+    +publish(reader_id, observation)
+  }
+  class StreamOutput
+  class ObservationStream {
+    +subscribe()
+    +publish(event)
+    +close()
+  }
+  class "Serialización JSON" as JSON {
+    +observation_to_dict(observation)
+    +observation_event(reader_id, observation)
+  }
+}
+package "Server HTTP opcional" {
+  class ReaderServer {
+    +start()
+    +stop()
+    +status()
+    +app
+  }
+  class ServerConfig {
+    +enabled: bool = False
+    +host: str = 127.0.0.1
+    +port: int = 3002
+    +token: str
+    +stream_enabled: bool = True
+    +queue_size: int = 256
+  }
+}
+ReaderCore o-- "0..*" Device : dispositivos locales
+Device o-- "0..*" Sensor
+Sensor ..> Observation : construye
+ReaderCore ..> Observation : valida y emite el objeto
+ReaderService --> ReaderCore : core externo
+ReaderCore --> ReaderService : callbacks instalados por el servicio
+ReaderService o-- "0..*" ObservationOutput : distribuye objetos
+StreamOutput ..|> ObservationOutput
+StreamOutput --> JSON
+StreamOutput --> ObservationStream
+ReaderServer *-- ReaderService : compone
+ReaderServer --> ReaderCore : recibe instancia externa
+ReaderServer --> ServerConfig
+ReaderServer --> ObservationStream
+ReaderServer ..> StreamOutput : añade si stream habilitado
+note bottom of ReaderCore
+  on_observation puede ser una función del usuario.
+  Si se conecta ReaderService, este gestiona los callbacks.
+  Core no serializa ni envía HTTP por sí mismo.
+end note
+note bottom of ReaderServer
+  GET /health, /metadata, /devices
+  GET /observations/stream (opcional)
+  No existe ingestión HTTP ni historial SSE.
+  enabled refleja el código actual: aún no se ha eliminado.
+end note
+@enduml

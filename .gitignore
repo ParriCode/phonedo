@@ -1,0 +1,44 @@
+node_modules/
+**/node_modules/
+dist/
+build/
+coverage/
+.env
+.run/
+*.log
+.DS_Store
+.venv
+**/__pycache__/
+__pycache__/node_modules/
+.codex
+**/__pycache__/**
+
+# PlatformIO
+.pio/
+.pioenvs/
+.piolibdeps/
+
+
+apps/storage/python/data/
+*.leveldb/
+**/*.leveldb/
+*.py[cod]
+*.pyc
+config.env
+config.env.save
+
+
+# Runtime databases
+apps/storage/python/data/
+apps/storage/python/data/phonendo.leveldb/
+*.leveldb/
+**/*.leveldb/
+
+# LevelDB files
+CURRENT
+LOCK
+LOG
+LOG.old
+MANIFEST-*
+*.ldb
+*.log

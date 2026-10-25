@@ -1,0 +1,16 @@
+{
+  "services": {
+    "managers": []
+  },
+  "httpTimeoutSeconds": 10,
+  "server": {
+    "host": "0.0.0.0",
+    "port": 3002,
+    "enabled": true
+  },
+  "readerId": "reader-linux",
+  "subscriptions": {},
+  "stream": {
+    "enabled": true
+  }
+}

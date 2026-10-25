@@ -1,0 +1,39 @@
+{
+  "services": {
+    "readers": [],
+    "verifiers": [
+      "http://127.0.0.1:3002"
+    ],
+    "storages": [
+      "http://127.0.0.1:3001"
+    ],
+    "publishers": []
+  },
+  "stream": {
+    "enabled": true
+  },
+  "allowRegistration": {
+    "readers": false,
+    "verifiers": false,
+    "storages": false,
+    "publishers": false
+  },
+  "server": {
+    "host": "0.0.0.0",
+    "port": 3003
+  },
+  "httpTimeoutSeconds": 10,
+  "queue": {
+    "size": 1000,
+    "retryIntervalSeconds": 5
+  },
+  "subscriptions": {
+    "readers": [],
+    "verifiers": [],
+    "storages": []
+  },
+  "outputStreams": {
+    "verifiers": false,
+    "storages": false
+  }
+}

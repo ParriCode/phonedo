@@ -1,93 +1,101 @@
-# phonendo
+# Phonendo
 
+Phonendo es una plataforma de servicios para recoger datos de dispositivos y sensores,
+coordinar su procesamiento, verificar su integridad y almacenarlos. La publicación
+de los datos forma parte del diseño y está pendiente de integración.
 
+## Servicios
 
-## Getting started
+| Servicio | Responsabilidad |
+| --- | --- |
+| **Reader** | Recoge observaciones y las expone mediante un stream SSE. |
+| **Manager** | Coordina el flujo, calcula el hash del contenido del evento y gestiona los reintentos por timeout. |
+| **Verifier** | Valida el evento, comprueba el hash y firma el resultado verificado. |
+| **Storage** | Guarda los eventos verificados y gestiona su propia base de datos. |
+| **Publisher** | Se encargará de publicar los datos. Su integración está pendiente. |
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+## Arquitectura general
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
+![Relaciones entre los servicios de Phonendo](docs/phonendo.svg)
 
-## Add your files
+El Manager consume las observaciones del Reader por SSE. Si un mismo Reader envía
+eventos por `/newEvent`, el Manager permite solo el primer transporte seleccionado
+para ese Reader (HTTP o SSE) durante su ejecución.
+La verificación admite HTTP o SSE. El guardado puede utilizar HTTP o las
+suscripciones de Storage a las salidas del Manager.
+El Verifier también consume streams de Managers y publica resultados por SSE;
+el Manager puede suscribirse a ellos para continuar el guardado. Storage expone
+su stream después de escribir los eventos.
 
-* [Create](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#create-a-file) or [upload](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#upload-a-file) files
-* [Add files using the command line](https://docs.gitlab.com/topics/git/add_files/#add-files-to-a-git-repository) or push an existing Git repository with the following command:
+En cada JSON, `stream` expone el stream propio y `subscriptions` contiene los
+streams que consume. El Manager usa `outputStreams` para sus salidas específicas
+hacia Verifiers y Storages, separadas de su `/stream` general.
 
+## Secuencia general
+
+![Secuencia simplificada entre los servicios de Phonendo](docs/phonendo_secuencia.svg)
+
+Solo se guarda el evento tras una verificación positiva. Un rechazo explícito lo
+descarta; un timeout lo deja en una cola temporal en memoria para reintentarlo.
+Publisher aparece como una fase futura.
+
+## Docker
+
+Para construir y arrancar los cuatro servicios:
+
+```sh
+docker compose -f deploy/docker/compose.yml up --build -d --wait
 ```
-cd existing_repo
-git remote add origin http://serezade.ujaen.es:8030/phonendo/phonendo.git
-git branch -M main
-git push -uf origin main
+
+[Configuración, puertos y pruebas con Docker](deploy/docker/README.md).
+
+## Ejecución local
+
+Requisitos: Python 3.11 o superior, soporte para entornos virtuales y `pip`.
+
+Configura `deploy/env/dev.env` con los puertos y secretos, y las listas de
+conexiones en `apps/reader/config.json`, `apps/manager/config.json`, `apps/verifier/config.json` y
+`apps/storage/config.json`. Después genera sus configuraciones y arranca el entorno:
+
+```sh
+./tools/generate_configs.sh
+./tools/dev.sh
 ```
 
-## Integrate with your tools
+El generador escribe los archivos `config.env` de los servicios. El Reader del
+entorno local utiliza el ejemplo Linux con observaciones simuladas.
 
-* [Set up project integrations](http://serezade.ujaen.es:8030/phonendo/phonendo/-/settings/integrations)
+## Laboratorio con interfaz
 
-## Collaborate with your team
+Para gestionar contenedores Docker, ver sus puertos y crear dispositivos, sensores
+y observaciones manuales o periódicas: `./tools/lab.sh`. Permite parar, pausar y
+reanudar servicios.
+Consulta [las instrucciones del laboratorio](tools/LABORATORIO.md).
 
-* [Invite team members and collaborators](https://docs.gitlab.com/ee/user/project/members/)
-* [Create a new merge request](https://docs.gitlab.com/ee/user/project/merge_requests/creating_merge_requests.html)
-* [Automatically close issues from merge requests](https://docs.gitlab.com/ee/user/project/issues/managing_issues.html#closing-issues-automatically)
-* [Enable merge request approvals](https://docs.gitlab.com/ee/user/project/merge_requests/approvals/)
-* [Set auto-merge](https://docs.gitlab.com/user/project/merge_requests/auto_merge/)
+## Pruebas
 
-## Test and Deploy
+Prepara el entorno de pruebas:
 
-Use the built-in continuous integration in GitLab.
+```sh
+python3 -m venv .venv
+.venv/bin/python -m pip install -r tests/requirements.txt
+```
 
-* [Get started with GitLab CI/CD](https://docs.gitlab.com/ee/ci/quick_start/)
-* [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/ee/user/application_security/sast/)
-* [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/ee/topics/autodevops/requirements.html)
-* [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/ee/user/clusters/agent/)
-* [Set up protected environments](https://docs.gitlab.com/ee/ci/environments/protected_environments.html)
+Ejecuta las pruebas de los componentes y la integración con servicios reales:
 
-***
+```sh
+./tools/test.sh
+./tools/test_integration.sh
+```
 
-# Editing this README
+Las pruebas del Reader en C++ requieren un compilador con soporte C++17. La prueba
+de integración utiliza puertos y una base de datos temporales, comprueba streams,
+firmas e integridad del dato almacenado y cierra los servicios al terminar.
 
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
+## Documentación y referencia
 
-## Suggestions for a good README
-
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
-
-## Name
-Choose a self-explaining name for your project.
-
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
-
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
-
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
-
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
-
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
-
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
-
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
-
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
-
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
-
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
-
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
-
-## License
-For open source projects, say how it is licensed.
-
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+- [Reader](apps/reader/README.md), [Manager](apps/manager/README.md),
+  [Verifier](apps/verifier/README.md), [Storage](apps/storage/README.md) y
+  [Publisher](apps/publisher/README.md).
+- [Diagramas y fuentes PlantUML editables](docs/diagramas.md).
+- Moya, F., Quesada, F. J., Martínez, L. et al. *Phonendo: a platform for publishing wearable data on distributed ledger technologies*. Wireless Networks (2023). [Publicación original](https://doi.org/10.1007/s11276-023-03458-7).

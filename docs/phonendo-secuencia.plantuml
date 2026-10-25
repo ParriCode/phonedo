@@ -1,0 +1,51 @@
+@startuml phonendo_secuencia
+!theme plain
+hide footbox
+skinparam shadowing false
+skinparam sequenceMessageAlign center
+title Phonendo — secuencia simplificada entre servicios
+
+participant Reader as R
+participant Manager as M
+participant Verifier as V
+participant Storage as S
+participant "Publisher\n(pendiente)" as P #FFF2CC
+
+note over R,S
+  Cada observación incluye readerId y deviceId, sin alta previa.
+  Flujo operativo: SSE desde Reader; verificación y guardado por HTTP.
+end note
+M -> R : Suscribirse a /stream
+R --> M : Observación (SSE)
+note over R,M : Alternativa: POST /newEvent; tiene prioridad para ese readerId.
+note over M : Preparar evento Captured y calcular el hash del contenido.
+M -> V : Verificar evento (HTTP /verify)
+alt Verificación positiva
+  V --> M : Evento Verified con firma RSA
+  M -> S : Guardar evento Verified (HTTP)
+  S --> M : Confirmación de guardado
+else Rechazo explícito
+  V --> M : Rechazo
+  note over M,S : Descartar evento; no guardarlo.
+else Timeout
+  note over M,S : Cola en memoria y reintento desde la etapa pendiente.
+end
+
+== Intercambio SSE opcional con Verifier ==
+V -> M : Suscribirse a /stream/verifier
+M --> V : Evento Captured (SSE)
+note over V : Verificar y firmar si se acepta.
+V --> M : Resultado Verified por /stream del Verifier
+note over M,V
+  El Verifier ya publica para varios suscriptores.
+  Manager correlaciona el resultado con su evento y continúa el guardado.
+  El envío SSE no espera respuestas ni reintenta por timeout del suscriptor.
+end note
+
+M -> S : Guardar Verified (HTTP o salida SSE /stream/storage)
+S --> M : Evento guardado por /stream propio (si está suscrito)
+note over M,S : Recibir la confirmación no provoca otro guardado.
+
+== Publicación futura ==
+M --> P : Publicar evento verificado (pendiente)
+@enduml
