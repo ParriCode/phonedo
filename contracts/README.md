@@ -15,7 +15,7 @@ Groth16 válida de `circuits/` y la firma ed25519 del Verifier sobre el lote.
 
 Cualquiera puede enviar el `claim` (por ejemplo el Publisher): el pago siempre va a la
 paciente firmada. `policy.json` es la política inicial; `payout` va en unidades de 7
-decimales (`50000000` = 5 USDC).
+decimales (`1000000` = 0,1 USDC).
 
 `verifierId` es la clave pública ed25519 guardada en el contrato. Cada Verifier
 usa su propia instancia, seleccionada en `contracts` del Publisher. Este formato
