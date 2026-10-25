@@ -16,6 +16,26 @@ GNU con sus herramientas de enlace. No hace falta Docker para este frontend.
 
 Desde la raíz del repositorio:
 
+En Linux:
+
+```sh
+./tools/web.sh
+```
+
+Arranca sin Docker en `http://127.0.0.1:8080`; `Ctrl+C` lo detiene.
+Instala Rust, Trunk y el target WebAssembly si faltan. En Debian/Ubuntu instala
+también las dependencias de compilación mediante `sudo apt-get` cuando hacen falta.
+Los logs de compilación aparecen en la terminal. El panel sigue mostrando ejemplos.
+También abre Stellar Expert en testnet: una pestaña por contrato configurado en
+`apps/publisher/config.json`, o el explorador general si `contracts` está vacío.
+Para usar otra configuración:
+
+```sh
+PUBLISHER_CONFIG_PATH=deploy/docker/publisher.json ./tools/web.sh
+```
+
+Solo consulta el explorador; no despliega contratos ni envía transacciones.
+
 ```powershell
 rustup target add wasm32-unknown-unknown
 cargo install --locked trunk --version 0.22.0
