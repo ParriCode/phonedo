@@ -39,3 +39,9 @@ def test_simulation_settings_defaults_presets_and_overrides():
     assert (pulse['property'], pulse['unit'], pulse['min'], pulse['max']) == ('heart_rate', 'BPM', 95, 120)
     custom = example.simulation_settings({'simulation': {'min': 60, 'max': 70}})
     assert (custom['min'], custom['max'], custom['unit']) == (60, 70, 'CELSIUS')
+
+
+def test_cold_chain_preset_stays_inside_the_policy_range():
+    cold = example.simulation_settings({'simulation': 'coldchain'})
+    assert (cold['property'], cold['unit'], cold['min'], cold['max']) == ('temperature', 'CELSIUS', 2, 8)
+    assert cold['deviceId'] != example.simulation_settings({'simulation': 'temperature'})['deviceId']

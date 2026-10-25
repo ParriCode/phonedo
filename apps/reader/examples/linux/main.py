@@ -20,13 +20,16 @@ TEMPERATURE = {"deviceId": "simulated-device", "sensorId": "simulated-temperatur
 PULSE = {"deviceId": "simulated-pulse-band", "sensorId": "simulated-pulse", "property": "heart_rate",
          "unit": "BPM", "min": 95, "max": 120, "featureOfInterest": "simulated-patient",
          "intervalSeconds": 1}
+COLD_CHAIN = {"deviceId": "simulated-cold-chain", "sensorId": "simulated-cold-chain-temperature", "property": "temperature",
+              "unit": "CELSIUS", "min": 2, "max": 8, "featureOfInterest": "simulated-transport",
+              "intervalSeconds": 1}
 
 
 def simulation_settings(settings):
-    """Bloque `simulation` del config: `"pulse"`, `"temperature"` o un objeto que sobrescribe campos."""
+    """Bloque `simulation` del config: `"pulse"`, `"temperature"`, `"coldchain"` o un objeto que sobrescribe campos."""
     simulation = settings.get('simulation', 'temperature')
     if isinstance(simulation, str):
-        return dict({"temperature": TEMPERATURE, "pulse": PULSE}[simulation])
+        return dict({"temperature": TEMPERATURE, "pulse": PULSE, "coldchain": COLD_CHAIN}[simulation])
     return {**TEMPERATURE, **simulation}
 
 
