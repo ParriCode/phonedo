@@ -26,6 +26,19 @@ son las que usa el backend para llegar a cada servicio: `seed.json` usa los nomb
 de la red Docker. Para ejecutarlo fuera de esa red, usa otra semilla con `CONTROL_SEED`
 (por ejemplo `http://127.0.0.1:7101`) y borra la base.
 
+## Pruebas
+
+`cargo test` cubre la API con servicios y RPC falsos. La integración con la pila
+Docker real (los cinco servicios y el backend construido con su `Dockerfile`) está
+en `tests/docker/test_control_panel.py`:
+
+```sh
+./tools/test_control.sh
+```
+
+Usa nombre de proyecto y puertos aleatorios, añade las etiquetas del panel con
+`tests/docker/control_labels.yml` y lo elimina todo al terminar. Tarda unos minutos.
+
 ## Variables de entorno
 
 | Variable | Por defecto | Uso |

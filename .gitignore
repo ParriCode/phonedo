@@ -45,3 +45,4 @@ LOG.old
 MANIFEST-*
 *.ldb
 *.log
+.idea/

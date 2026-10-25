@@ -34,12 +34,20 @@
           "name": "Storage",
           "url": "http://storage:5000",
           "container": "phonendo-storage-1"
+        },
+        {
+          "instanceId": "local-publisher",
+          "kind": "publisher",
+          "name": "Publisher",
+          "url": "http://publisher:3005",
+          "container": "phonendo-publisher-1"
         }
       ],
       "connections": [
         { "sourceId": "local-reader", "targetId": "local-manager", "transport": "http", "reportedBy": "local-reader" },
         { "sourceId": "local-manager", "targetId": "local-verifier", "transport": "http", "reportedBy": "local-manager" },
-        { "sourceId": "local-manager", "targetId": "local-storage", "transport": "http", "reportedBy": "local-manager" }
+        { "sourceId": "local-manager", "targetId": "local-storage", "transport": "http", "reportedBy": "local-manager" },
+        { "sourceId": "local-manager", "targetId": "local-publisher", "transport": "sse", "reportedBy": "local-publisher" }
       ]
     }
   ]
