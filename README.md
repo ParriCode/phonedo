@@ -85,6 +85,12 @@ Reader Python, Manager, Verifier y Storage exponen, sin token:
 Las rutas de procesamiento conservan su autenticación. Publisher y Reader C++
 todavía no tienen un servidor HTTP concreto para estas consultas.
 
+## Panel de observación
+
+El [frontend del panel de observación](apps/control/frontend/README.md) permite
+explorar un mapa de servicios con ejemplos simulados, sin arrancar el pipeline.
+Está construido con Leptos y su conexión con la API del panel está pendiente.
+
 ## Pruebas
 
 Prepara el entorno de pruebas:
