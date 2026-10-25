@@ -245,6 +245,9 @@ Arranque local sin Docker:
 ./tools/web.sh
 ```
 
+El operador ofrece un canvas libre con drag & drop, zoom/pan, Auto layout y
+Fit view. Su arquitectura modular está en [service_network](apps/web/service_network/README.md).
+
 Abre dos pestañas automáticamente cuando el servidor responde: el operador en
 `http://127.0.0.1:8080/operator.html` y Stellar Expert en testnet con el primer contrato de
 `apps/publisher/config.json`, o el explorador general si no hay configurados.
