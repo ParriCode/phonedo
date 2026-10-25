@@ -1,0 +1,46 @@
+{
+  "deployments": [
+    {
+      "id": "docker-local",
+      "name": "Docker local",
+      "description": "deploy/docker/compose.yml (proyecto phonendo)",
+      "instances": [
+        {
+          "instanceId": "local-reader",
+          "kind": "reader",
+          "name": "Reader",
+          "url": "http://reader:3002",
+          "aliases": ["reader-docker"],
+          "container": "phonendo-reader-1",
+          "readerId": "reader-docker"
+        },
+        {
+          "instanceId": "local-manager",
+          "kind": "manager",
+          "name": "Manager",
+          "url": "http://manager:3003",
+          "container": "phonendo-manager-1"
+        },
+        {
+          "instanceId": "local-verifier",
+          "kind": "verifier",
+          "name": "Verifier",
+          "url": "http://verifier:5000",
+          "container": "phonendo-verifier-1"
+        },
+        {
+          "instanceId": "local-storage",
+          "kind": "storage",
+          "name": "Storage",
+          "url": "http://storage:5000",
+          "container": "phonendo-storage-1"
+        }
+      ],
+      "connections": [
+        { "sourceId": "local-reader", "targetId": "local-manager", "transport": "http", "reportedBy": "local-reader" },
+        { "sourceId": "local-manager", "targetId": "local-verifier", "transport": "http", "reportedBy": "local-manager" },
+        { "sourceId": "local-manager", "targetId": "local-storage", "transport": "http", "reportedBy": "local-manager" }
+      ]
+    }
+  ]
+}
