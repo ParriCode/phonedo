@@ -4,7 +4,7 @@
   },
   "devices": {
     "simulated-cold-chain": {
-      "contractId": "CBWFKQUIOSRN5TS5YWKAZPG53VM4SSBWT2WRHNQZCP67PSDSDX3KOJAK",
+      "contractId": "CAIVTGTXAQ4NMXXQTRZOF4V3JLS6GG2QEHSOYJW2FFOOIZBSISUPD63Y",
       "policy": {
         "minValue": 2,
         "maxValue": 8,

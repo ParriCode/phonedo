@@ -67,6 +67,7 @@ services:
       API_TOKEN_MANAGER: demo-manager
       PHONENDO_VERBOSE: "true"
       STELLAR_SECRET_KEY: ${STELLAR_SECRET_KEY:-}
+      STELLAR_SOURCE: ${STELLAR_SOURCE:-jose}
     volumes:
       - ./publisher.json:/app/publisher/config.json:ro
       - ../../circuits:/circuits
