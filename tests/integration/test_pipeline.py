@@ -1,4 +1,5 @@
-"""Real subprocesses, HTTP/SSE sockets, RSA validation and isolated LevelDB."""
+"""Real subprocesses, HTTP/SSE sockets, ed25519 validation and isolated LevelDB."""
+import base64
 import copy
 import json
 import os
@@ -13,8 +14,7 @@ import time
 import pytest
 import requests
 from cryptography.exceptions import InvalidSignature
-from cryptography.hazmat.primitives import hashes, serialization
-from cryptography.hazmat.primitives.asymmetric import padding
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -69,8 +69,12 @@ def test_real_pipeline(tmp_path):
     config = tmp_path / 'manager.json'
     config.write_text(json.dumps({'subscriptions': {'readers': [urls['reader']]}, 'services': {'verifiers': [urls['verifier']], 'storages': [urls['storage']]},
                                  'stream': {'enabled': True}, 'outputStreams': {'verifiers': True}}))
+    signing_key = Ed25519PrivateKey.generate()
+    key_file = tmp_path / 'signing_key.json'
+    key_file.write_text(json.dumps({'kty': 'OKP', 'crv': 'Ed25519',
+                                    'd': base64.urlsafe_b64encode(signing_key.private_bytes_raw()).decode().rstrip('=')}))
     verifier_config = tmp_path / 'verifier.json'
-    verifier_config.write_text(json.dumps({'server': {'publicUrl': urls['verifier']},
+    verifier_config.write_text(json.dumps({'keyPath': str(key_file), 'server': {'publicUrl': urls['verifier']},
                                          'subscriptions': {'managers': [urls['manager']]}}))
     env = {**os.environ, 'VERIFIER_CONFIG_PATH': str(verifier_config), 'MANAGER_PASSWORD': 'integration-only', 'API_TOKEN_MANAGER': 'manager-test',
            'API_TOKEN_STORAGE': 'storage-test', 'API_TOKEN_VERIFIER': 'verifier-test',
@@ -120,13 +124,12 @@ asyncio.run(main.main())
         persisted = wait_for(stored_event)
         stored = persisted['value']
         # Verify the HTTP result and its persisted copy.
-        public_key = serialization.load_pem_private_key(
-            json.loads((ROOT / 'apps/verifier/keys.json').read_text())['privateKey'].encode(), None).public_key()
+        public_key = signing_key.public_key()
         def check_signature(message):
             unsigned = copy.deepcopy(message)
             signature = bytes.fromhex(unsigned['value'].pop('verifierSign'))
             encoded = json.dumps(unsigned, sort_keys=True, separators=(',', ':'), ensure_ascii=False).encode()
-            public_key.verify(signature, encoded, padding.PKCS1v15(), hashes.SHA256())
+            public_key.verify(signature, encoded)
         check_signature(first)
         check_signature(persisted)
         assert stored['payload'] == original['value']['payload']

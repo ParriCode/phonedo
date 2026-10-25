@@ -15,7 +15,7 @@ Publisher está pendiente de integración.
 - `manager_support/event_auth.py`: cálculo del hash con la clave compartida.
 
 El hash cubre el sobre Captured completo, salvo el propio `managerHash`. Manager
-y Verifier deben compartir `MANAGER_PASSWORD`. La firma RSA del resultado la
+y Verifier deben compartir `MANAGER_PASSWORD`. La firma ed25519 del resultado la
 produce el Verifier.
 
 ## Entrada y resultado
@@ -24,6 +24,7 @@ produce el Verifier.
 | --- | --- |
 | `GET /` | Comprobar que el servicio responde. |
 | `POST /newEvent` | Recibir y procesar una observación. |
+| `POST /signBatch` | Reenviar a los Verifiers de `services.verifiers` la firma de un lote; devuelve la primera respuesta válida. |
 
 Los POST requieren `token` en el JSON, igual a `API_TOKEN_MANAGER`.
 `/newEvent` requiere `readerId`, `deviceId`, `eventType`, `payloadFormat` y `payload`.

@@ -15,7 +15,7 @@ docker compose -f deploy/docker/compose.yml up --build -d --wait
 
 El ejemplo usa credenciales de demostración, un Reader de temperaturas simuladas
 y conexiones HTTP entre los cuatro servicios. El Verifier debe tener disponible
-`apps/verifier/keys.json`; Compose lo monta en lectura, sin incluirlo en la imagen.
+`apps/verifier/signing_key.json` (lo crea `tools/generate_configs.sh`); Compose lo monta en lectura, sin incluirlo en la imagen.
 
 | Servicio | Puerto local | Comprobación |
 | --- | --- | --- |
@@ -63,7 +63,7 @@ docker build -t phonendo-storage apps/storage
 
 Cada contenedor admite su `config.json` montado en `/app/<servicio>/config.json`.
 Manager necesita `MANAGER_PASSWORD` y sus tokens; Verifier necesita la misma clave
-compartida, su token y `keys.json` montado en `/app/verifier/keys.json`.
+compartida, su token y `signing_key.json` montado en `/app/verifier/signing_key.json`.
 Storage recibe `API_TOKEN_STORAGE` y utiliza `/data/phonendo` para su base de datos.
 El Reader ejecuta el ejemplo Linux configurable con `READER_CONFIG_PATH`.
 

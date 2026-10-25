@@ -63,7 +63,7 @@ editarlas para configurar relaciones N a N. Para más instancias cambia el nombr
 y el puerto local; el puerto interno puede repetirse entre contenedores.
 
 Los servicios usan credenciales de laboratorio y una clave compartida propia de
-la sesión. El Verifier monta `apps/verifier/keys.json` en lectura. Ningún
+la sesión. El Verifier monta `apps/verifier/signing_key.json` en lectura. Ningún
 `config.env` del proyecto se copia o modifica.
 
 ## Parar, pausar y reanudar

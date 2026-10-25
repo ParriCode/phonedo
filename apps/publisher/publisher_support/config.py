@@ -22,7 +22,8 @@ class PublisherConfig:
             'minCount': int(policy.get('minCount', 28)),
         }
         self.patients = data.get('patients', {})
-        self.signer_key = data.get('signer', {}).get('keyPath', 'build/verifier_dev_key.json')
+        managers = [m if isinstance(m, str) else m.get('url', '') for m in self.manager_subscriptions]
+        self.signer_manager = data.get('signer', {}).get('manager') or (managers[0] if managers else '')
         self.circuits_path = (BASE_DIR / data.get('circuitsPath', '../../circuits')).resolve()
         self.stellar = data.get('stellar', {})
 

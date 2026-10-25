@@ -3,11 +3,13 @@ import os
 import time
 import threading
 import hmac
+import requests
 from flask import g, request, abort
 from manager_support.logger import Logger
 from manager_support.event_stream import EventStream
 from manager_support.server_stream import stream_response
 from manager_support.transport import endpoint, http_endpoints
+from client import InternalPostError
 
 
 class ManagerServer:
@@ -122,6 +124,23 @@ def register_routes(app, core):
     @app.get("/")
     def alive():
         return "Service is alive"
+
+    @app.post("/signBatch")
+    def sign_batch():
+        body = request.get_json(silent=True) or {}
+        expected = os.getenv("API_TOKEN_MANAGER")
+        if not expected or not hmac.compare_digest(str(body.get("token", "")), expected):
+            Logger.warning("manager_sign_batch_not_authorized")
+            return {"error": "Not authorized"}, 401
+        batch = {name: body.get(name) for name in ("sessionId", "salt", "patient", "eventKeys")}
+        try:
+            return core.client.sign_batch(batch)
+        except InternalPostError as error:
+            Logger.warning("manager_sign_batch_rejected", status=error.status)
+            return {"error": "Verifier rejected the batch", "detail": error.body}, error.status
+        except (requests.RequestException, RuntimeError) as error:
+            Logger.error("manager_sign_batch_failed", error=str(error))
+            return {"error": "No Verifier could sign the batch"}, 502
 
     @app.post("/newEvent")
     def new_event():

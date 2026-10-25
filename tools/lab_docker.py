@@ -93,11 +93,11 @@ class DockerInstance:
         for key, value in session.credentials.items():
             args.extend(['-e', key + '=' + value])
         if kind == 'verifier':
-            keys = ROOT / 'apps/verifier/keys.json'
+            keys = ROOT / 'apps/verifier/signing_key.json'
             if not keys.is_file():
                 self.directory.cleanup()
-                raise ValueError('Falta apps/verifier/keys.json')
-            args.extend(['--mount', f'type=bind,src={keys},dst=/app/verifier/keys.json,readonly'])
+                raise ValueError('Falta apps/verifier/signing_key.json')
+            args.extend(['--mount', f'type=bind,src={keys},dst=/app/verifier/signing_key.json,readonly'])
         if kind == 'reader':
             args.extend(['--mount', f'type=bind,src={ROOT / "tools/lab_reader.py"},dst=/lab/reader.py,readonly',
                          '-e', 'PYTHONPATH=/app/reader/python/core:/app/reader/python/server'])

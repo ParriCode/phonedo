@@ -13,6 +13,7 @@ class StreamClient:
         self.retry_seconds = retry_seconds
         self.stopped = threading.Event()
         self.threads = []
+        self.connected = set()
         self.service_url = service_url
 
     def start(self):
@@ -34,6 +35,7 @@ class StreamClient:
                     headers['X-Phonendo-Service-URL'] = self.service_url
                 with requests.get(url, headers=headers, stream=True, timeout=(10, 30)) as response:
                     response.raise_for_status()
+                    self.connected.add(url)
                     kind, data = '', []
                     for line in response.iter_lines(chunk_size=1):
                         if self.stopped.is_set():
@@ -51,6 +53,8 @@ class StreamClient:
                             data.append(line[5:].lstrip())
             except (requests.RequestException, ValueError, TypeError) as error:
                 Logger.warning('stream_connection_failed', url=url, error=str(error))
+            finally:
+                self.connected.discard(url)
             self.stopped.wait(self.retry_seconds)
 
     def close(self):

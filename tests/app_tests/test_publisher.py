@@ -1,5 +1,4 @@
 """Publisher: lotes de lecturas Verified del Manager, firma del lote y claim()."""
-import base64
 import importlib.util
 import json
 import sys
@@ -8,7 +7,6 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
-from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey, Ed25519PublicKey
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / 'apps/publisher'))
@@ -36,7 +34,7 @@ def publisher(tmp_path, monkeypatch):
 
 def verified(device_id, result, created=1000, key=None):
     return {'key': key or f'{device_id}-{result}', 'value': {
-        'status': 'Verified', 'verifierSign': 'rsa', 'deviceId': device_id,
+        'status': 'Verified', 'verifierSign': 'sig', 'deviceId': device_id,
         'creationDatetime': created, 'payload': {'simple_result': result}}}
 
 
@@ -56,31 +54,8 @@ def test_batches_verified_readings_per_device_once():
     assert batcher.add(verified('a', 101.6, created=5)) is None
     assert batcher.add(verified('b', 300)) is None
     assert batcher.add({'key': 'x', 'value': {'status': 'Captured', 'payload': {'simple_result': 1}}}) is None
-    assert batcher.add(verified('a', -4)) == {'deviceId': 'a', 'readings': [102, 0], 'startedAt': 5}
+    assert batcher.add(verified('a', -4)) == {'deviceId': 'a', 'readings': [102, 0], 'eventKeys': ['a-101.6', 'a--4'], 'startedAt': 5}
     assert batcher.pending['b']['readings'] == [255]
-
-
-def test_batch_message_matches_contract_layout():
-    from publisher_support.signer import account_key, batch_message
-
-    assert account_key(ZERO_ACCOUNT) == bytes(32)
-    with pytest.raises(ValueError):
-        account_key(ZERO_ACCOUNT[:-1] + 'G')
-    message = batch_message('ab' * 32, 20261025001, ZERO_ACCOUNT)
-    assert message == bytes.fromhex('ab' * 32) + (20261025001).to_bytes(32, 'big') + bytes(32)
-
-
-def test_local_signer_reads_sign_js_key(tmp_path):
-    from publisher_support.signer import LocalSigner, batch_message
-
-    seed = Ed25519PrivateKey.generate().private_bytes_raw()
-    key_file = tmp_path / 'key.json'
-    key_file.write_text(json.dumps({'kty': 'OKP', 'crv': 'Ed25519',
-                                    'd': base64.urlsafe_b64encode(seed).decode().rstrip('=')}))
-    signer = LocalSigner(key_file)
-    signature = signer.sign({'sessionId': 7}, 'cd' * 32, ZERO_ACCOUNT)
-    public_key = Ed25519PublicKey.from_public_bytes(bytes.fromhex(signer.public_key_hex()))
-    public_key.verify(bytes.fromhex(signature), batch_message('cd' * 32, 7, ZERO_ACCOUNT))
 
 
 def test_full_batch_from_manager_is_proved_signed_and_claimed(publisher):

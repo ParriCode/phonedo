@@ -56,7 +56,7 @@ Existing services (Python, in `apps/`):
 | --- | --- |
 | Reader | Reads devices/sensors and exposes observations over SSE. Python and C++ cores, Linux (simulated) and Arduino/ESP examples. |
 | Manager | Coordinates the flow, computes the HMAC-SHA256 `managerHash`, retries on timeout. |
-| Verifier | Validates fields, time and hash; signs the Verified event (RSA today). |
+| Verifier | Validates fields, time and hash; signs each Verified event and, on `POST /signBatch`, the batch commitment, both with one ed25519 key. |
 | Storage | Stores Verified events in LevelDB and organises its own database. Raw data stays off-chain here. |
 | Publisher | Listens only to the Manager `/stream`, batches 32 Verified readings per device, proves with `circuits/`, signs and calls `claim()` through the Stellar CLI. |
 
@@ -79,16 +79,22 @@ End-to-end flow:
    observation carries `readerId` and `deviceId`; there is no device registration.
 2. Publisher (subscribed to the Manager `/stream`; it talks to no other service)
    groups 32 Verified readings of a session and picks a random `salt`.
-3. The batch commitment `Poseidon(sessionId, salt, readings)` is computed with
-   `circuits/commit.circom` (its wasm), so it matches the circuit exactly.
-4. The Verifier signs the batch with **ed25519** (Soroban verifies ed25519
-   natively; it cannot verify RSA). It keeps signing each event with RSA; the
-   ed25519 signature is an extra one per batch. Signed message (96 bytes):
+3. Publisher -> Manager `POST /signBatch` -> Verifier `POST /signBatch` with only
+   `sessionId`, `salt`, `patient` and the 32 `eventKeys`. The Verifier takes the
+   readings from its own memory of events it verified (never from the caller),
+   computes `Poseidon(sessionId, salt, readings)` in Python
+   (`apps/verifier/verifier_support/poseidon.py`, identical to the circuit) and
+   signs it with **ed25519** (Soroban verifies ed25519 natively; it cannot verify
+   RSA). The same key also signs each Verified event (`verifierSign`). Signed
+   message (96 bytes):
    `commitment (32 B, big-endian) || sessionId (32 B, big-endian) || ed25519
-   public key of the patient's G account (32 B)`. `circuits/scripts/sign.js`
-   is the reference implementation with a development key. Who signs in
-   production (Verifier or another service, via the Manager) is still to be
-   decided with the team; until then the Publisher signs with that dev key.
+   public key of the patient's G account (32 B)`. The key is
+   `apps/verifier/signing_key.json` (gitignored JWK, copied by
+   `tools/generate_configs.sh` from `circuits/build/verifier_dev_key.json`, the
+   key the deployed contract trusts). `circuits/scripts/sign.js` is the reference
+   implementation. The Publisher never signs by itself.
+4. The Publisher rejects the signature if the returned commitment differs from
+   the one in its proof.
 5. Publisher generates a Groth16 proof with `range_adherence.circom`: the private
    readings produce that commitment and at least `minCount` are in
    `[minValue, maxValue]`.
@@ -142,7 +148,7 @@ payment code. Everything Stellar is built at the event.
 | --- | --- |
 | Reader, Manager, Verifier, Storage (Python), Docker stack, tests | ZK circuit and proving scripts (`circuits/`) |
 | Publisher as an empty placeholder | Publisher: batching, proof, batch signature, `claim()` call |
-| Verifier signs with RSA | ed25519 signature of the batch commitment |
+| Verifier signs events with RSA | One ed25519 key signs events and the batch commitment |
 | Publishing to IOTA (paper) | Soroban contract: Groth16 verification, anti-replay, USDC payout |
 | No user interface for the use case | Patient / insurer dashboard |
 
@@ -235,9 +241,9 @@ stellar contract invoke --id <contract_id> --source <alias> --network testnet --
   no generated artifacts. `circuits/build/`, `node_modules/`, `target/`,
   `.wasm`, `.zkey`, `.ptau` stay out of git.
 - No secrets in git: no private keys, seeds, tokens or personal paths.
-  `apps/verifier/keys.json` and the `config.env` files are currently tracked
-  even though `.gitignore` lists `config.env`; they must leave the repo (rotate
-  the key), so do not add more files like them.
+  `apps/verifier/signing_key.json` and `config.env` are gitignored and generated
+  by `tools/generate_configs.sh`; the old RSA `keys.json` (removed) was in git
+  history, so it counts as leaked. Never commit files like them.
 - Match the existing style. Code comments, READMEs and user-facing messages are
   in **Spanish**; keep them short. Follow each service's current structure.
 - Small, focused changes. Do not refactor or reformat code you were not asked to touch.

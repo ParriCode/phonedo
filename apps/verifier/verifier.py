@@ -9,13 +9,13 @@ from uuid import UUID
 
 from flask import Flask, g, request, jsonify
 from dotenv import load_dotenv
-from cryptography.hazmat.primitives import hashes, serialization
-from cryptography.hazmat.primitives.asymmetric import padding
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from verifier_support.logger import Logger
+from verifier_support.batch_signer import BatchSigner, load_signing_key
 
 from verifier_support.event_auth import sign_event
 
@@ -83,11 +83,7 @@ def is_non_empty_string(value) -> bool:
 def sign_with_verifier(message: dict) -> str:
     message_bytes = canonical_json(message).encode("utf-8")
 
-    return private_key.sign(
-        message_bytes,
-        padding.PKCS1v15(),
-        hashes.SHA256()
-    ).hex()
+    return signing_key.sign(message_bytes).hex()
 
 
 load_dotenv(Path(__file__).resolve().parent / "config.env")
@@ -102,15 +98,15 @@ Logger.init(
 
 BASE_DIR = Path(__file__).resolve().parent
 verifier_config = json.loads(Path(os.getenv("VERIFIER_CONFIG_PATH", str(BASE_DIR / "config.json"))).read_text())
-KEYS_PATH = BASE_DIR / verifier_config.get('keysPath', 'keys.json')
+KEY_PATH = BASE_DIR / verifier_config.get('keyPath', 'signing_key.json')
 
-with open(KEYS_PATH, "r", encoding="utf-8") as f:
-    keys = json.load(f)
-
-private_key = serialization.load_pem_private_key(
-    keys["privateKey"].encode("utf-8"),
-    password=None
-)
+# Una sola clave ed25519 firma cada evento y cada lote; su clave pública es la que confía el contrato
+signing_key = load_signing_key(KEY_PATH)
+if signing_key is None:
+    # Sin signing_key.json (no se versiona) se usa una clave temporal que dura lo que el proceso
+    Logger.warning("verifier_key_missing", path=str(KEY_PATH))
+    signing_key = Ed25519PrivateKey.generate()
+batch_signer = BatchSigner(signing_key)
 
 from verifier_support.event_stream import EventStream
 from verifier_support.server_stream import stream_response
@@ -145,6 +141,7 @@ def sanitize_body(body):
 
     sanitized = dict(body)
     sanitized.pop("token", None)
+    sanitized.pop("salt", None)
 
     message = sanitized.get("message")
     if isinstance(message, dict):
@@ -224,6 +221,35 @@ def verify():
     if status == 200:
         verification_stream.publish(result["message"])
     return result, status
+
+
+@app.post("/signBatch")
+def sign_batch():
+    data = request.get_json(silent=True)
+
+    if not isinstance(data, dict):
+        return jsonify({"error": "Invalid JSON body"}), 400
+
+    token = data.get("token")
+    expected_token = os.getenv("API_TOKEN_VERIFIER")
+
+    if not expected_token:
+        Logger.error("verifier_token_not_configured")
+        return jsonify({"error": "API_TOKEN_VERIFIER is not configured"}), 500
+
+    if not token or not hmac.compare_digest(str(token), expected_token):
+        Logger.warning("sign_batch_not_authorized")
+        return jsonify({"error": "Not authorized"}), 401
+
+    session_id = data.get("sessionId")
+    try:
+        commitment, signature = batch_signer.sign(session_id, data.get("salt"), data.get("patient"), data.get("eventKeys"))
+    except ValueError as error:
+        Logger.warning("sign_batch_rejected", sessionId=session_id, error=str(error))
+        return jsonify({"error": str(error)}), 422
+
+    Logger.info("batch_signed", sessionId=session_id)
+    return jsonify({"commitment": commitment, "signature": signature}), 200
 
 
 def verify_message(message):
@@ -324,6 +350,7 @@ def verify_message(message):
     verified_message = {'key': key, 'value': {'schemaVersion': schema_version, 'eventType': event_type, 'readerId': reader_id, 'deviceId': device_id, 'payloadFormat': payload_format, 'payload': payload, 'status': 'Verified', 'creationDatetime': creation_datetime, 'managerHash': manager_hash, 'verifierSignDatetime': now_ms}}
     signature = sign_with_verifier(verified_message)
     verified_message['value']['verifierSign'] = signature
+    batch_signer.remember(verified_message)
     Logger.info('event_verified', eventId=key, deviceId=device_id, readerId=reader_id)
     Logger.debug('event_signature', eventId=key, signature=signature)
     return ({'verified': True, 'status': 'Verified', 'message': verified_message}, 200)

@@ -63,7 +63,7 @@ Desde la raíz, con el entorno descrito en el [README principal](../../README.md
 ```
 
 La integración usa una base de datos temporal y comprueba que el evento Verified
-almacenado conserva su contenido y una firma RSA válida.
+almacenado conserva su contenido y una firma ed25519 válida.
 
 Las utilidades de este servicio están en `storage_support/`. No requieren código de otros servicios.
 

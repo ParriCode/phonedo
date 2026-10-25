@@ -21,7 +21,7 @@ note over R,M : Alternativa: POST /newEvent; tiene prioridad para ese readerId.
 note over M : Preparar evento Captured y calcular el hash del contenido.
 M -> V : Verificar evento (HTTP /verify)
 alt Verificación positiva
-  V --> M : Evento Verified con firma RSA
+  V --> M : Evento Verified con firma ed25519
   M -> S : Guardar evento Verified (HTTP)
   S --> M : Confirmación de guardado
 else Rechazo explícito

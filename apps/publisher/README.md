@@ -12,8 +12,9 @@ llama a `claim()` del contrato `contracts/adherence`.
 2. Al completar el lote asigna `sessionId` (inicio del lote en ms) y una sal aleatoria.
 3. `node scripts/prove.js` y `node scripts/soroban.js` en `circuits/` generan la prueba.
    Si el lote no cumple la política no hay prueba y no se cobra.
-4. Firma con ed25519 `commitment || sessionId || cuenta G de la paciente`, de momento
-   con la clave de desarrollo de `circuits/scripts/sign.js`.
+4. Pide la firma ed25519 de `commitment || sessionId || cuenta G de la paciente` a
+   `POST /signBatch` del Manager, que la obtiene del Verifier. Solo envía los ids de
+   los eventos; si el commitment firmado no coincide con el de la prueba, no cobra.
 5. `stellar contract invoke ... -- claim` con el alias de cuenta configurado.
    Registra en el log el hash de la transacción o el motivo del fallo.
 
@@ -33,12 +34,14 @@ llama a `claim()` del contrato `contracts/adherence`.
 | `subscriptions.managers` | URLs base de los Managers; consume su `/stream` con Bearer `API_TOKEN_MANAGER`. |
 | `batchSize`, `policy` | Lecturas por lote y política; debe coincidir con la guardada en el contrato. |
 | `patients` | Cuenta G que cobra por `deviceId`; `default` para el resto. |
-| `signer.keyPath` | Clave de desarrollo, relativa a `circuitsPath`. |
+| `signer.manager` | Manager al que pide la firma del lote; por defecto el primero de `subscriptions.managers`. |
 | `stellar` | `contractId`, alias `source` de la CLI y `network`. |
 
 Requiere Node.js con `circuits/` preparado (`npm install`, `npm run setup`,
-`node scripts/sign.js` para crear la clave), Stellar CLI con el alias configurado y
-el contrato desplegado con esa clave y esa política. Con el ejemplo de Docker:
+`node scripts/sign.js <cuenta G>` crea la clave de desarrollo que el Verifier usa como
+`signing_key.json`), Stellar CLI con el alias configurado y el contrato desplegado con
+la clave pública de esa clave y con esa política. Además, el Manager y el Verifier
+deben estar en marcha con `POST /signBatch`. Con el ejemplo de Docker:
 
 ```sh
 cd apps/publisher

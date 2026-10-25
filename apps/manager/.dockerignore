@@ -5,6 +5,6 @@
 **/.pio
 **/config.env*
 **/.env*
-**/keys.json
+**/signing_key.json
 **/*.log
 .git

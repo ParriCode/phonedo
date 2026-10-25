@@ -8,7 +8,7 @@ utiliza HTTP con este Verifier o existe otra suscripción activa de él.
 
 Valida los eventos Captured recibidos del Manager: comprueba sus campos, formato,
 fecha y hash del contenido. Si los acepta, produce un evento Verified con firma
-RSA/SHA-256. Un rechazo no se publica como resultado verificado.
+ed25519. Un rechazo no se publica como resultado verificado.
 
 ## Endpoints
 
@@ -16,6 +16,7 @@ RSA/SHA-256. Un rechazo no se publica como resultado verificado.
 | --- | --- |
 | `GET /` | Comprobar que el servicio responde. |
 | `POST /verify` | Verificar el evento enviado en `message`. |
+| `POST /signBatch` | Firmar con ed25519 un lote de 32 eventos ya verificados. |
 | `GET /stream` | Recibir eventos Verified por SSE. |
 
 El POST requiere `token` en el JSON, igual a `API_TOKEN_VERIFIER`. Devuelve
@@ -24,6 +25,17 @@ El POST requiere `token` en el JSON, igual a `API_TOKEN_VERIFIER`. Devuelve
 configuración puede devolver `500`.
 El stream requiere `Authorization: Bearer <API_TOKEN_VERIFIER>` y emite
 `observation`. Cada suscriptor recibe su copia; admite varios suscriptores.
+
+## Firma del lote
+
+`POST /signBatch` recibe `token`, `sessionId`, `salt`, `patient` (cuenta G) y
+`eventKeys` (32 ids de eventos de un mismo dispositivo). Toma las lecturas
+(`payload.simple_result`, de 0 a 255) de los eventos que este Verifier verificó y
+guarda en memoria; nunca las recibe del cliente. Calcula el commitment Poseidon
+del circuito (`verifier_support/poseidon.py`) y firma
+`commitment || sessionId || clave de la cuenta G` con la misma clave ed25519 que firma cada evento.
+Devuelve `{commitment, signature}` en hexadecimal y `422` si algún evento no es suyo
+o el lote no es válido.
 
 ## Consumo de Managers
 
@@ -56,7 +68,7 @@ El servicio carga `config.env` sin sustituir las variables ya definidas en el en
 | `VERIFIER_CONFIG_PATH` | Ruta del JSON; por defecto `config.json` junto al servicio. |
 | `MAX_EVENT_AGE_MS` | Antigüedad máxima del evento; por defecto `300000` ms. |
 | `MAX_FUTURE_DRIFT_MS` | Desfase futuro permitido; por defecto `30000` ms. |
-| `keys.json` | Clave privada de firma RSA; debe existir junto a `verifier.py`. |
+| `signing_key.json` | Clave ed25519 (JWK) que firma cada evento y cada lote, junto a `verifier.py`. No se versiona: `tools/generate_configs.sh` copia la de `circuits/build/verifier_dev_key.json`, que es la que conoce el contrato. Si falta, se usa una clave temporal. |
 
 La configuración actual comparte clave y token entre Managers; no define
 credenciales independientes por Manager. El cálculo del hash está en
@@ -71,14 +83,14 @@ Desde la raíz, con el entorno descrito en el [README principal](../../README.md
 ./tools/test_integration.sh
 ```
 
-La integración usa conexiones reales, comprueba la firma RSA, rechaza eventos
+La integración usa conexiones reales, comprueba la firma ed25519, rechaza eventos
 alterados y verifica el dato guardado en Storage.
 
 Las utilidades de este servicio están en `verifier_support/`. No requieren código de otros servicios.
 
 Cada destino también admite `{"url": "http://manager:3003", "token": "..."}` para credenciales propias.
 
-El JSON también admite `server.host`, `server.port` y `keysPath` (ruta relativa
+El JSON también admite `server.host`, `server.port`, `keyPath` (ruta relativa
 a la carpeta del Verifier). `PORT_VERIFIER` explícito prevalece sobre el puerto JSON.
 Varios Managers pueden enviar HTTP al mismo Verifier con su token de acceso;
 varios Verifiers pueden suscribirse a cada Manager sin confirmaciones SSE.

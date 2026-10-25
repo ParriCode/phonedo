@@ -76,6 +76,16 @@ class ManagerClient:
             raise RuntimeError('Storage did not confirm the verified message')
         return responses[0]
 
+    def sign_batch(self, batch: dict):
+        """Pide la firma del lote; solo la da el Verifier que verificó sus eventos."""
+        error = None
+        for base, token in self._targets('verifier'):
+            try:
+                return self._post(base + '/signBatch', dict(batch, token=token))
+            except (requests.RequestException, InternalPostError) as failure:
+                error = failure
+        raise error
+
     def _post(self, url: str, body: dict):
         sanitized = dict(body)
         sanitized.pop("token", None)

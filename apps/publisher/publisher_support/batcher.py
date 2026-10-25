@@ -38,9 +38,10 @@ class SessionBatcher:
             self.seen[message.get('key')] = True
             if len(self.seen) > self.remembered:
                 self.seen.pop(next(iter(self.seen)))
-            batch = self.pending.setdefault(device_id, {'deviceId': device_id, 'readings': [],
+            batch = self.pending.setdefault(device_id, {'deviceId': device_id, 'readings': [], 'eventKeys': [],
                                                         'startedAt': int(value.get('creationDatetime', 0))})
             batch['readings'].append(reading)
+            batch['eventKeys'].append(message.get('key'))
             if len(batch['readings']) < self.size:
                 return None
             return self.pending.pop(device_id)

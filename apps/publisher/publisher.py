@@ -17,7 +17,7 @@ from publisher_support.batcher import SessionBatcher
 from publisher_support.config import PublisherConfig
 from publisher_support.logger import Logger
 from publisher_support.prover import BatchNotMet, Prover
-from publisher_support.signer import LocalSigner
+from publisher_support.signer import ManagerSigner
 from publisher_support.stellar import ClaimFailed, StellarClaimer
 from publisher_support.stream_client import StreamClient
 
@@ -55,7 +55,7 @@ last_session_id = 0
 def get_signer():
     global signer
     if signer is None:
-        signer = LocalSigner(publisher_config.circuits_path / publisher_config.signer_key)
+        signer = ManagerSigner(publisher_config.signer_manager, os.getenv('API_TOKEN_MANAGER', ''))
     return signer
 
 
