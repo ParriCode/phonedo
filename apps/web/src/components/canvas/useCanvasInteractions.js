@@ -27,12 +27,14 @@ export function useCanvasInteractions(viewportRef, state, callbacks) {
       if (gesture || ![0, 1].includes(event.button)) return;
       const element = event.target.closest('[data-service-id]');
       const id = element?.dataset.serviceId;
+      // Pulsar una conexión la selecciona; arrastrar sobre ella mueve el lienzo.
+      const edgeId = id ? null : event.target.closest('[data-edge-id]')?.dataset.edgeId ?? null;
       const pan = event.button === 1 || space || state.panMode || !id;
       if (id && !pan && !Object.hasOwn(state.positions, id)) return;
       event.preventDefault();
       (pan ? viewport : element).focus({ preventScroll: true });
       gesture = { pointerId: event.pointerId, origin: point(event), viewport: { ...state.viewport },
-        id: pan ? null : id, position: id ? { ...state.positions[id] } : null, moved: false };
+        id: pan ? null : id, edgeId, position: id ? { ...state.positions[id] } : null, moved: false };
       state.interacting = true;
       call('interaction', true);
       viewport.setPointerCapture(event.pointerId);
@@ -62,7 +64,10 @@ export function useCanvasInteractions(viewportRef, state, callbacks) {
       state.interacting = false;
       call('interaction', false);
       suppressClick = previous.moved;
-      if (event.type === 'pointerup' && !previous.moved && !previous.id && !space && !state.panMode) call('select', null);
+      if (event.type === 'pointerup' && !previous.moved && !previous.id && !space && !state.panMode) {
+        if (previous.edgeId) call('selectEdge', previous.edgeId);
+        else call('select', null);
+      }
       state.save();
       call('paint');
     };

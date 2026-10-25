@@ -1,8 +1,8 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { CONFIG } from '../config.js';
 import { paidEvent, PATIENT } from '../test/fakes.js';
 import { configFor, configName, dockerDefaultConfig, linkDockerNode } from './serviceConfig.js';
-import { parseEvent, sortedTotals, stats } from './stellar.js';
+import { cursorLedger, fetchPayments, mergePayments, parseEvent, sortedTotals, stats } from './stellar.js';
 import { short } from './format.js';
 
 describe('stellar', () => {
@@ -21,6 +21,28 @@ describe('stellar', () => {
     expect(summary.sessions).toBe(3);
     expect(summary.patients).toBe(2);
     expect(sortedTotals(summary.totals)).toEqual([['USDC', 7.5], ['XLM', 5]]);
+  });
+
+  it('recorre todas las páginas del RPC hasta el último ledger y sigue desde el cursor', async () => {
+    const toid = (ledger) => `${(BigInt(ledger) << 32n).toString().padStart(19, '0')}-4294967295`;
+    const requests = [];
+    globalThis.fetch = vi.fn(async (url, init) => {
+      const body = JSON.parse(init.body);
+      requests.push(body);
+      const reply = (result) => new Response(JSON.stringify({ jsonrpc: '2.0', id: 1, result }));
+      if (body.method === 'getHealth') return reply({ oldestLedger: 100, latestLedger: 30_000 });
+      const cursor = body.params.pagination.cursor;
+      if (!cursor) return reply({ events: [], cursor: toid(10_100), latestLedger: 30_000 });
+      if (cursor === toid(10_100)) return reply({ events: [paidEvent()], cursor: toid(30_000), latestLedger: 30_000 });
+      return reply({ events: [], cursor: toid(30_000), latestLedger: 30_000 });
+    });
+    expect(cursorLedger(toid(10_100))).toBe(10_100);
+    const first = await fetchPayments();
+    expect(first.payments.map((p) => p.sessionId)).toEqual(['20261025001']);
+    expect(requests.filter((r) => r.method === 'getEvents')).toHaveLength(2);
+    const again = await fetchPayments(first.cursor);
+    expect(again.payments).toEqual([]);
+    expect(mergePayments(first.payments, [...first.payments, { id: 'nuevo', ledger: 9e9 }]).map((p) => p.id)).toEqual(['nuevo', first.payments[0].id]);
   });
 
   it('acorta identificadores largos', () => {

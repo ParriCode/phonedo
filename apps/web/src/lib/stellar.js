@@ -39,19 +39,41 @@ export function parseEvent(event) {
   };
 }
 
-export async function fetchPayments() {
-  const health = await rpc('getHealth', {});
+/** Ledger de un cursor de getEvents (TOID: el ledger va en los 32 bits altos). */
+export function cursorLedger(cursor) {
+  try { return Number(BigInt(String(cursor).split('-')[0]) >> 32n); } catch { return 0; }
+}
+
+/**
+ * Pagos nuevos desde `cursor` (o desde el ledger más antiguo que guarda el RPC).
+ * Cada página cubre como mucho ~10 000 ledgers, así que se avanza hasta el último.
+ */
+export async function fetchPayments(cursor = null) {
   const filters = [{ type: 'contract', contractIds: CONFIG.contracts.map((c) => c.id) }];
-  let params = { startLedger: health.oldestLedger, filters, pagination: { limit: 200 }, xdrFormat: 'json' };
-  const found = [];
-  for (let page = 0; page < 10; page++) {
-    const result = await rpc('getEvents', params);
-    const events = result.events ?? [];
-    found.push(...events.map(parseEvent).filter(Boolean));
-    if (events.length < 200 || !result.cursor) break;
-    params = { filters, pagination: { limit: 200, cursor: result.cursor }, xdrFormat: 'json' };
+  let params;
+  if (cursor) params = { filters, pagination: { limit: 200, cursor }, xdrFormat: 'json' };
+  else {
+    const health = await rpc('getHealth', {});
+    params = { startLedger: health.oldestLedger, filters, pagination: { limit: 200 }, xdrFormat: 'json' };
   }
-  return found.sort((a, b) => (b.ledger ?? 0) - (a.ledger ?? 0));
+  const payments = [];
+  let next = cursor;
+  for (let page = 0; page < 40; page++) {
+    const result = await rpc('getEvents', params);
+    payments.push(...(result.events ?? []).map(parseEvent).filter(Boolean));
+    if (!result.cursor || result.cursor === next) break;
+    next = result.cursor;
+    if (result.latestLedger && cursorLedger(next) >= result.latestLedger) break;
+    params = { filters, pagination: { limit: 200, cursor: next }, xdrFormat: 'json' };
+  }
+  return { payments, cursor: next };
+}
+
+/** Une pagos sin repetir, del más reciente al más antiguo. */
+export function mergePayments(previous, incoming) {
+  const byId = new Map(previous.map((payment) => [payment.id, payment]));
+  for (const payment of incoming) byId.set(payment.id, payment);
+  return [...byId.values()].sort((a, b) => (b.ledger ?? 0) - (a.ledger ?? 0));
 }
 
 export function stats(events) {

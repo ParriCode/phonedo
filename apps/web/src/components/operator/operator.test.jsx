@@ -42,11 +42,11 @@ describe('consola del operador', () => {
   it('seleccionar un nodo muestra su inspector y se puede quitar de la vista', async () => {
     mockFetch({ local: () => [] });
     const { container } = renderOperator();
-    expect(container.querySelector('.service-network__empty-detail')).toBeTruthy();
+    expect(container.querySelector('.inspector--summary')).toBeTruthy();
 
     pointer(container.querySelector('[data-service-id="verifier-1"]'));
     const sidebar = container.querySelector('.service-network__sidebar');
-    expect(sidebar.querySelector('h3').textContent).toBe('verifier');
+    expect(sidebar.querySelector('.inspector__head h2').textContent).toBe('verifier');
     expect(container.querySelector('[data-service-id="verifier-1"]').getAttribute('aria-pressed')).toBe('true');
 
     fireEvent.click(screen.getByText('Quitar de la vista'));
@@ -63,7 +63,7 @@ describe('consola del operador', () => {
     fireEvent.change(input, { target: { value: 'secreto' } });
     fireEvent.blur(input);
     expect(input.value).toBe('');
-    await act(async () => { fireEvent.click(screen.getByText('Consultar estado y logs')); });
+    await act(async () => { fireEvent.click(screen.getByText('Consultar ahora')); });
     await waitFor(() => expect(calls.some((c) => c.body?.token === 'secreto')).toBe(true));
   });
 
@@ -73,7 +73,7 @@ describe('consola del operador', () => {
       return [];
     } });
     const { container } = renderOperator();
-    fireEvent.click(screen.getByText('+ Add service'));
+    fireEvent.click(screen.getByText('+ Añadir servicio'));
     const dialog = container.querySelector('#node-dialog');
     expect(dialog.hasAttribute('open')).toBe(true);
     expect(dialog.querySelector('[data-deploy-kind="reader"]').getAttribute('aria-pressed')).toBe('true');
@@ -95,7 +95,7 @@ describe('consola del operador', () => {
   it('un JSON inválido en el diálogo se explica sin cerrarlo', async () => {
     mockFetch({ local: () => [] });
     const { container } = renderOperator();
-    fireEvent.click(screen.getByText('+ Add service'));
+    fireEvent.click(screen.getByText('+ Añadir servicio'));
     const dialog = container.querySelector('#node-dialog');
     fireEvent.change(dialog.querySelector('textarea[name="config"]'), { target: { value: '{ roto' } });
     await act(async () => { fireEvent.submit(dialog.querySelector('form')); });
@@ -103,17 +103,95 @@ describe('consola del operador', () => {
     expect(dialog.querySelector('#op-dialog-error').textContent).not.toBe('');
   });
 
-  it('las etapas filtran los logs y se pueden limpiar', async () => {
+  it('los logs se filtran por servicio, nivel y texto, y se pueden limpiar', async () => {
+    mockFetch({ local: (path, body) => (path === 'probe' ? [`${body.url.slice(-4)} event_received`, ...(body.url.endsWith('7105') ? ['publisher_session_failed'] : [])] : []) });
+    const { container } = renderOperator();
+    await waitFor(() => expect(container.querySelectorAll('.log-row')).toHaveLength(6));
+    fireEvent.change(container.querySelector('#op-log-filter'), { target: { value: 'verifier-1' } });
+    expect(container.querySelectorAll('.log-row')).toHaveLength(1);
+    fireEvent.change(container.querySelector('#op-log-filter'), { target: { value: 'all' } });
+    fireEvent.click(container.querySelector('[data-level="error"]'));
+    expect([...container.querySelectorAll('.log-row__message')].map((row) => row.textContent)).toEqual(['publisher_session_failed']);
+    expect(container.querySelector('.log-row--error')).toBeTruthy();
+    fireEvent.click(container.querySelector('[data-level="error"]'));
+    fireEvent.change(container.querySelector('.logs__search input'), { target: { value: '7102' } });
+    expect(container.querySelectorAll('.log-row')).toHaveLength(1);
+    fireEvent.change(container.querySelector('.logs__search input'), { target: { value: 'nada que coincida' } });
+    expect(container.querySelector('.log-empty h3').textContent).toBe('Nada coincide con el filtro');
+    fireEvent.click(screen.getByText('Limpiar vista'));
+    expect(container.querySelector('.log-empty h3').textContent).toBe('Esperando actividad');
+  });
+
+  it('las peticiones HTTP de rutina se ocultan y los mensajes repetidos se agrupan', async () => {
+    mockFetch({ local: (path, body) => (path === 'probe' && body.url.endsWith('7102') ? ['request', 'event_received', 'event_received', 'request'] : []) });
+    const { container } = renderOperator();
+    await waitFor(() => expect(container.querySelectorAll('.log-row')).toHaveLength(1));
+    expect(container.querySelector('.log-row__message').textContent).toBe('event_received×2');
+    fireEvent.click(screen.getByText('Mostrar 2 peticiones HTTP'));
+    expect([...container.querySelectorAll('.log-row__message')].map((row) => row.textContent)).toEqual(['request', 'event_received×2', 'request']);
+    fireEvent.click(screen.getByText('Ocultar peticiones HTTP'));
+    expect(container.querySelectorAll('.log-row')).toHaveLength(1);
+  });
+
+  it('pulsar el servicio de un log lo selecciona en el mapa', async () => {
     mockFetch({ local: (path, body) => (path === 'probe' ? [`${body.url.slice(-4)} event_received`] : []) });
     const { container } = renderOperator();
     await waitFor(() => expect(container.querySelectorAll('.log-row')).toHaveLength(5));
-    fireEvent.click(container.querySelector('[data-stage="verifier"]'));
-    expect(container.querySelectorAll('.log-row')).toHaveLength(1);
-    expect(container.querySelector('#op-log-filter').value).toBe('verifier');
-    fireEvent.click(container.querySelector('[data-stage="verifier"]'));
-    expect(container.querySelectorAll('.log-row')).toHaveLength(5);
-    fireEvent.click(screen.getByText('Limpiar vista'));
-    expect(container.querySelector('.log-empty')).toBeTruthy();
+    const row = [...container.querySelectorAll('.log-row')].find((item) => item.textContent.includes('7103'));
+    fireEvent.click(row.querySelector('.log-row__service'));
+    expect(container.querySelector('[data-service-id="verifier-1"]').getAttribute('aria-pressed')).toBe('true');
+    expect(container.querySelector('.log-row.is-related').textContent).toContain('7103');
+  });
+
+  it('un error reciente se ve en el nodo, en el inspector y lleva a sus logs', async () => {
+    let failed = false;
+    mockFetch({ local: (path, body) => {
+      if (path !== 'probe') return [];
+      if (body.url.endsWith('7105')) return failed ? ['started', 'publisher_session_failed'] : ['started'];
+      return ['started'];
+    } });
+    const { container } = renderOperator();
+    const publisher = () => container.querySelector('[data-service-id="publisher-1"]');
+    await waitFor(() => expect(publisher().className).toContain('service-node--healthy'));
+    pointer(publisher());
+    failed = true;
+    await act(async () => { fireEvent.click(screen.getByText('Consultar ahora')); });
+    await waitFor(() => expect(publisher().className).toContain('service-node--degraded'));
+    expect(publisher().querySelector('.service-node__activity--error').textContent).toBe('publisher_session_failed');
+    const callout = container.querySelector('.callout--warning');
+    expect(callout.textContent).toContain('publisher_session_failed');
+    fireEvent.click(within(callout).getByText(/Ver logs relacionados/));
+    expect(container.querySelector('#op-log-filter').value).toBe('publisher-1');
+    expect(container.querySelector('.filter-chip').textContent).toContain('publisher');
+  });
+
+  it('un servicio caído marca sus conexiones y aparece en el resumen', async () => {
+    mockFetch({ local: (path, body) => {
+      if (path === 'probe' && body.url.endsWith('7103')) throw new Error('connection refused');
+      return path === 'probe' ? ['started'] : [];
+    } });
+    const { container } = renderOperator();
+    await waitFor(() => expect(container.querySelector('[data-service-id="verifier-1"]').className).toContain('service-node--error'));
+    const edge = container.querySelector('[data-edge-id="manager-1:verifier-1:http"]');
+    expect(edge.getAttribute('class')).toContain('edge--error');
+    expect(edge.querySelector('.edge__break')).toBeTruthy();
+    expect(container.querySelector('.inspector--summary h2').textContent).toBe('Necesita atención');
+    fireEvent.click(within(container.querySelector('.attention-list')).getByText('verifier'));
+    expect(container.querySelector('.callout--error').textContent).toContain('connection refused');
+  });
+
+  it('seleccionar una conexión muestra su tipo, estado y extremos', async () => {
+    mockFetch({ local: (path) => (path === 'probe' ? ['started'] : []) });
+    const { container } = renderOperator();
+    await waitFor(() => expect(container.querySelectorAll('.service-node--healthy').length).toBeGreaterThanOrEqual(5));
+    expect(container.querySelector('[data-edge-id="manager-1:publisher-1:sse"]').getAttribute('class')).toContain('edge--sse');
+    pointer(container.querySelector('[data-edge-id="manager-1:publisher-1:sse"] .edge__hit'));
+    const inspector = container.querySelector('.service-network__sidebar .inspector');
+    expect(inspector.querySelector('h2').textContent).toBe('manager → publisher');
+    expect(inspector.querySelector('.stream-badge')).toBeTruthy();
+    expect(container.querySelector('[data-edge-id="manager-1:publisher-1:sse"]').getAttribute('class')).toContain('edge--selected');
+    fireEvent.click(within(inspector).getByText('publisher'));
+    expect(container.querySelector('[data-service-id="publisher-1"]').getAttribute('aria-pressed')).toBe('true');
   });
 
   it('todos los componentes ofrecen modo visual y JSON con texto escapado', async () => {

@@ -25,6 +25,26 @@ El inspector usa formularios React Visual/JSON sincronizados. Reader aplica en
 directo; los otros contenedores gestionados reinician al guardar. Los borradores
 permanecen en memoria al cambiar de nodo; servicios externos solo generan archivos.
 
+## Consola del operador
+
+Mirar, entender, seleccionar y actuar. La información se revela por niveles:
+
+1. **Mapa**: qué existe, cómo se conecta y qué falla. Cada nodo muestra solo tipo,
+   nombre, estado, Stream, una línea de actividad y su puerto.
+2. **Inspector**: lo seleccionado (servicio, conexión o Stellar) con su estado,
+   conexiones, acciones y últimos registros. Sin selección, qué necesita atención.
+3. **Configuración avanzada**: plegada; dirección completa, Docker, token y el
+   editor Visual/JSON.
+
+El color siempre significa lo mismo: verde funciona, ámbar avisos, rojo sin
+respuesta, gris sin datos y azul Stream. Los estados salen de datos observados
+(`src/lib/health.js`): un servicio que no responde es error; con errores o avisos
+en el último minuto, avisos; sin consultas recientes, datos antiguos. Una conexión
+está caída si falla un extremo y activa si se ven datos llegando en sus logs; los
+puntos que fluyen marcan un Stream activo. El nivel de cada log es el que envía el
+servicio o, si no lo envía, el que se deduce del mensaje (`*_failed` es error). La
+actividad oculta por defecto las peticiones HTTP de rutina y agrupa repeticiones.
+
 ## Providers y consumers
 
 El estado compartido vive en providers de contexto (`src/providers`). Cada uno

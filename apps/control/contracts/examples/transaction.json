@@ -1,8 +1,0 @@
-{
-  "txHash": "891b2fe1504a9d9c0a34146828e9caac9527a41e3d467eaecf5a994c145c0aa1",
-  "network": "testnet",
-  "status": "success",
-  "ledger": 5381362,
-  "createdAt": "2026-10-25T12:13:17Z",
-  "explorerUrl": "https://stellar.expert/explorer/testnet/tx/891b2fe1504a9d9c0a34146828e9caac9527a41e3d467eaecf5a994c145c0aa1"
-}

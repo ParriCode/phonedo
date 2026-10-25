@@ -1,9 +1,0 @@
-[
-  {
-    "id": "docker-local",
-    "name": "Docker local",
-    "description": "deploy/docker/compose.yml (proyecto phonendo)",
-    "instances": 4,
-    "simulated": false
-  }
-]
