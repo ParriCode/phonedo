@@ -58,7 +58,7 @@ Existing services (Python, in `apps/`):
 | Manager | Coordinates the flow, computes the HMAC-SHA256 `managerHash`, retries on timeout. |
 | Verifier | Validates fields, time and hash; signs the Verified event (RSA today). |
 | Storage | Stores Verified events in LevelDB and organises its own database. Raw data stays off-chain here. |
-| Publisher | Empty (README + disabled config). This is where the ZK prover and the Stellar call plug in. |
+| Publisher | Listens only to the Manager `/stream`, batches 32 Verified readings per device, proves with `circuits/`, signs and calls `claim()` through the Stellar CLI. |
 
 El Manager evita conexiones HTTP/SSE redundantes por servicio, no observaciones
 repetidas. Para Reader conserva el primer transporte seleccionado hasta reiniciar;
@@ -77,21 +77,30 @@ End-to-end flow:
 
 1. Sensor -> Reader -> Manager -> Verifier -> Storage (existing pipeline). Each
    observation carries `readerId` and `deviceId`; there is no device registration.
-2. Publisher groups 32 Verified readings of a session and picks a random `salt`.
+2. Publisher (subscribed to the Manager `/stream`; it talks to no other service)
+   groups 32 Verified readings of a session and picks a random `salt`.
 3. The batch commitment `Poseidon(sessionId, salt, readings)` is computed with
    `circuits/commit.circom` (its wasm), so it matches the circuit exactly.
-4. The Verifier signs the commitment with **ed25519** (Soroban verifies ed25519
-   natively; it cannot verify RSA).
+4. The Verifier signs the batch with **ed25519** (Soroban verifies ed25519
+   natively; it cannot verify RSA). It keeps signing each event with RSA; the
+   ed25519 signature is an extra one per batch. Signed message (96 bytes):
+   `commitment (32 B, big-endian) || sessionId (32 B, big-endian) || ed25519
+   public key of the patient's G account (32 B)`. `circuits/scripts/sign.js`
+   is the reference implementation with a development key. Who signs in
+   production (Verifier or another service, via the Manager) is still to be
+   decided with the team; until then the Publisher signs with that dev key.
 5. Publisher generates a Groth16 proof with `range_adherence.circom`: the private
    readings produce that commitment and at least `minCount` are in
    `[minValue, maxValue]`.
-6. Publisher calls `claim()` on the contract. It checks, in order: the ed25519
-   signature against the registered Verifier key; the proof against the stored
-   verification key; that `minValue`, `maxValue`, `minCount` equal the policy
-   stored on-chain (never trust caller-supplied policy values); that `sessionId`
-   was not claimed before (anti-replay). Then it marks the session as claimed,
-   transfers USDC from the contract balance funded by the insurer to the
-   patient's registered address (never a caller-supplied address) and emits an event.
+6. Publisher calls `claim(patient, session_id, commitment, signature, proof)`.
+   It checks, in order: that `sessionId` was not claimed before (anti-replay);
+   the ed25519 signature against the Verifier key stored at deploy; the proof
+   against the stored verification key, with `minValue`, `maxValue`, `minCount`
+   taken from the policy stored on-chain (never from the caller). Then it marks
+   the session as claimed, transfers the payout from the contract balance funded
+   by the insurer to `patient` and emits `SessionPaid`. Anyone may submit the
+   claim: `patient` is inside the signed message, so only the Verifier decides
+   who gets paid.
 7. The dashboard reads contract events and links the tx on stellar.expert.
 
 On-chain: only the commitment, public parameters, session id, proof result and
@@ -109,9 +118,9 @@ phonedo/
 │   ├── manager/          # flow coordination, managerHash, retries
 │   ├── verifier/         # validation and signature of Verified events
 │   ├── storage/          # LevelDB store of Verified events
-│   └── publisher/        # empty for now: prover + Stellar call go here
+│   └── publisher/        # batches Verified readings, proves and calls claim()
 ├── circuits/             # Circom circuits, inputs/ examples, scripts/ (setup, prove, soroban)
-├── contracts/            # Soroban contract in Rust (to be added)
+├── contracts/            # Soroban contract `adherence` (Rust): claim() verifies signature + proof and pays
 ├── deploy/
 │   ├── docker/           # compose.yml and per-service JSON config
 │   └── env/              # dev.env for local runs
@@ -121,7 +130,7 @@ phonedo/
 ```
 
 Generated folders (`circuits/build/`, `node_modules/`, `target/`, `.venv/`) are
-local only. All are in `.gitignore` except `target/`: add it together with the contract.
+local only. All are in `.gitignore` (`contracts/.gitignore` covers `target/` and `test_snapshots/`).
 
 ## Prior work
 
@@ -132,7 +141,7 @@ payment code. Everything Stellar is built at the event.
 | Before the event | Built at the event |
 | --- | --- |
 | Reader, Manager, Verifier, Storage (Python), Docker stack, tests | ZK circuit and proving scripts (`circuits/`) |
-| Publisher as an empty placeholder | Publisher: batching, commitment, proof, `claim()` call |
+| Publisher as an empty placeholder | Publisher: batching, proof, batch signature, `claim()` call |
 | Verifier signs with RSA | ed25519 signature of the batch commitment |
 | Publishing to IOTA (paper) | Soroban contract: Groth16 verification, anti-replay, USDC payout |
 | No user interface for the use case | Patient / insurer dashboard |
@@ -156,13 +165,30 @@ payment code. Everything Stellar is built at the event.
 - Readings are integers 0-255 (8 bits). Encode other units to fit (e.g.
   temperature with an offset).
 - The `setup` ceremony is single-party: development only, say so in the README.
+- `setup` and `prove` force a single-thread curve (`scripts/curve.js`): on
+  Windows the snarkjs workers died silently. `setup` takes about 5 minutes.
 - Network: **testnet**. Asset: **USDC from Circle** (testnet faucet:
   faucet.circle.com), issuer `GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5`.
   Get its contract id with
   `stellar contract id asset --asset USDC:<issuer> --network testnet`.
 - Accounts: use Stellar CLI key aliases (`--source <alias>`). Never write
   secret keys or seed phrases in code, config, docs or commits.
+- The Circle faucet gave no testnet USDC on 25 Oct, so the first end-to-end run
+  pays in native XLM. Same wasm; only the `token` argument of the deploy changes.
 - In the pitch, name the curve we use (BLS12-381), not BN254.
+
+## Testnet deployments
+
+| What | Value |
+| --- | --- |
+| `adherence`, paying XLM (used for the first claim) | `CAPZ2O7LPTRGJ2Q7TTHMCHOKRZ4T7KU5I4E74M2U3YUTC3XONIQDOP2D` |
+| `adherence`, paying USDC (not funded yet) | `CBF2MBQ6W4S6LD3JSIM3NNZET5KBUKOADRZSKIYZRZBAXRM6OJZCNSFI` |
+| First on-chain claim (proof + signature verified, 5 XLM paid) | `891b2fe1504a9d9c0a34146828e9caac9527a41e3d467eaecf5a994c145c0aa1` |
+
+Both use policy 90-130 bpm, 28 of 32 readings, payout 5 units, and the
+development Verifier key from `circuits/build/verifier_dev_key.json`. A new
+`npm run setup` makes new circuit keys: redeploy the contract with the new
+`soroban_vk.json` after it.
 - When unsure about Soroban/Stellar APIs, check the official docs
   (developers.stellar.org) or the Stellar Raven MCP before writing code.
 
@@ -187,10 +213,12 @@ npm install
 npm run setup                               # compile + dev keys in build/
 npm run prove                               # proves inputs/session.json
 npm run prove -- inputs/session_fail.json   # out of range: no proof
-npm run soroban                             # build/soroban_args.json
+npm run soroban                             # build/soroban_*.json for the contract
+node scripts/sign.js <G account>            # dev signature of the batch
 ```
 
-Contract (Rust, soroban-sdk, Stellar CLI):
+Contract (Rust, soroban-sdk, Stellar CLI, `rustup target add wasm32v1-none`;
+full deploy and claim steps in `contracts/README.md`):
 
 ```sh
 stellar contract build
