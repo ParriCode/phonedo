@@ -31,3 +31,11 @@ def test_linux_example_stream_and_cleanup(monkeypatch):
         assert not created[0].running
         assert created[0].runner is None
     asyncio.run(check())
+
+
+def test_simulation_settings_defaults_presets_and_overrides():
+    assert example.simulation_settings({})['property'] == 'temperature'
+    pulse = example.simulation_settings({'simulation': 'pulse'})
+    assert (pulse['property'], pulse['unit'], pulse['min'], pulse['max']) == ('heart_rate', 'BPM', 95, 120)
+    custom = example.simulation_settings({'simulation': {'min': 60, 'max': 70}})
+    assert (custom['min'], custom['max'], custom['unit']) == (60, 70, 'CELSIUS')

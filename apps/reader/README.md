@@ -81,7 +81,8 @@ curl -N http://127.0.0.1:3002/stream
 ```
 
 Genera una temperatura **simulada** entre 20 y 30 °C cada segundo. El procedimiento
-`random-simulation` identifica su origen. No lee hardware. Puede enviar a Managers mediante `config.json`. Usa core, server y biblioteca estándar; HTTP requiere aiohttp.
+`random-simulation` identifica su origen. Con `"simulation": "pulse"` en `config.json` emite en su lugar
+pulsaciones (`heart_rate`, `BPM`) entre 95 y 120; un objeto (`{"min": 60, "max": 70}`) sobrescribe cualquier campo. No lee hardware. Puede enviar a Managers mediante `config.json`. Usa core, server y biblioteca estándar; HTTP requiere aiohttp.
 Ctrl+C cierra el servidor.
 
 ## C++ y Arduino

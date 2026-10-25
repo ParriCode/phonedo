@@ -13,7 +13,7 @@ Desde la raíz del proyecto, con Docker y Docker Compose instalados:
 docker compose -f deploy/docker/compose.yml up --build -d --wait
 ```
 
-El ejemplo usa credenciales de demostración, un Reader de temperaturas simuladas
+El ejemplo usa credenciales de demostración, un Reader de pulso simulado (95-120 BPM, dentro de la política del contrato)
 y conexiones HTTP entre los cuatro servicios. El Verifier debe tener disponible
 `apps/verifier/signing_key.json` (lo crea `tools/generate_configs.sh`); Compose lo monta en lectura, sin incluirlo en la imagen.
 
