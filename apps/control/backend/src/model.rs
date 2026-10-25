@@ -326,6 +326,87 @@ pub struct Operation {
     pub error: Option<ApiError>,
 }
 
+/// `confirmed`: evento `SessionPaid` en la red. `simulated`: dato del modo simulado,
+/// nunca se presenta como pago real.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum SessionStatus {
+    Confirmed,
+    Simulated,
+}
+
+/// Sesión cobrada: lo que ve la aseguradora. No incluye lecturas.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SessionPayment {
+    pub session_id: u64,
+    pub status: SessionStatus,
+    pub patient: String,
+    /// Importe en unidades del activo (p. ej. "5" = 5 XLM).
+    pub amount: String,
+    /// Importe en la unidad mínima del contrato (7 decimales).
+    pub amount_units: String,
+    pub asset: String,
+    pub contract_id: String,
+    pub tx_hash: Option<String>,
+    pub explorer_url: Option<String>,
+    pub ledger: Option<u32>,
+    pub paid_at: Option<Timestamp>,
+    pub event_id: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SessionsResponse {
+    pub simulated: bool,
+    pub source: String,
+    pub network: String,
+    pub contract_id: Option<String>,
+    pub observed_at: Option<Timestamp>,
+    pub stale: bool,
+    pub last_error: Option<ApiError>,
+    pub items: Vec<SessionPayment>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum TransactionStatus {
+    Success,
+    Failed,
+    #[serde(rename = "not_found")]
+    NotFound,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TransactionView {
+    pub tx_hash: String,
+    pub network: String,
+    pub status: TransactionStatus,
+    pub ledger: Option<u32>,
+    pub created_at: Option<Timestamp>,
+    pub explorer_url: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Role {
+    Admin,
+    Patient,
+    Insurer,
+    /// Sin token, solo cuando el backend no exige autenticación.
+    Anonymous,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WhoAmI {
+    pub role: Role,
+    pub auth_required: bool,
+    pub can_read_private: bool,
+    pub can_act: bool,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ReadingsResponse {

@@ -1,6 +1,6 @@
 use std::{path::Path, process::ExitCode};
 
-use phonendo_control::{api, collector, config::Config, docker::DockerAdapter, inventory, operations, AppState};
+use phonendo_control::{api, collector, config::Config, docker::DockerAdapter, inventory, operations, stellar, AppState};
 use tracing::{error, info, warn};
 
 #[tokio::main]
@@ -41,6 +41,14 @@ async fn run() -> Result<(), String> {
     let state = AppState::with_db(config, inventory, docker, db);
     for deployment in &state.inventory.deployments {
         tokio::spawn(collector::run(state.clone(), deployment.id.clone()));
+    }
+    match &state.stellar {
+        Some(source) => {
+            info!("sesiones del contrato {} en {}", source.contract_id, source.network);
+            tokio::spawn(stellar::run(state.clone()));
+        }
+        None if !state.config.mock => warn!("CONTROL_CONTRACT_ID sin definir: no se consultan sesiones"),
+        None => {}
     }
 
     let listener = tokio::net::TcpListener::bind(&addr).await.map_err(|e| format!("{addr}: {e}"))?;

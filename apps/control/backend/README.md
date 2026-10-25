@@ -39,6 +39,14 @@ de la red Docker. Para ejecutarlo fuera de esa red, usa otra semilla con `CONTRO
 | `CONTROL_STALE_MS` | 3 × intervalo | Antigüedad a partir de la cual un dato es `stale` |
 | `CONTROL_DOCKER` | `auto` | `auto` o `off` |
 | `CONTROL_ADMIN_TOKEN` | — | Token de las acciones; sin él quedan desactivadas |
+| `CONTROL_PATIENT_TOKEN` | — | Token de la paciente |
+| `CONTROL_INSURER_TOKEN` | — | Token de la aseguradora; con alguno de los dos, los datos privados exigen token |
+| `CONTROL_CONTRACT_ID` | — | Contrato `adherence`; sin él no se consultan sesiones |
+| `CONTROL_STELLAR_RPC` | `https://soroban-testnet.stellar.org` | RPC de Stellar |
+| `CONTROL_STELLAR_NETWORK` | `testnet` | Red, para los enlaces a stellar.expert |
+| `CONTROL_ASSET` | `XLM` | Activo que paga el contrato (el desplegado paga XLM) |
+| `CONTROL_STELLAR_POLL_MS` | `10000` | Intervalo de lectura de eventos |
+| `CONTROL_STELLAR_LOOKBACK` | `120000` | Ledgers hacia atrás al arrancar (~7 días, límite del RPC) |
 
 Si una instancia necesita token (p. ej. `/devices` del Reader), el inventario guarda
 el nombre de la variable de entorno (`tokenEnv`), nunca su valor, y no se devuelve.
@@ -55,7 +63,23 @@ el nombre de la variable de entorno (`tokenEnv`), nunca su valor, y no se devuel
 | `POST /api/instances/{id}/actions` | `{"action": "start\|stop\|restart"}`; requiere `Authorization: Bearer <token>`. Responde 202 con la operación |
 | `GET /api/operations?deployment=&limit=` | Historial de operaciones, más recientes primero |
 | `GET /api/operations/{id}` | Estado de una operación |
-| `GET /api/stream?deployment=` | SSE: `snapshot` al conectar, `topology` tras cada recogida y `operation` al cambiar una acción |
+| `GET /api/sessions?patient=` | Sesiones cobradas según los eventos del contrato |
+| `GET /api/transactions/{hash}` | Estado de una transacción en la red y enlace al explorador |
+| `GET /api/me` | Rol y permisos del token |
+| `GET /api/stream?deployment=` | SSE: `snapshot` al conectar, `topology` tras cada recogida, `operation` al cambiar una acción y `sessions` con cada cobro nuevo |
+
+## Sesiones y roles
+
+Las sesiones se leen de los eventos `SessionPaid` del contrato mediante el RPC
+(`getEvents`): sesión, paciente, importe, transacción y enlace a stellar.expert.
+La aseguradora (`CONTROL_INSURER_TOKEN`) solo recibe eso: lecturas, logs y detalle
+de instancias responden 403. Tabla completa de permisos en el
+[contrato](../contracts/README.md#sesiones-pagos-y-roles). Ejemplo con el contrato
+desplegado en testnet:
+
+```sh
+CONTROL_CONTRACT_ID=CAPZ2O7LPTRGJ2Q7TTHMCHOKRZ4T7KU5I4E74M2U3YUTC3XONIQDOP2D cargo run
+```
 
 ## Acciones
 
@@ -87,8 +111,9 @@ se recoge el estado enseguida para mostrar su efecto real.
   tiene una consulta filtrada y paginada. Las lecturas en directo por SSE están pendientes.
 - `eventsReceived` y el estado `blocked` siguen a `null`/sin uso hasta que los
   servicios expongan contadores y rechazos.
-- Las acciones usan un único token de administración. Las rutas de consulta no
-  piden autenticación; el control por roles llega con la vista de aseguradora.
+- Roles con tokens fijos por entorno; sin usuarios ni caducidad de tokens.
+- Los estados previos al cobro (prueba generada, transacción enviada o fallida)
+  necesitan que el Publisher los exponga; hoy solo se ven los cobros confirmados.
 - Pendiente de la Fase 2: crear despliegues desde plantillas y editar su
   configuración (generar los JSON de los servicios y el Compose), cuando estén
   definidas las configuraciones válidas.

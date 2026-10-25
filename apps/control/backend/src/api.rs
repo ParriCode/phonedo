@@ -20,9 +20,9 @@ use crate::{
     actions,
     model::{
         now, Action, ApiError, DeploymentSummary, InstanceDetail, LogsResponse, Operation, Reading,
-        ReadingKind, ReadingsResponse, Topology,
+        ReadingKind, ReadingsResponse, Role, SessionsResponse, Topology, TransactionView, WhoAmI,
     },
-    operations, views, AppState, Update,
+    operations, stellar, views, AppState, Update,
 };
 
 const MAX_LOG_LINES: usize = 200;
@@ -50,6 +50,9 @@ pub fn router(state: AppState) -> Router {
         .route("/api/operations", get(list_operations))
         .route("/api/operations/{id}", get(operation))
         .route("/api/readings", get(readings))
+        .route("/api/me", get(whoami))
+        .route("/api/sessions", get(sessions))
+        .route("/api/transactions/{hash}", get(transaction))
         .route("/api/stream", get(stream))
         .layer(
             CorsLayer::new()
@@ -65,20 +68,114 @@ fn same_secret(a: &str, b: &str) -> bool {
     a.len() == b.len() && a.bytes().zip(b.bytes()).fold(0u8, |acc, (x, y)| acc | (x ^ y)) == 0
 }
 
-fn authorize(state: &AppState, headers: &HeaderMap) -> Result<(), (StatusCode, Json<ApiError>)> {
-    let Some(expected) = state.config.admin_token.as_deref() else {
-        return Err(error(StatusCode::FORBIDDEN, "admin_disabled",
-                         "Acciones desactivadas: falta CONTROL_ADMIN_TOKEN en el backend", false));
-    };
-    let supplied = headers
+fn unauthorized() -> (StatusCode, Json<ApiError>) {
+    error(StatusCode::UNAUTHORIZED, "unauthorized", "Token ausente o incorrecto", false)
+}
+
+/// Rol según el token Bearer. Un token desconocido es un error, no un anónimo.
+fn role(state: &AppState, headers: &HeaderMap) -> Result<Role, (StatusCode, Json<ApiError>)> {
+    let Some(supplied) = headers
         .get(header::AUTHORIZATION)
         .and_then(|v| v.to_str().ok())
         .and_then(|v| v.strip_prefix("Bearer "))
-        .unwrap_or("");
-    if !same_secret(supplied, expected) {
-        return Err(error(StatusCode::UNAUTHORIZED, "unauthorized", "Token de administración ausente o incorrecto", false));
+    else {
+        return Ok(Role::Anonymous);
+    };
+    let config = &state.config;
+    [(&config.admin_token, Role::Admin), (&config.patient_token, Role::Patient), (&config.insurer_token, Role::Insurer)]
+        .into_iter()
+        .find(|(expected, _)| expected.as_deref().is_some_and(|e| same_secret(supplied, e)))
+        .map(|(_, role)| role)
+        .ok_or_else(unauthorized)
+}
+
+/// Cualquier rol; sin token solo si el backend no exige autenticación.
+fn require_any(state: &AppState, headers: &HeaderMap) -> Result<Role, (StatusCode, Json<ApiError>)> {
+    match role(state, headers)? {
+        Role::Anonymous if state.config.auth_required() => Err(unauthorized()),
+        role => Ok(role),
     }
-    Ok(())
+}
+
+/// Lecturas, logs y detalle de instancias: nunca para la aseguradora.
+fn require_private(state: &AppState, headers: &HeaderMap) -> Result<Role, (StatusCode, Json<ApiError>)> {
+    match require_any(state, headers)? {
+        Role::Insurer => Err(error(StatusCode::FORBIDDEN, "role_forbidden",
+                                   "La aseguradora no tiene acceso a lecturas, logs ni detalle de servicios", false)),
+        role => Ok(role),
+    }
+}
+
+fn authorize(state: &AppState, headers: &HeaderMap) -> Result<(), (StatusCode, Json<ApiError>)> {
+    if state.config.admin_token.is_none() {
+        return Err(error(StatusCode::FORBIDDEN, "admin_disabled",
+                         "Acciones desactivadas: falta CONTROL_ADMIN_TOKEN en el backend", false));
+    }
+    match role(state, headers)? {
+        Role::Admin => Ok(()),
+        Role::Anonymous => Err(unauthorized()),
+        _ => Err(error(StatusCode::FORBIDDEN, "role_forbidden", "Solo la administración puede ejecutar acciones", false)),
+    }
+}
+
+async fn whoami(State(state): State<AppState>, headers: HeaderMap) -> ApiResult<WhoAmI> {
+    let role = require_any(&state, &headers)?;
+    Ok(Json(WhoAmI {
+        role,
+        auth_required: state.config.auth_required(),
+        can_read_private: role != Role::Insurer,
+        can_act: role == Role::Admin && state.config.admin_token.is_some(),
+    }))
+}
+
+async fn current_sessions(state: &AppState, patient: Option<&str>) -> SessionsResponse {
+    let config = &state.config;
+    let (items, observed_at, last_error, source) = if config.mock {
+        (stellar::mock_sessions(), Some(now()), None, "simulated")
+    } else if state.stellar.is_none() {
+        let disabled = ApiError::new("stellar_disabled", "Falta CONTROL_CONTRACT_ID en el backend", false);
+        (Vec::new(), None, Some(disabled), "stellar")
+    } else {
+        let cache = state.sessions.read().await;
+        (cache.items.clone(), cache.observed_at, cache.last_error.clone(), "stellar")
+    };
+    let stale_after = chrono::TimeDelta::from_std(config.stellar_poll * 3).unwrap_or(chrono::TimeDelta::MAX);
+    SessionsResponse {
+        simulated: config.mock,
+        source: source.into(),
+        network: config.stellar_network.clone(),
+        contract_id: config.contract_id.clone(),
+        stale: observed_at.is_some_and(|t| now() - t > stale_after),
+        observed_at,
+        last_error,
+        items: items.into_iter().filter(|s| patient.is_none_or(|p| s.patient == p)).collect(),
+    }
+}
+
+#[derive(Deserialize)]
+struct SessionsQuery {
+    patient: Option<String>,
+}
+
+/// Sesiones cobradas: importe, estado y transacción. Sin lecturas, apto para la aseguradora.
+async fn sessions(State(state): State<AppState>, headers: HeaderMap, Query(query): Query<SessionsQuery>) -> ApiResult<SessionsResponse> {
+    require_any(&state, &headers)?;
+    Ok(Json(current_sessions(&state, query.patient.as_deref()).await))
+}
+
+async fn transaction(State(state): State<AppState>, headers: HeaderMap, Path(hash): Path<String>) -> ApiResult<TransactionView> {
+    require_any(&state, &headers)?;
+    if hash.len() != 64 || !hash.chars().all(|c| c.is_ascii_hexdigit()) {
+        return Err(error(StatusCode::BAD_REQUEST, "invalid_hash", "El hash debe tener 64 caracteres hexadecimales", false));
+    }
+    let Some(source) = &state.stellar else {
+        return Err(error(StatusCode::SERVICE_UNAVAILABLE, "stellar_disabled", "Consulta a Stellar desactivada", false));
+    };
+    source
+        .transaction(&hash.to_ascii_lowercase())
+        .await
+        .map(Json)
+        .map_err(|e| (StatusCode::BAD_GATEWAY, Json(e)))
 }
 
 fn http_status(error: &ApiError) -> StatusCode {
@@ -175,7 +272,8 @@ async fn topology(State(state): State<AppState>, Path(id): Path<String>) -> ApiR
     Ok(Json(current_topology(&state, &id).await))
 }
 
-async fn instance(State(state): State<AppState>, Path(id): Path<String>) -> ApiResult<InstanceDetail> {
+async fn instance(State(state): State<AppState>, headers: HeaderMap, Path(id): Path<String>) -> ApiResult<InstanceDetail> {
+    require_private(&state, &headers)?;
     let observations = state.observations.read().await;
     views::instance_detail(&state.inventory, &observations, &id, now(), state.config.stale_after, state.config.mock)
         .map(Json)
@@ -187,7 +285,13 @@ struct LogsQuery {
     limit: Option<usize>,
 }
 
-async fn logs(State(state): State<AppState>, Path(id): Path<String>, Query(query): Query<LogsQuery>) -> ApiResult<LogsResponse> {
+async fn logs(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Path(id): Path<String>,
+    Query(query): Query<LogsQuery>,
+) -> ApiResult<LogsResponse> {
+    require_private(&state, &headers)?;
     if state.inventory.instance(&id).is_none() {
         return Err(error(StatusCode::NOT_FOUND, "instance_not_found", format!("No existe la instancia {id}"), false));
     }
@@ -252,7 +356,12 @@ fn mock_readings() -> Vec<Reading> {
         .collect()
 }
 
-async fn readings(State(state): State<AppState>, Query(query): Query<ReadingsQuery>) -> ApiResult<ReadingsResponse> {
+async fn readings(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Query(query): Query<ReadingsQuery>,
+) -> ApiResult<ReadingsResponse> {
+    require_private(&state, &headers)?;
     if state.inventory.deployment(&query.deployment).is_none() {
         return Err(deployment_not_found(&query.deployment));
     }
@@ -315,6 +424,8 @@ async fn stream(
                 Ok(Update::Operation(op)) if targets.contains(&op.deployment_id) => {
                     yield Ok(event("operation", &op));
                 }
+                // Solo datos de pago, sin lecturas: válido para cualquier rol.
+                Ok(Update::Sessions) => yield Ok(event("sessions", &current_sessions(&state, None).await)),
                 Ok(_) => {}
                 // Si el cliente se retrasa, se descarta lo pendiente y se envía el estado actual.
                 Err(RecvError::Lagged(_)) => {

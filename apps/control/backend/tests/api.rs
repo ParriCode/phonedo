@@ -382,4 +382,7 @@ fn contract_examples_match_the_api_types() {
     let _: phonendo_control::model::ReadingsResponse = serde_json::from_value(read("readings.json")).unwrap();
     let _: phonendo_control::model::ApiError = serde_json::from_value(read("error.json")).unwrap();
     let _: phonendo_control::model::Operation = serde_json::from_value(read("operation.json")).unwrap();
+    let _: phonendo_control::model::SessionsResponse = serde_json::from_value(read("sessions.json")).unwrap();
+    let _: phonendo_control::model::TransactionView = serde_json::from_value(read("transaction.json")).unwrap();
+    let _: phonendo_control::model::WhoAmI = serde_json::from_value(read("me.json")).unwrap();
 }

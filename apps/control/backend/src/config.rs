@@ -14,6 +14,23 @@ pub struct Config {
     pub docker: bool,
     /// Token para las acciones administrativas; sin él están desactivadas.
     pub admin_token: Option<String>,
+    /// Tokens de rol. Si se define alguno, los datos privados exigen autenticación.
+    pub patient_token: Option<String>,
+    pub insurer_token: Option<String>,
+    pub stellar_rpc: String,
+    pub stellar_network: String,
+    /// Contrato `adherence`; sin él no se consultan sesiones.
+    pub contract_id: Option<String>,
+    pub asset: String,
+    pub stellar_poll: Duration,
+    /// Ledgers hacia atrás en la primera lectura (~5 s por ledger).
+    pub stellar_lookback: u32,
+}
+
+impl Config {
+    pub fn auth_required(&self) -> bool {
+        self.patient_token.is_some() || self.insurer_token.is_some()
+    }
 }
 
 impl Default for Config {
@@ -28,8 +45,20 @@ impl Default for Config {
             stale_after: Duration::from_secs(9),
             docker: true,
             admin_token: None,
+            patient_token: None,
+            insurer_token: None,
+            stellar_rpc: "https://soroban-testnet.stellar.org".into(),
+            stellar_network: "testnet".into(),
+            contract_id: None,
+            asset: "XLM".into(),
+            stellar_poll: Duration::from_secs(10),
+            stellar_lookback: 120_000,
         }
     }
+}
+
+fn non_empty(name: &str) -> Option<String> {
+    env::var(name).ok().filter(|t| !t.is_empty())
 }
 
 fn millis(name: &str, default: Duration, min: u64, max: u64) -> Result<Duration, String> {
@@ -69,7 +98,18 @@ impl Config {
             timeout: millis("CONTROL_TIMEOUT_MS", default.timeout, 100, 30_000)?,
             stale_after: millis("CONTROL_STALE_MS", poll * 3, 1_000, 600_000)?,
             docker,
-            admin_token: env::var("CONTROL_ADMIN_TOKEN").ok().filter(|t| !t.is_empty()),
+            admin_token: non_empty("CONTROL_ADMIN_TOKEN"),
+            patient_token: non_empty("CONTROL_PATIENT_TOKEN"),
+            insurer_token: non_empty("CONTROL_INSURER_TOKEN"),
+            stellar_rpc: env::var("CONTROL_STELLAR_RPC").unwrap_or(default.stellar_rpc),
+            stellar_network: env::var("CONTROL_STELLAR_NETWORK").unwrap_or(default.stellar_network),
+            contract_id: non_empty("CONTROL_CONTRACT_ID"),
+            asset: env::var("CONTROL_ASSET").unwrap_or(default.asset),
+            stellar_poll: millis("CONTROL_STELLAR_POLL_MS", default.stellar_poll, 2_000, 600_000)?,
+            stellar_lookback: match env::var("CONTROL_STELLAR_LOOKBACK") {
+                Err(_) => default.stellar_lookback,
+                Ok(v) => v.parse().map_err(|_| "CONTROL_STELLAR_LOOKBACK debe ser un número de ledgers".to_string())?,
+            },
         })
     }
 }

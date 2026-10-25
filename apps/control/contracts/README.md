@@ -39,6 +39,9 @@ una conexión declarada por un servicio que no figura en el inventario.
 | `logs.json` | `GET /api/instances/{id}/logs?limit=` |
 | `readings.json` | `GET /api/readings?deployment=&deviceId=&readerId=&limit=` |
 | `operation.json` | `POST /api/instances/{id}/actions`, `GET /api/operations/{id}` |
+| `sessions.json` | `GET /api/sessions?patient=` (pago real de la demo en testnet) |
+| `transaction.json` | `GET /api/transactions/{hash}` |
+| `me.json` | `GET /api/me`: rol y permisos del token |
 | `error.json` | Cualquier error |
 
 `GET /api/stream?deployment=` emite `snapshot` al conectar (y al reconectar) y
@@ -47,6 +50,26 @@ una conexión declarada por un servicio que no figura en el inventario.
 
 Estados de una operación: `pending`, `running`, `succeeded`, `failed`. La interfaz
 muestra el resultado según `status` y `error`, sin suponer éxito al enviar.
+
+También emite `sessions` (cuerpo de `sessions.json`) cuando aparece un cobro nuevo.
+
+## Sesiones, pagos y roles
+
+Las sesiones salen de los eventos `SessionPaid` del contrato `adherence`. `status`
+es `confirmed` (está en la red) o `simulated` (modo simulado, sin `txHash` ni enlace).
+`amount` va en unidades del activo y `amountUnits` en la unidad mínima (7 decimales).
+Los estados previos al cobro (prueba generada, transacción enviada, fallida, sesión
+que no cumple) solo los conoce el Publisher, que aún no los expone.
+
+| Rol | Sesiones y pagos | Lecturas, logs, detalle de instancia | Acciones |
+| --- | --- | --- | --- |
+| `admin` | sí | sí | sí |
+| `patient` | sí | sí | no |
+| `insurer` | sí | no (403 `role_forbidden`) | no |
+| `anonymous` | solo sin roles configurados | solo sin roles configurados | no |
+
+El rol sale del token `Authorization: Bearer`. El mapa y el SSE no llevan datos
+privados y no piden token (`EventSource` no permite cabeceras).
 
 El estado `blocked` está previsto, pero hoy `/info` no informa de los rechazos:
 el backend no lo genera hasta que los servicios lo expongan.
