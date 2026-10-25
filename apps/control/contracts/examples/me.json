@@ -1,0 +1,6 @@
+{
+  "role": "insurer",
+  "authRequired": true,
+  "canReadPrivate": false,
+  "canAct": false
+}

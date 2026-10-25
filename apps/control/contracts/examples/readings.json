@@ -1,0 +1,16 @@
+{
+  "deploymentId": "docker-local",
+  "simulated": false,
+  "source": "storage",
+  "items": [
+    {
+      "eventId": "6f1c2d3e-4b5a-4c6d-8e7f-901234567890",
+      "kind": "verified",
+      "readerId": "reader-docker",
+      "deviceId": "sim-hr-01",
+      "createdAt": "2026-10-25T12:29:58.000Z",
+      "payloadFormat": "json",
+      "payload": { "heartRate": 112 }
+    }
+  ]
+}

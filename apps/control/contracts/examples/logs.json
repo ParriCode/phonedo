@@ -1,0 +1,7 @@
+{
+  "instanceId": "local-manager",
+  "simulated": false,
+  "stale": false,
+  "observedAt": "2026-10-25T12:30:00.000Z",
+  "lines": ["manager_started", "reader_transport_selected", "event_verified", "event_stored"]
+}

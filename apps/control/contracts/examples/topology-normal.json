@@ -1,0 +1,16 @@
+{
+  "deploymentId": "docker-local",
+  "simulated": false,
+  "generatedAt": "2026-10-25T12:30:01.000Z",
+  "nodes": [
+    { "instanceId": "local-reader", "kind": "reader", "name": "Reader", "readerId": "reader-docker", "status": "healthy", "stale": false, "observedAt": "2026-10-25T12:30:00.000Z", "lastSuccessAt": "2026-10-25T12:30:00.000Z", "lastError": null, "containerState": "running" },
+    { "instanceId": "local-manager", "kind": "manager", "name": "Manager", "readerId": null, "status": "healthy", "stale": false, "observedAt": "2026-10-25T12:30:00.000Z", "lastSuccessAt": "2026-10-25T12:30:00.000Z", "lastError": null, "containerState": "running" },
+    { "instanceId": "local-verifier", "kind": "verifier", "name": "Verifier", "readerId": null, "status": "healthy", "stale": false, "observedAt": "2026-10-25T12:30:00.000Z", "lastSuccessAt": "2026-10-25T12:30:00.000Z", "lastError": null, "containerState": "running" },
+    { "instanceId": "local-storage", "kind": "storage", "name": "Storage", "readerId": null, "status": "healthy", "stale": false, "observedAt": "2026-10-25T12:30:00.000Z", "lastSuccessAt": "2026-10-25T12:30:00.000Z", "lastError": null, "containerState": "running" }
+  ],
+  "connections": [
+    { "sourceId": "local-reader", "targetId": "local-manager", "reportedBy": "local-reader", "transport": "http", "state": "configured", "desired": true, "observedAt": "2026-10-25T12:30:00.000Z", "lastSuccessAt": "2026-10-25T12:30:00.000Z", "eventsReceived": null, "lastError": null },
+    { "sourceId": "local-manager", "targetId": "local-verifier", "reportedBy": "local-manager", "transport": "http", "state": "configured", "desired": true, "observedAt": "2026-10-25T12:30:00.000Z", "lastSuccessAt": "2026-10-25T12:30:00.000Z", "eventsReceived": null, "lastError": null },
+    { "sourceId": "local-manager", "targetId": "local-storage", "reportedBy": "local-manager", "transport": "http", "state": "configured", "desired": true, "observedAt": "2026-10-25T12:30:00.000Z", "lastSuccessAt": "2026-10-25T12:30:00.000Z", "eventsReceived": null, "lastError": null }
+  ]
+}
