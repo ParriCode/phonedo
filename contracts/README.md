@@ -57,3 +57,17 @@ stellar contract invoke --id <id contrato> --source <cuenta> --network testnet -
 ```
 
 La paciente necesita trustline de USDC para recibir el pago.
+
+### Cadena de frío
+
+El mismo contrato y el mismo circuito sirven para el transporte refrigerado: solo cambia
+la política. Despliega otra instancia con `policy_cold_chain.json` (2 a 8 °C, las 32
+lecturas) y la misma clave del Verifier, y añádela a `devices` del Publisher con su
+política (ver el README del Publisher). El pago va a la cuenta que cobra por el
+dispositivo, en este caso el transportista.
+
+```sh
+stellar contract deploy --wasm target/wasm32v1-none/release/adherence.wasm --source <cuenta> --network testnet -- \
+  --admin <cuenta> --verifier_key <clave del Verifier> --token <id USDC> \
+  --policy-file-path policy_cold_chain.json --verification_key-file-path ../circuits/build/soroban_vk.json
+```

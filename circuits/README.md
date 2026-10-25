@@ -29,6 +29,7 @@ npm install
 npm run setup                          # compila y genera las claves en build/
 npm run prove                          # prueba inputs/session.json y la verifica
 npm run prove -- inputs/session_fail.json   # lote fuera de rango: no hay prueba
+npm run prove -- inputs/cold_chain.json     # cadena de frío: 32 de 32 lecturas entre 2 y 8 °C
 npm run soroban                        # argumentos para el contrato en build/
 node scripts/sign.js <cuenta G>        # firma de desarrollo del lote
 ```

@@ -203,6 +203,8 @@ payment code. Everything Stellar is built at the event.
 | Fund the USDC contract (20 USDC) | `f791426c649045fc02dfbbf7cc69d1b6796292d53da0a4455a6499a0657dc4fa` |
 | First USDC claim (manual, 5 USDC paid) | `0ba0adb7ca42e09350f71eec15c09d252dcfacf13b6cc3672afab8017ce78033` |
 | First end-to-end USDC claim (simulated pulse Reader through the Publisher) | `2a345e9fdf594fc385107a2e1a2e973d3cb16f5274fc14e763bbe9dc0406ef47` |
+| `adherence` for cold chain (2-8 °C, USDC, same Verifier key) | `CDNPBN6HZP4PZKRFOOA2PYC772KF4THXTJNKHBS5Y33HCAVDWCVO5SRE` |
+| First cold-chain claim (simulated temperature Reader through the Publisher, 50 USDC) | `639fcfddd74ddcd1344a26cd1638ac5f66e12a7bc2f69be04da8fb7815a9efb6` |
 
 Both use policy 90-130 bpm, 28 of 32 readings, payout 5 units, and the
 development Verifier key from `circuits/build/verifier_dev_key.json`. A new
@@ -232,6 +234,7 @@ npm install
 npm run setup                               # compile + dev keys in build/
 npm run prove                               # proves inputs/session.json
 npm run prove -- inputs/session_fail.json   # out of range: no proof
+npm run prove -- inputs/cold_chain.json     # cold chain: 32 of 32 readings in 2-8 °C
 npm run soroban                             # build/soroban_*.json for the contract
 node scripts/sign.js <G account>            # dev signature of the batch
 ```
