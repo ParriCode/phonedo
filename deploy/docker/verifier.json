@@ -9,5 +9,6 @@
   },
   "stream": {
     "enabled": true
-  }
+  },
+  "keyPath": "/circuits/build/verifier_dev_key.json"
 }

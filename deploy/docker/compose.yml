@@ -21,7 +21,7 @@ services:
       MANAGER_PASSWORD: demo-shared-secret
     volumes:
       - ./verifier.json:/app/verifier/config.json:ro
-      - ../../apps/verifier/signing_key.json:/app/verifier/signing_key.json:ro
+      - ../../circuits:/circuits:ro
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5000/', timeout=2)"]
       interval: 3s
@@ -57,5 +57,25 @@ services:
       interval: 3s
       timeout: 3s
       retries: 20
+  publisher:
+    build:
+      context: ../..
+      dockerfile: apps/publisher/Dockerfile
+    ports: ["127.0.0.1:${PUBLISHER_PORT:-7105}:3005"]
+    environment:
+      API_TOKEN_MANAGER: demo-manager
+      PHONENDO_VERBOSE: "true"
+    volumes:
+      - ./publisher.json:/app/publisher/config.json:ro
+      - ../../circuits:/circuits
+      - publisher-node-modules:/circuits/node_modules
+    depends_on:
+      manager: {condition: service_healthy}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:3005/', timeout=2)"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
 volumes:
   storage-data:
+  publisher-node-modules:

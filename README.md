@@ -123,7 +123,7 @@ con el Verifier.
 
 ## Docker
 
-Para construir y arrancar los cuatro servicios:
+Para construir y arrancar los cinco servicios, incluido el Publisher:
 
 ```sh
 docker compose -f deploy/docker/compose.yml up --build -d --wait
@@ -158,8 +158,6 @@ cd circuits && npm install && npm run setup     # una vez, tarda unos minutos
 node scripts/sign.js <cuenta G de la paciente>  # crea la clave de desarrollo del Verifier
 cd .. && ./tools/generate_configs.sh            # la copia a apps/verifier/signing_key.json
 docker compose -f deploy/docker/compose.yml up --build -d --wait
-cd apps/publisher && pip install -r requirements.txt
-API_TOKEN_MANAGER=demo-manager python publisher.py
 ```
 
 El contrato debe desplegarse con la clave pública que imprime `sign.js` y con la misma
@@ -214,7 +212,7 @@ Consulta [las instrucciones del laboratorio](tools/LABORATORIO.md).
 
 ## Información y logs
 
-Reader Python, Manager, Verifier y Storage exponen, sin token:
+Reader Python, Manager, Verifier, Storage y Publisher exponen, sin token:
 
 - `GET /info`: lista `[{"peer": "...", "transport": "http|sse"}]`.
   SSE muestra conexiones activas; HTTP, destinos configurados o clientes recibidos
@@ -222,9 +220,8 @@ Reader Python, Manager, Verifier y Storage exponen, sin token:
 - `GET /logs`: lista de los últimos 200 mensajes en memoria, sin niveles,
   timestamps ni cuerpos de eventos. Consultarla no genera más logs.
 
-Publisher también expone `GET /info` (Managers a los que está suscrito) y `GET /logs`.
-Las rutas de procesamiento conservan su autenticación. Reader C++ todavía no tiene
-un servidor HTTP concreto para estas consultas.
+Las rutas de procesamiento conservan su autenticación. Reader C++ todavía no
+tiene un servidor HTTP concreto para estas consultas.
 
 ## Web de Phonendo
 

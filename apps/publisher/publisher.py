@@ -7,7 +7,7 @@ import threading
 import time
 from pathlib import Path
 
-from flask import Flask
+from flask import Flask, jsonify
 from dotenv import load_dotenv
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
@@ -110,13 +110,15 @@ def healthcheck():
 
 @app.get("/info")
 def info():
-    return [{'peer': url.rsplit('/stream', 1)[0], 'transport': 'sse'}
-            for url in sorted(manager_subscriptions.connected)]
+    return jsonify([
+        {'peer': url.removesuffix('/stream'), 'transport': 'sse'}
+        for url in sorted(manager_subscriptions.connected)
+    ])
 
 
 @app.get("/logs")
 def logs():
-    return list(Logger.instance().messages)
+    return jsonify(list(Logger.instance().messages))
 
 
 threading.Thread(target=worker, daemon=True).start()
