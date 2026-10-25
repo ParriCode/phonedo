@@ -39,6 +39,7 @@ llama a `claim()` del contrato `contracts/adherence`.
 | `signer.manager` | Manager al que pide la firma del lote; por defecto el primero de `subscriptions.managers`. |
 | `stellar` | Alias `source` de la CLI y `network`. El contrato se selecciona con `contracts`. |
 | `contracts` | Mapa `verifierId → contractId`; obligatorio para publicar cada Verifier. |
+| `devices` | Opcional: `deviceId → {"contractId", "policy"}` para un dispositivo con contrato y política propios. |
 
 `verifierId` es su clave pública ed25519 hexadecimal, disponible en
 `GET /metadata` del Verifier. Ejemplo:
@@ -48,6 +49,32 @@ llama a `claim()` del contrato `contracts/adherence`.
   "<clave pública hex del Verifier>": "<contrato desplegado con esa clave>"
 }
 ```
+
+### Varias políticas con un solo Verifier: cadena de frío
+
+Cada contrato guarda su propia política. Para cobrar casos distintos con el mismo
+Verifier, `devices` asocia un `deviceId` a su contrato y a su política, que
+sobrescribe campo a campo la global; si el dispositivo no está en `devices`, se elige
+el contrato por `verifierId` como siempre. Ejemplo con rehabilitación (global) y
+transporte refrigerado (2 a 8 °C, las 32 lecturas):
+
+```json
+"contracts": {"<verifierId>": "<contrato de rehabilitación>"},
+"devices": {
+  "simulated-cold-chain": {
+    "contractId": "<contrato de cadena de frío>",
+    "policy": {"minValue": 2, "maxValue": 8, "minCount": 32}
+  }
+}
+```
+
+Ambos contratos se despliegan con la misma clave del Verifier. Un lote firmado también
+valdría para el otro contrato, pero las políticas son excluyentes (90-130 frente a
+2-8), así que su prueba no sería válida allí. El circuito es el mismo: la política son
+entradas públicas. Las lecturas son enteros de 0 a 255, por lo que las temperaturas
+negativas no están soportadas. El pago va a la cuenta de `patients` del dispositivo
+(aquí, el transportista). `contracts/policy_cold_chain.json` es la política de ese
+contrato y `circuits/inputs/cold_chain.json` un lote de ejemplo.
 
 Los lotes se separan por `managerId + verifierId + readerId + deviceId`.
 La identidad de observación incluye esos orígenes y `observationId`; un reenvío

@@ -27,6 +27,7 @@ class PublisherConfig:
         self.circuits_path = (BASE_DIR / data.get('circuitsPath', '../../circuits')).resolve()
         self.stellar = dict(data.get('stellar', {}))
         self.contracts = data.get('contracts', {})
+        self.devices = data.get('devices', {})
         if os.getenv('PUBLISHER_STELLAR_SOURCE'):
             self.stellar['source'] = os.environ['PUBLISHER_STELLAR_SOURCE']
 
@@ -35,3 +36,11 @@ class PublisherConfig:
 
     def contract_for(self, verifier_id):
         return self.contracts.get(verifier_id)
+
+    def route_for(self, verifier_id, device_id):
+        """Contrato y política de un lote: manda la entrada del dispositivo; si no, la de su Verifier."""
+        device = self.devices.get(device_id)
+        if not device:
+            return self.contract_for(verifier_id), dict(self.policy)
+        override = device.get('policy', {})
+        return device.get('contractId'), {key: int(override.get(key, value)) for key, value in self.policy.items()}

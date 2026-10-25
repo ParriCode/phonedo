@@ -71,10 +71,10 @@ def process_batch(batch):
     """Prueba el lote, lo firma y cobra la sesión con claim()."""
     session_id = batch['sessionId']
     try:
-        contract_id = publisher_config.contract_for(batch['verifierId'])
+        contract_id, policy = publisher_config.route_for(batch['verifierId'], batch['deviceId'])
         if not contract_id:
-            raise ValueError('No hay contrato configurado para este verifierId')
-        commitment, proof_file = prover.prove(batch)
+            raise ValueError('No hay contrato configurado para este verifierId ni dispositivo')
+        commitment, proof_file = prover.prove(batch, policy)
         signature = get_signer(batch).sign(batch, commitment, batch['patient'])
         target = StellarClaimer(contract_id, claimer.source, claimer.network)
         tx_hash = target.claim(batch, batch['patient'], commitment, signature, proof_file)

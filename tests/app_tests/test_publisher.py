@@ -150,3 +150,52 @@ def test_claim_reads_utf8_output_of_the_cli(monkeypatch):
               + 'e' * 64 + "\\n'.encode('utf-8') + bytes([0x8f]))")
     monkeypatch.setattr(claimer, 'command', lambda *args: [sys.executable, '-c', script])
     assert claimer.claim({'sessionId': 9}, ZERO_ACCOUNT, 'ab', 'cd', 'p.json') == 'e' * 64
+
+
+def test_a_device_can_route_to_its_own_contract_and_policy(tmp_path):
+    """Cold chain (2-8 °C, todas las lecturas) y rehabilitación comparten Publisher y Verifier."""
+    from publisher_support.config import PublisherConfig
+
+    path = tmp_path / 'publisher.json'
+    path.write_text(json.dumps({
+        'contracts': {'verifier-a': 'CREHAB'},
+        'devices': {'cold-device': {'contractId': 'CCOLD', 'policy': {'minValue': 2, 'maxValue': 8, 'minCount': 32}}},
+        'policy': {'minValue': 90, 'maxValue': 130, 'minCount': 28}}))
+    config = PublisherConfig(path)
+    rehab = {'minValue': 90, 'maxValue': 130, 'minCount': 28}
+    assert config.route_for('verifier-a', 'pulse-band') == ('CREHAB', rehab)
+    assert config.route_for('verifier-a', 'cold-device') == ('CCOLD', {'minValue': 2, 'maxValue': 8, 'minCount': 32})
+    assert config.route_for('unknown', 'pulse-band') == (None, rehab)
+
+
+def test_cold_chain_batch_is_proved_with_its_own_policy_and_claimed_on_its_contract(publisher):
+    publisher.publisher_config.devices = {'cold-1': {'contractId': 'CCOLD', 'policy': {'minValue': 2, 'maxValue': 8, 'minCount': 4}}}
+    publisher.prover.prove = MagicMock(return_value=('ef' * 32, Path('proof.json')))
+    publisher.signer = MagicMock(sign=MagicMock(return_value='aa' * 64))
+    claimer = MagicMock(claim=MagicMock(return_value='12' * 32))
+    publisher.StellarClaimer = MagicMock(return_value=claimer)
+    for result in (3, 4, 5, 6):
+        publisher.consume_manager_event(verified('cold-1', result, created=7))
+
+    wait_until(lambda: claimer.claim.called)
+    assert publisher.StellarClaimer.call_args.args[0] == 'CCOLD'
+    assert publisher.prover.prove.call_args.args[1] == {'minValue': 2, 'maxValue': 8, 'minCount': 4}
+
+
+def test_prover_uses_the_policy_it_is_given(tmp_path):
+    from publisher_support.prover import Prover
+
+    prover = Prover(tmp_path, {'minValue': 90, 'maxValue': 130, 'minCount': 28})
+    (tmp_path / 'build').mkdir()
+    proved = []
+
+    def fake_node(*args):
+        proved.append(json.loads((tmp_path / 'build' / 'publisher_input.json').read_text()))
+        (tmp_path / 'build' / 'soroban_args.json').write_text(json.dumps({'commitment': 'ab', 'session_id': '7', 'proof': {}}))
+        return MagicMock(returncode=0, stderr='')
+
+    prover._node = fake_node
+    batch = {'readings': [4] * 32, 'salt': '1', 'sessionId': 7}
+    prover.prove(batch)
+    prover.prove(batch, {'minValue': 2, 'maxValue': 8, 'minCount': 32})
+    assert [(p['minValue'], p['maxValue'], p['minCount']) for p in proved[::2]] == [(90, 130, 28), (2, 8, 32)]

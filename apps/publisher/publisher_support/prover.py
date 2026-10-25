@@ -22,10 +22,10 @@ class Prover:
         return subprocess.run(['node', *args], cwd=self.circuits_path, capture_output=True,
                               text=True, encoding='utf-8', errors='replace', timeout=self.timeout)
 
-    def prove(self, batch):
+    def prove(self, batch, policy=None):
         """Devuelve el compromiso (hex) y la ruta de la prueba para el contrato."""
         inputs = {'readings': batch['readings'], 'salt': batch['salt'],
-                  'sessionId': str(batch['sessionId']), **self.policy}
+                  'sessionId': str(batch['sessionId']), **(policy or self.policy)}
         with self.lock:
             input_file = self.build / 'publisher_input.json'
             input_file.write_text(json.dumps(inputs), encoding='utf-8')
