@@ -1,4 +1,8 @@
 /* Consola local. Las acciones confirmadas vienen de /api/local, nunca de una simulación visual. */
+import { connectServiceNetwork } from './service_network/index.js';
+import { requestLocal } from './service_network/api.js';
+import { renderServiceDetails, renderContainerControls } from './service_network/sidebar.js';
+
 const operatorState = {
   readers: {}, containers: {}, logs: [], seen: {}, cursors: {}, busy: false, bridge: null,
   active: {}, paid: {}, stage: 'all', tokens: new Map(), errors: {}, polling: false,
@@ -12,12 +16,7 @@ const STAGES = [
 ];
 
 async function localAPI(path, body, method = 'POST') {
-  const response = await fetch('/api/local/' + path, {
-    method, cache: 'no-store', headers: { 'Content-Type': 'application/json', 'X-Phonendo-Control': 'local' },
-    ...(body === undefined ? {} : { body: JSON.stringify(body) }), signal: AbortSignal.timeout(35000),
-  });
-  const result = await response.json().catch(() => ({ error: opText('Arranca con ./tools/web.sh', 'Start with ./tools/web.sh') }));
-  if (!response.ok) throw new Error(result.error || `HTTP ${response.status}`);
+  const result = await requestLocal(path, body, method);
   operatorState.bridge = true;
   return result;
 }
@@ -69,15 +68,8 @@ async function dockerOperation(operation) {
   return operation.result;
 }
 
-function containerControls(node) {
-  const snapshot = operatorState.containers[node.id];
-  if (!snapshot) return '';
-  return `<div class="card panel"><div class="op-section-title"><h3>Docker</h3><span class="chip ${snapshot.state === 'running' ? 'chip-ok' : 'chip-warn'}">${esc(snapshot.state)}</span></div>
-    <p class="mono op-url">${esc(snapshot.image)}</p><p class="op-caption">${opText('Dirección entre contenedores', 'Container network address')}</p><code class="op-url">${esc(snapshot.dockerUrl)}</code>
-    <div class="panel-actions">${['start', 'stop', 'restart'].map((action) => `<button class="btn btn-line btn-sm" data-op="docker-${action}" data-id="${esc(node.id)}">${({start:opText('Arrancar','Start'),stop:opText('Parar','Stop'),restart:opText('Reiniciar','Restart')})[action]}</button>`).join('')}</div>
-    ${node.kind !== 'reader' ? `<details><summary>${opText('Configuración del contenedor', 'Container configuration')}</summary><form data-op-form="container-config" data-id="${esc(node.id)}"><label class="op-field"><span>config.json</span><textarea name="config" rows="15" spellcheck="false">${esc(JSON.stringify(snapshot.serviceConfig, null, 2))}</textarea></label><p class="op-caption">${opText('Aplicar guarda el JSON y reinicia este contenedor. Los secretos ocultos se conservan.', 'Apply saves JSON and restarts this container. Masked secrets are preserved.')}</p><button class="btn btn-dark btn-sm" type="submit">${opText('Guardar y reiniciar', 'Save & restart')}</button></form></details>` : ''}
-    <button class="btn btn-danger btn-sm" data-op="docker-remove" data-id="${esc(node.id)}">${opText('Eliminar contenedor', 'Remove container')}</button><p class="op-caption">${opText('Los datos se conservan en .run/web-docker. Cerrar la web no para los contenedores.', 'Data is kept in .run/web-docker. Closing the web does not stop containers.')}</p></div>`;
-}
+const inspectorContext = () => ({ state, operatorState, nodeById, opText, ic, esc, t, configFor, field });
+function containerControls(node) { return renderContainerControls(node, inspectorContext()); }
 
 function field(label, key, value = '', type = 'text', extra = '') {
   return `<label class="op-field"><span>${esc(label)}</span><input name="${key}" type="${type}" value="${esc(value)}" ${extra}></label>`;
@@ -93,25 +85,8 @@ function lifecyclePanel() {
 }
 
 viewOperator = function () {
-  const tools = `<div class="toolbar"><button class="btn btn-line btn-sm" data-action="check-all">${ic('refresh')} ${opText('Actualizar', 'Refresh')}</button>
-    <button class="btn btn-gold btn-sm" data-action="add" data-kind="reader">${ic('plus')} ${opText('Desplegar servicio', 'Deploy service')}</button></div>`;
-  const lanes = [ ['reader'], ['manager'], ['verifier', 'storage'], ['publisher'] ];
-  return `${pageHead('op', tools)}<section class="page-body operator-body"><div class="wrap-wide">
-    <div class="operator-workspace"><div class="operator-map card panel">
-      <div class="op-section-title"><h2>${opText('Red de servicios', 'Service network')}</h2>
-        <span class="chip ${operatorState.bridge ? 'chip-ok' : 'chip-warn'}">${operatorState.bridge ? opText('Control local conectado', 'Local control connected') : opText('Conectando control local', 'Connecting local control')}</span></div>
-      <div class="canvas-scroll"><div class="canvas" id="canvas"><svg class="links" id="links" aria-hidden="true"></svg>
-      ${lanes.map((kinds, i) => `<div class="lane"><div class="lane-head"><span class="lane-num">${i + 1}</span><b>${kinds.map((kind) => t('kind.' + kind)).join(' / ')}</b></div>
-        ${state.network.filter((node) => kinds.includes(node.kind)).map(nodeCard).join('')}
-        ${kinds.map((kind) => `<button class="lane-add" data-action="add" data-kind="${kind}">${ic('plus')} ${t('kind.' + kind)}</button>`).join('')}</div>`).join('')}
-      <div class="lane"><div class="lane-head"><span class="lane-num chain">5</span><b>Stellar</b></div>${contractCard()}</div>
-      </div></div><div class="legend"><span><i class="lg-http"></i>HTTP</span><span><i class="lg-sse"></i>SSE</span><span><i class="lg-chain"></i>Stellar</span></div>
-    </div><aside class="operator-sidebar"><div class="card panel services-menu"><div class="op-section-title"><h3>${opText('Servicios', 'Services')}</h3><span class="chip">${state.network.length}</span></div>
-      ${state.network.map((node) => `<button class="service-row" data-node="${esc(node.id)}" aria-pressed="${state.selected === node.id}">
-        <span class="node-icon">${ic(KIND_ICON[node.kind])}</span><span><b>${esc(node.name)}</b><small>${node.managed ? 'Docker · ' + t('kind.' + node.kind) : t('kind.' + node.kind)}</small></span>
-        <i class="status-dot" data-status="${state.status[node.id] || 'unknown'}"></i></button>`).join('')}
-      <button class="lane-add" data-action="add" data-kind="reader">+ ${opText('Añadir servicio', 'Add service')}</button></div>
-      ${operatorDetail()}${nodeById(state.selected) ? containerControls(nodeById(state.selected)) : ''}</aside></div>
+  return `<section class="page-body operator-body"><div class="wrap-wide">
+    <div data-service-network-root></div>
     ${operatorLogs()}<section class="card panel operator-contracts"><div class="op-section-title"><h2>${opText('Contratos', 'Contracts')}</h2><span class="chip">${t('net.' + state.net)}</span></div>
       <div class="contract-grid">${CONFIG.contracts.map((contract) => `<a class="contract-tile" href="${CONFIG.explorer}/contract/${esc(contract.id)}" target="_blank" rel="noopener">${ic('contract')}<b>${esc(contract.asset)} · adherence</b><span class="mono">${esc(short(contract.id, 12, 8))}</span>${ic('external')}</a>`).join('')}</div>
       ${state.events.length ? `<ul class="feed-list">${state.events.slice(0,4).map((event)=>`<li>${ic('check')}<span><b>${formatAmount(event.amount)} ${esc(event.asset)}</b><small><a href="${txUrl(event.txHash)}" target="_blank" rel="noopener">${esc(short(event.txHash,10,6))}</a></small></span></li>`).join('')}</ul>` : `<p class="op-caption">${opText('Sin pagos nuevos.', 'No new payouts.')}</p>`}
@@ -119,49 +94,7 @@ viewOperator = function () {
   </div></section>`;
 };
 
-function operatorDetail() {
-  const node = nodeById(state.selected);
-  if (!node) return `<div class="card panel empty-panel">${ic('hub')}<h3>${opText('Selecciona un servicio', 'Select a service')}</h3><p>${opText('Configura un Reader y emite su primera observación.', 'Configure a Reader and send its first observation.')}</p></div>`;
-  const runtime = operatorState.readers[node.id];
-  if (!runtime && node.managed) return `<div class="card panel"><h3>${esc(node.name)}</h3><p class="mono op-url">${esc(node.url)}</p><p class="op-caption">${opText('Instancia Docker gestionada. Usa los controles del contenedor para editar su JSON o cambiar su estado.', 'Managed Docker instance. Use container controls to edit JSON or change its state.')}</p>${operatorState.errors[node.id] ? `<p class="form-error">${esc(operatorState.errors[node.id])}</p>`:''}</div>`;
-  if (!runtime) return `<div class="card panel"><h3>${esc(node.name)}</h3><p class="mono op-url">${esc(node.url)}</p>
-    <p class="op-caption">${opText('Servicio externo. La edición en directo solo está disponible para Readers creados con este panel.', 'External service. Live editing is available for Readers created in this panel.')}</p>
-    <label class="op-field"><span>${opText('Token para consultar este servicio', 'Token for service queries')}</span><input type="password" data-service-token="${esc(node.id)}" autocomplete="off" placeholder="Bearer token"></label>
-    <button class="btn btn-line btn-sm" data-action="check" data-id="${esc(node.id)}">${opText('Consultar estado y logs', 'Fetch status & logs')}</button>
-    ${operatorState.errors[node.id] ? `<p class="form-error">${esc(operatorState.errors[node.id])}</p>` : ''}
-    <details><summary>JSON</summary><pre class="code">${esc(JSON.stringify(configFor(node), null, 2))}</pre></details>
-    <button class="btn btn-line btn-sm" data-action="download-config" data-id="${esc(node.id)}">${t('op.download')}</button>
-    <button class="btn btn-danger btn-sm" data-action="remove" data-id="${esc(node.id)}">${opText('Quitar de la vista', 'Remove from view')}</button></div>`;
-  const config = runtime.config;
-  return `<div class="card panel reader-inspector"><div class="op-section-title"><h3>${ic('cpu')} ${esc(node.name)}</h3><span class="chip chip-ok">LIVE</span></div>
-    <p class="mono op-url">${esc(runtime.url)}</p><p class="op-caption">${opText('Reader dentro de Docker. Dispositivos, sensores y configuración se conservan al reiniciar.', 'Reader running in Docker. Devices, sensors and configuration survive restarts.')}</p>
-    <form data-op-form="settings" data-id="${esc(node.id)}"><details open><summary>${opText('Conexiones y acceso', 'Connections & access')}</summary>
-      ${field('Reader ID', 'readerId', config.readerId, 'text', 'readonly')}
-      <label class="switch-row"><span><b>HTTP push</b><small>${opText('Enviar lecturas a los Managers', 'Push readings to Managers')}</small></span><input name="httpEnabled" type="checkbox" ${config.httpEnabled ? 'checked' : ''}></label>
-      <label class="switch-row"><span><b>SSE stream</b><small>${opText('Permitir suscripciones del Manager', 'Allow Manager subscriptions')}</small></span><input name="streamEnabled" type="checkbox" ${config.streamEnabled ? 'checked' : ''}></label>
-      ${field(opText('Capacidad de cola SSE', 'SSE queue capacity'), 'queueSize', config.queueSize, 'number', 'min="1" max="4096" required')}
-      <p class="op-caption">${opText('SSE permite conexiones entrantes: configura la suscripción en el Manager. El Manager evita conexiones HTTP/SSE redundantes.', 'SSE allows incoming connections: configure the subscription in the Manager. The Manager prevents redundant HTTP/SSE connections.')}</p>
-      ${field(opText('Nuevo token del Reader', 'New Reader token'), 'token', '', 'password', 'autocomplete="new-password" placeholder="•••••• · vacío conserva el actual"')}
-      <label class="check-line"><input name="clearToken" type="checkbox">${opText('Quitar token del Reader', 'Remove Reader token')}</label>
-      ${field(opText('URLs de Managers (separadas por comas)', 'Manager URLs (comma-separated)'), 'managerUrls', config.managers.map((manager) => manager.url).join(', '))}
-      ${field(opText('Token de los Managers', 'Manager token'), 'managerToken', '', 'password', 'autocomplete="new-password"')}
-      <label class="check-line"><input name="allowNewDevices" type="checkbox" ${config.allowNewDevices ? 'checked' : ''}>${opText('Aceptar dispositivos nuevos al ingerir', 'Accept new devices on ingest')}</label>
-      <label class="check-line"><input name="allowNewSensors" type="checkbox" ${config.allowNewSensors ? 'checked' : ''}>${opText('Aceptar sensores nuevos al ingerir', 'Accept new sensors on ingest')}</label>
-      <button class="btn btn-dark" type="submit">${ic('check')} ${opText('Aplicar en directo', 'Apply live')}</button></details></form>
-    <div class="op-section-title spaced"><h3>${opText('Dispositivos y sensores', 'Devices & sensors')}</h3><span class="chip">${runtime.devices.length}</span></div>
-    ${runtime.devices.map((device) => `<article class="device-tile"><div class="op-section-title"><b>${ic('cpu')} ${esc(device.id)}</b><button class="icon-button" data-op="remove-device" data-id="${esc(node.id)}" data-device="${esc(device.id)}" aria-label="${opText('Eliminar dispositivo', 'Remove device')}">${ic('trash')}</button></div>
-      ${device.sensors.map((sensor) => `<div class="sensor-tile"><span class="sensor-status"></span><div><b>${esc(sensor.id)}</b><small>${esc(sensor.property)} · ${esc(sensor.unit || '—')}</small></div>
-        <button class="icon-button" data-op="remove-sensor" data-id="${esc(node.id)}" data-device="${esc(device.id)}" data-sensor="${esc(sensor.id)}" aria-label="${opText('Eliminar sensor', 'Remove sensor')}">${ic('x')}</button>
-        ${sensor.procedure === 'manual-pulse' ? `<form class="pulse-controls" data-op-form="pulse" data-id="${esc(node.id)}" data-device="${esc(device.id)}" data-sensor="${esc(sensor.id)}">
-          <label>${opText('Valor', 'Value')}<input name="value" type="number" step="any" value="100" required aria-label="${opText('Valor del pulso', 'Pulse value')}"></label>
-          <button class="btn btn-gold btn-sm" type="submit" name="count" value="1">${ic('pulse')} ${opText('Emitir', 'Send')}</button><button class="btn btn-line btn-sm" type="submit" name="count" value="32">×32</button></form>` : ''}</div>`).join('') || `<p class="op-caption">${opText('Sin sensores todavía', 'No sensors yet')}</p>`}
-      <details><summary>+ ${opText('Añadir sensor', 'Add sensor')}</summary><form data-op-form="sensor" data-id="${esc(node.id)}" data-device="${esc(device.id)}">
-        ${field('Sensor ID', 'sensorId', '', 'text', 'required')}${field(opText('Propiedad', 'Property'), 'property', 'heart-rate', 'text', 'required')}${field(opText('Unidad', 'Unit'), 'unit', 'bpm')}
-        ${field('Feature of interest', 'featureOfInterest', device.id)}<label class="op-field"><span>${opText('Tipo de emisión', 'Emission type')}</span><select name="procedure"><option value="manual-pulse">${opText('Pulsos manuales', 'Manual pulses')}</option><option value="measurement">${opText('Medición externa', 'External measurement')}</option></select></label>
-        <button class="btn btn-dark btn-sm" type="submit">${opText('Crear sensor', 'Create sensor')}</button></form></details></article>`).join('')}
-    <details><summary>+ ${opText('Añadir dispositivo', 'Add device')}</summary><form data-op-form="device" data-id="${esc(node.id)}">${field('Device ID', 'deviceId', '', 'text', 'required')}${field(opText('Tipo', 'Type'), 'deviceType', 'pulse-band')}<button class="btn btn-dark btn-sm" type="submit">${opText('Crear dispositivo', 'Create device')}</button></form></details>
-    </div>`;
-}
+function operatorDetail() { return renderServiceDetails(inspectorContext()); }
 
 function operatorLogs() {
   const logs = operatorState.logs.filter((log) => operatorState.stage === 'all' || log.kind === operatorState.stage);
@@ -400,6 +333,24 @@ async function recoverContainers() {
 
 $('#app').addEventListener('submit', onOperatorForm);
 VIEWS.operator = viewOperator;
+connectServiceNetwork({
+  storage: (() => { try { return localStorage; } catch { return null; } })(),
+  storageKey: 'phonendo.canvas.local.v1',
+  text: opText, escape: esc, icon: ic,
+  label: (kind) => kind === 'stellar' ? 'Stellar' : t('kind.' + kind),
+  statusLabel: (status) => t('status.' + status),
+  organizationLabel: (org) => org === 'stellar' ? 'testnet' : ORGS.includes(org) ? t('org.' + org) : org,
+  snapshot: () => ({ services: state.network, statuses: state.status, readers: operatorState.readers,
+    contracts: CONFIG.contracts, rpc: CONFIG.rpc, selectedId: state.selected,
+    chainStatus: state.net === 'live' ? 'up' : state.net === 'error' ? 'down' : 'checking' }),
+  onSelect: (id) => { state.selected = id; },
+  onAdd: () => nodeDialog('reader'),
+  onSettled: () => render(),
+  empty: () => `<div class="card panel service-network__empty-detail">${ic('hub')}<h3>${opText('Selecciona un nodo', 'Select a node')}</h3><p>${opText('Sus detalles y controles aparecerán aquí.', 'Its details and controls will appear here.')}</p></div>`,
+  details: (node) => node.kind === 'stellar'
+    ? `<div class="card panel"><h3>Stellar testnet</h3><p class="op-caption">${opText('Contratos configurados. Consulta pagos y transacciones en el explorador.', 'Configured contracts. View payments and transactions in the explorer.')}</p>${CONFIG.contracts.map((contract) => `<p><a class="mono" href="${CONFIG.explorer}/contract/${esc(contract.id)}" target="_blank" rel="noopener">${esc(contract.asset)} · ${esc(short(contract.id, 8, 6))}</a></p>`).join('')}</div>`
+    : operatorDetail() + containerControls(nodeById(node.id)),
+});
 applyLang(storageGet('phonendo.lang') === 'en' ? 'en' : 'es');
 recoverContainers();
 setInterval(pollOperator, 3000);

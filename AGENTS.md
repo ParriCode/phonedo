@@ -78,6 +78,9 @@ Crea Readers reales en memoria, gestiona dispositivos/sensores y pulsos; configu
 push HTTP/SSE y tokens en vivo. Consulta logs externos mediante un puente local
 limitado a IPs privadas/loopback. Los servicios externos no se editan. El operador
 en `apps/web/operator.js` muestra únicamente confirmaciones observadas.
+El canvas libre vive en `apps/web/service_network/` (módulos ES): modelos, estado,
+interacciones, nodos, conexiones, inspector, layout y API separados. Conserva
+posiciones/viewport por despliegue; el polling no reconstruye el lienzo.
 
 End-to-end flow:
 

@@ -158,7 +158,6 @@ const I18N = {
 
 const KINDS = ['reader', 'manager', 'verifier', 'storage', 'publisher'];
 const KIND_ICON = { reader: 'cpu', manager: 'hub', verifier: 'shield', storage: 'db', publisher: 'send' };
-const LANE_OF = { reader: 0, manager: 1, verifier: 2, storage: 2, publisher: 3 };
 const TEMPLATES = { pulse: 'pulse', temperature: 'thermo' };
 const ORGS = ['hospital', 'insurer', 'lab'];
 const STORE_KEY = 'phonendo.network.v2';
@@ -414,79 +413,8 @@ function viewHome() {
 // ---------- Consola del operador ----------
 function nodeById(id) { return state.network.find((n) => n.id === id); }
 
-function nodeCard(node) {
-  const status = state.status[node.id] ?? 'unknown';
-  const host = node.url.replace(/^https?:\/\//, '');
-  const tpl = node.kind === 'reader' && node.template ? ` · ${t(`tpl.${node.template}`)}` : '';
-  const dim = state.orgFilter !== 'all' && state.orgFilter !== node.org ? ' dim' : '';
-  return `<button type="button" class="node${dim}" data-node="${esc(node.id)}" aria-pressed="${state.selected === node.id}">
-    <i class="status-dot" data-status="${status}" title="${esc(t(`status.${status}`))}"></i>
-    <span class="node-top"><span class="node-icon">${ic(node.kind === 'reader' ? TEMPLATES[node.template] ?? 'cpu' : KIND_ICON[node.kind])}</span>
-      <span><strong>${esc(node.name)}</strong><span class="node-kind">${t(`kind.${node.kind}`)}</span></span></span>
-    <small class="mono">${esc(host)}${esc(tpl)}</small>
-    <span class="org-tag org-${node.org}">${t(`org.${node.org}`)}</span>
-  </button>`;
-}
-
-function contractCard() {
-  const status = state.net === 'live' ? 'up' : state.net === 'error' ? 'down' : 'checking';
-  return `<button type="button" class="node contract" data-node="contract" aria-pressed="${state.selected === 'contract'}">
-    <i class="status-dot" data-status="${status}"></i>
-    <span class="node-top"><span class="node-icon">${ic('contract')}</span><span><strong>adherence</strong><span class="node-kind">Soroban · testnet</span></span></span>
-    <small class="mono">${short(CONFIG.contracts[0].id, 6, 6)}</small>
-    <span class="org-tag org-insurer">USDC · XLM</span>
-  </button>`;
-}
-
 function viewOperator() {
-  const LANES = [
-    { key: 'reader', kinds: ['reader'] },
-    { key: 'manager', kinds: ['manager'] },
-    { key: 'verifier', kinds: ['verifier', 'storage'] },
-    { key: 'publisher', kinds: ['publisher'] },
-  ];
-  const counts = KINDS.map((k) => [k, state.network.filter((n) => n.kind === k).length]);
-  const up = state.network.filter((n) => state.status[n.id] === 'up').length;
-  const filters = ['all', ...ORGS].map((o) => `<button type="button" class="filter" data-org-filter="${o}" aria-pressed="${state.orgFilter === o}">${o === 'all' ? t('op.filter.all') : `<i class="org-dot org-${o}"></i>${t(`org.${o}`)}`}</button>`).join('');
-  const tools = `<div class="toolbar">
-    <button type="button" class="btn btn-ghost btn-sm" data-action="check-all">${ic('refresh', 'icon tiny')}${t('op.check')}</button>
-    <button type="button" class="btn btn-ghost btn-sm" data-action="export">${ic('download', 'icon tiny')}${t('op.export')}</button>
-    <button type="button" class="btn btn-gold btn-sm" data-action="add" data-kind="reader">${ic('plus', 'icon tiny')}${t('dlg.title')}</button>
-  </div>`;
-  const lane = ({ key, kinds }, i) => {
-    const nodes = state.network.filter((n) => kinds.includes(n.kind));
-    return `<div class="lane">
-      <div class="lane-head"><span class="lane-num">${i + 1}</span><div><b>${t(`op.lane.${key}`)}</b><small>${t(`op.laneDesc.${key}`)}</small></div></div>
-      ${nodes.map(nodeCard).join('')}
-      ${kinds.map((k) => `<button type="button" class="lane-add" data-action="add" data-kind="${k}">${ic('plus', 'icon tiny')} ${t(`kind.${k}`)}</button>`).join('')}
-    </div>`;
-  };
-  return `${pageHead('op', tools)}
-  <section class="page-body"><div class="wrap-wide">
-    <div class="card canvas-card">
-      <div class="canvas-head">
-        <div class="canvas-title"><h2>${t('op.canvas')}</h2>
-          <div class="summary-inline">${counts.map(([k, c]) => `<span><b>${c}</b> ${t(`kind.${k}`)}</span>`).join('')}<span class="ok"><b>${up}/${state.network.length}</b> ${t('op.reachable')}</span></div></div>
-        <div class="filters" role="group" aria-label="${t('op.filter')}">${filters}</div>
-      </div>
-      <div class="canvas-scroll"><div class="canvas" id="canvas" data-filter="${state.orgFilter}">
-        <svg class="links" id="links" aria-hidden="true"></svg>
-        ${LANES.map(lane).join('')}
-        <div class="lane">
-          <div class="lane-head"><span class="lane-num chain">5</span><div><b>${t('op.lane.chain')}</b><small>${t('op.laneDesc.chain')}</small></div></div>
-          ${contractCard()}
-        </div>
-      </div></div>
-      <div class="legend">
-        <span><i class="lg-http"></i>${t('op.legend.http')}</span><span><i class="lg-sse"></i>${t('op.legend.sse')}</span><span><i class="lg-chain"></i>${t('op.legend.chain')}</span>
-        <span class="legend-note">${t('op.tip')}</span>
-      </div>
-    </div>
-    <div class="console-grid">
-      ${detailPanel()}
-      ${activityPanel()}
-    </div>
-  </div></section>`;
+  return '<section class="page-body"><div class="wrap-wide" role="status">Cargando Canvas View…</div></section>';
 }
 
 function activityPanel() {
@@ -628,45 +556,6 @@ function paintStatus(id) {
 }
 
 function checkAll() { state.network.forEach(checkNode); }
-
-// Dibuja las conexiones entre tarjetas a partir de su posición real en pantalla.
-// Un punto recorre cada enlace cuyo origen responde (o la cadena, si el RPC está en directo).
-function drawLinks() {
-  const canvas = $('#canvas');
-  const svg = $('#links');
-  if (!canvas || !svg) return;
-  const box = canvas.getBoundingClientRect();
-  const anchor = (id, side) => {
-    const el = canvas.querySelector(`[data-node="${CSS.escape(id)}"]`);
-    if (!el) return null;
-    const r = el.getBoundingClientRect();
-    return { x: (side === 'out' ? r.right : r.left) - box.left, y: r.top + r.height / 2 - box.top };
-  };
-  const edges = [];
-  for (const node of state.network) {
-    for (const managerId of node.managers) {
-    if (node.kind === 'reader') {
-      const config = typeof operatorState !== 'undefined' ? operatorState.readers[node.id]?.config : null;
-      if (!config || config.httpEnabled) edges.push([node.id, managerId, 'http']);
-      else if (config.streamEnabled) edges.push([node.id, managerId, 'sse']);
-    }
-      else if (node.kind === 'publisher') edges.push([managerId, node.id, 'sse']);
-      else edges.push([managerId, node.id, 'http']);
-    }
-    if (node.kind === 'publisher') edges.push([node.id, 'contract', 'chain']);
-  }
-  svg.setAttribute('viewBox', `0 0 ${box.width} ${box.height}`);
-  svg.innerHTML = edges.map(([from, to, type]) => {
-    const a = anchor(from, 'out');
-    const b = anchor(to, 'in');
-    if (!a || !b) return '';
-    const bend = Math.max(30, (b.x - a.x) / 2);
-    const d = `M${a.x},${a.y} C${a.x + bend},${a.y} ${b.x - bend},${b.y} ${b.x},${b.y}`;
-    const active = typeof operatorState !== 'undefined' && Date.now() - ((type === 'chain' ? operatorState.paid[from] : operatorState.active[from]) || 0) < 6000;
-    const dot = active ? `<circle r="3.6" class="${type}"><animateMotion dur="${type === 'chain' ? 2.4 : 1.8}s" repeatCount="indefinite" path="${d}"/></circle>` : '';
-    return `<path class="${type}" d="${d}"/>${dot}`;
-  }).join('');
-}
 
 function nodeDialog(kind) {
   const dialog = $('#node-dialog');
@@ -888,10 +777,16 @@ function route() {
 }
 
 function render() {
+  const retainedCanvas = route() === 'operator' ? document.querySelector('[data-service-network-root]') : null;
+  if (retainedCanvas?.dataset.interacting === 'true') return;
+  const canvasFocus = retainedCanvas?.contains(document.activeElement) ? document.activeElement : null;
   const scroll = window.scrollY;
   $('#app').innerHTML = VIEWS[route()]();
+  const placeholder = document.querySelector('[data-service-network-root]');
+  if (retainedCanvas && placeholder) placeholder.replaceWith(retainedCanvas);
+  if (canvasFocus?.isConnected) canvasFocus.focus({ preventScroll: true });
   window.scrollTo(0, scroll);
-  if (route() === 'operator') requestAnimationFrame(drawLinks);
+  if (route() === 'operator') document.dispatchEvent(new Event('phonendo:operator-render'));
 }
 
 function applyLang(lang) {
@@ -910,7 +805,6 @@ function init() {
   app.addEventListener('change', (e) => { if (route() === 'operator') onOperatorChange(e); });
   app.addEventListener('submit', onPatientSubmit);
   document.querySelectorAll('[data-lang]').forEach((b) => b.addEventListener('click', () => applyLang(b.dataset.lang)));
-  window.addEventListener('resize', () => { if (route() === 'operator') drawLinks(); });
   applyLang(storageGet('phonendo.lang') === 'es' ? 'es' : 'en');
   if (route() === 'home') $('#net-pill').hidden = true;
   else {
