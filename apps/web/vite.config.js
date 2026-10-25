@@ -4,13 +4,13 @@ import react from '@vitejs/plugin-react';
 
 const page = (name) => fileURLToPath(new URL(`${name}.html`, import.meta.url));
 
-// Cuatro páginas independientes. En desarrollo, /api/local va al panel local (tools/web.sh).
+// Cinco páginas independientes. En desarrollo, /api/local va al panel local (tools/web.sh).
 export default defineConfig({
   base: './',
   plugins: [react()],
   build: {
     rollupOptions: {
-      input: { index: page('index'), operator: page('operator'), patient: page('patient'), insurer: page('insurer') },
+      input: { index: page('index'), operator: page('operator'), patient: page('patient'), coldchain: page('coldchain'), insurer: page('insurer') },
     },
   },
   server: {

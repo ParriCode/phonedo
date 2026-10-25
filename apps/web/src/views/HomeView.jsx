@@ -16,13 +16,12 @@ export function HomeView() {
           <h2>Cardiac rehabilitation</h2>
           <p>The insurer pays the patient for each completed session, and never sees the heart-rate readings.</p>
         </a>
-        <section className="half use-case">
+        <a className="half use-case" href="coldchain.html" aria-label="Cold-chain transport use case">
           <span className="badge"><svg className="icon" {...svg}><path d="M14 14.8V4a2 2 0 0 0-4 0v10.8a4 4 0 1 0 4 0z" /></svg></span>
           <span className="label">Use case</span>
           <h2>Cold-chain transport</h2>
           <p>Payment is released only if the goods stayed within the agreed temperature range during transport.</p>
-          <span className="tag">Interface pending</span>
-        </section>
+        </a>
         <div className="more" aria-label="More use cases">···</div>
       </div>
     </main>

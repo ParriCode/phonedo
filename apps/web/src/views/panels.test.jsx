@@ -4,7 +4,9 @@ import { PageShell } from '../components/PageShell.jsx';
 import { I18nProvider } from '../providers/I18nProvider.jsx';
 import { PaymentsProvider } from '../providers/PaymentsProvider.jsx';
 import { ToastProvider } from '../providers/ToastProvider.jsx';
+import { CONFIG } from '../config.js';
 import { mockFetch, paidEvent } from '../test/fakes.js';
+import { ColdChainView } from './ColdChainView.jsx';
 import { InsurerView } from './InsurerView.jsx';
 import { PatientView } from './PatientView.jsx';
 
@@ -33,7 +35,7 @@ describe('paneles de pagos', () => {
     const { container } = renderPanel(<InsurerView />);
     await waitFor(() => expect(container.querySelector('#net-pill').dataset.state).toBe('error'));
     expect(container.querySelector('.notice')).toBeTruthy();
-    expect(container.querySelectorAll('tbody tr')).toHaveLength(3);
+    expect(container.querySelectorAll('tbody tr')).toHaveLength(5);
   });
 
   it('la paciente valida la cuenta y solo ve sus pagos', async () => {
@@ -74,5 +76,30 @@ describe('paneles de pagos', () => {
     mockFetch();
     renderPanel(<InsurerView />, 'es');
     expect(document.documentElement.lang).toBe('es');
+  });
+});
+
+describe('panel de rehabilitación', () => {
+  it('no cuenta los cobros de la cadena de frío', async () => {
+    mockFetch({ events: [paidEvent(), paidEvent({ id: 'frio', contractId: CONFIG.contracts[1].id })] });
+    const { container } = renderPanel(<PatientView />);
+    await waitFor(() => expect(container.querySelectorAll('tbody tr')).toHaveLength(1));
+  });
+
+  it('dibuja el aro de la sesión con las 32 lecturas', () => {
+    mockFetch();
+    const { container } = renderPanel(<PatientView />);
+    expect(container.querySelectorAll('.ring line')).toHaveLength(CONFIG.policy.batch);
+  });
+});
+
+describe('panel de cadena de frío', () => {
+  it('solo muestra los cobros de su contrato y dibuja termómetro y aro', async () => {
+    mockFetch({ events: [paidEvent(), paidEvent({ id: 'frio', contractId: CONFIG.contracts[1].id })] });
+    const { container } = renderPanel(<ColdChainView />);
+    await waitFor(() => expect(container.querySelectorAll('tbody tr')).toHaveLength(1));
+    expect(container.querySelector('.thermo')).toBeTruthy();
+    expect(container.querySelectorAll('.ring line')).toHaveLength(CONFIG.coldPolicy.batch);
+    expect(screen.getByText('Cold-chain transport')).toBeTruthy();
   });
 });
