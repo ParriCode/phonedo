@@ -25,13 +25,19 @@ def redact(value):
 
 def restore(value, previous):
     if value == MASK:
-        return previous
+        return previous if previous is not None else ''
     if isinstance(value, dict):
         old = previous if isinstance(previous, dict) else {}
         return {key: restore(item, old.get(key)) for key, item in value.items()}
     if isinstance(value, list):
         old = previous if isinstance(previous, list) else []
-        return [restore(item, old[i] if i < len(old) else None) for i, item in enumerate(value)]
+        # Los destinos pueden quitarse o reordenarse desde el formulario visual.
+        def original(item, index):
+            if isinstance(item, dict) and 'url' in item:
+                return next((target for target in old if isinstance(target, dict)
+                             and target.get('url') == item['url']), None)
+            return old[index] if index < len(old) else None
+        return [restore(item, original(item, i)) for i, item in enumerate(value)]
     return value
 
 

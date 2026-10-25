@@ -2,6 +2,7 @@
 import { connectServiceNetwork } from './service_network/index.js';
 import { requestLocal } from './service_network/api.js';
 import { renderServiceDetails, renderContainerControls } from './service_network/sidebar.js';
+import { bindConfigurationEditors } from './service_network/configuration/editor.js';
 
 const operatorState = {
   readers: {}, containers: {}, logs: [], seen: {}, cursors: {}, busy: false, bridge: null,
@@ -70,6 +71,26 @@ async function dockerOperation(operation) {
 
 const inspectorContext = () => ({ state, operatorState, nodeById, opText, ic, esc, t, configFor, field });
 function containerControls(node) { return renderContainerControls(node, inspectorContext()); }
+
+bindConfigurationEditors({
+  async onSave({id,config,liveReader,draftOnly,clearToken}) {
+    const node=nodeById(id);
+    if(draftOnly){download(configName(node),JSON.stringify(config,null,2));return config;}
+    if(operatorState.busy)throw Error(opText('Espera a que termine la operación actual.','Wait for the current operation to finish.'));
+    operatorState.busy=true;
+    try {
+      if(liveReader){
+        const snapshot=await readerCommand(node,{action:'config',config,clearToken});
+        node.managers=state.network.filter((item)=>item.kind==='manager' && config.managers.some((target)=>(typeof target==='string'?target:target.url)===dockerEndpoint(item))).map((item)=>item.id);
+        saveNetwork();return snapshot.config;
+      }
+      const snapshot=await dockerOperation(await localAPI('containers/'+encodeURIComponent(id),{action:'config',config}));
+      acceptContainer(node,snapshot);syncDockerLinks(node,snapshot.serviceConfig);saveNetwork();
+      return snapshot.serviceConfig;
+    } finally {operatorState.busy=false;}
+  },
+  onSaved(){toast(opText('Configuración preparada','Configuration ready'));render();},
+});
 
 function field(label, key, value = '', type = 'text', extra = '') {
   return `<label class="op-field"><span>${esc(label)}</span><input name="${key}" type="${type}" value="${esc(value)}" ${extra}></label>`;
@@ -195,20 +216,6 @@ async function onOperatorForm(event) {
         $('#node-dialog').close();
         break;
       }
-      case 'container-config': {
-        const snapshot = await dockerOperation(await localAPI('containers/'+encodeURIComponent(node.id), {action:'config',config:JSON.parse(data.config)}));
-        acceptContainer(node,snapshot);syncDockerLinks(node,snapshot.serviceConfig);saveNetwork();break;
-      }
-      case 'settings': {
-        const current = operatorState.readers[node.id].config;
-        const config = { ...current, readerId: data.readerId, queueSize: Number(data.queueSize), httpEnabled: data.httpEnabled === 'on', streamEnabled: data.streamEnabled === 'on', token: data.token,
-          allowNewDevices: data.allowNewDevices === 'on', allowNewSensors: data.allowNewSensors === 'on',
-          managers: data.managerUrls.split(',').map((url) => url.trim()).filter(Boolean).map((url) => ({ url, token: data.managerToken })) };
-        await readerCommand(node, { action: 'config', config, clearToken: data.clearToken === 'on' });
-        node.managers = state.network.filter((item) => item.kind === 'manager' && config.managers.some((target) => target.url === dockerEndpoint(item))).map((item) => item.id);
-        saveNetwork();
-        break;
-      }
       case 'device': await readerCommand(node, { action: 'device', ...data }); break;
       case 'sensor': await readerCommand(node, { action: 'sensor', deviceId: form.dataset.device, ...data }); break;
       case 'pulse': await readerCommand(node, { action: 'pulse', deviceId: form.dataset.device, sensorId: form.dataset.sensor, value: Number(data.value), count: Number(submit?.value || 1) }); break;
@@ -258,7 +265,7 @@ const previousOperatorChange = onOperatorChange;
 onOperatorChange = function (event) {
   if (event.target.id === 'op-log-filter') { operatorState.stage = event.target.value; render(); return; }
   if (event.target.dataset.serviceToken) { operatorState.tokens.set(event.target.dataset.serviceToken, event.target.value); event.target.value = ''; return; }
-  if (event.target.closest('[data-op-form]')) return;
+  if (event.target.closest('[data-op-form], [data-config-editor]')) return;
   previousOperatorChange(event);
 };
 

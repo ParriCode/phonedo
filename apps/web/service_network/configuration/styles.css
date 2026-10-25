@@ -1,0 +1,30 @@
+.service-config { margin: 1.25rem 0; min-width: 0; }
+.config-heading, .config-list__heading { display: flex; align-items: center; justify-content: space-between; gap: .5rem; }
+.config-heading h3 { margin: 0; }
+.config-dirty { color: #986016; font-size: .7rem; }
+.config-tabs { display: flex; padding: .25rem; gap: .25rem; background: #edf1ec; border-radius: .65rem; margin: .8rem 0; }
+.config-tabs button { flex: 1; padding: .45rem; border: 0; border-radius: .45rem; background: transparent; color: #58716e; font: inherit; font-size: .8rem; cursor: pointer; }
+.config-tabs button[aria-pressed="true"] { background: white; color: #006b61; box-shadow: 0 1px 4px #12332c12; font-weight: 600; }
+.config-group { border-bottom: 1px solid #e2e8df; padding: .8rem 0; }
+.config-group > summary { cursor: pointer; font-weight: 600; font-size: .85rem; }
+.config-setting { margin: .85rem 0; min-width: 0; }
+.config-field { display: grid; gap: .4rem; margin: .65rem 0; font-size: .78rem; min-width: 0; }
+.config-field > span { color: #49645f; }
+.config-field input, .config-json { width: 100%; min-width: 0; box-sizing: border-box; padding: .65rem .7rem; background: white; border: 1px solid #d6e1d8; border-radius: .5rem; color: #153f38; font: inherit; }
+.config-field input:focus, .config-json:focus { outline: 2px solid #a1d7c7; outline-offset: 1px; }
+.config-field input[readonly] { background: #eff2ed; color: #6c7f77; }
+.config-toggle { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: .35rem 0; font-size: .8rem; cursor: pointer; }
+.config-toggle input { appearance: none; flex-shrink: 0; width: 2.35rem; height: 1.35rem; border-radius: 1rem; background: #cad5ce; cursor: pointer; position: relative; transition: background .15s; }
+.config-toggle input::after { content: ''; position: absolute; width: .95rem; height: .95rem; top: .2rem; left: .2rem; background: white; border-radius: 50%; transition: transform .15s; box-shadow: 0 1px 3px #0002; }
+.config-toggle input:checked { background: #078b72; }
+.config-toggle input:checked::after { transform: translateX(1rem); }
+.config-toggle input:focus-visible { outline: 2px solid #078b72; outline-offset: 2px; }
+.config-item { padding: .35rem .75rem .7rem; margin-top: .65rem; background: #f4f7f2; border: 1px solid #e0e8dc; border-radius: .65rem; }
+.config-list__heading b { font-size: .8rem; }
+.config-token summary { cursor: pointer; font-size: .75rem; color: #617970; }
+.config-remove { padding: 0; border: 0; background: transparent; color: #a14936; font: inherit; font-size: .72rem; cursor: pointer; margin-top: .5rem; }
+.config-hint { color: #6c7e77; font-size: .73rem; line-height: 1.5; margin: .6rem 0; }
+.config-error { color: #b1382b; font-size: .8rem; overflow-wrap: anywhere; }
+.config-error:empty { display: none; }
+.config-actions { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .85rem; }
+.config-json { font-family: 'JetBrains Mono', monospace; font-size: .72rem; line-height: 1.6; resize: vertical; tab-size: 2; }

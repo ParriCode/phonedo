@@ -11,6 +11,7 @@ Se arranca con `./tools/web.sh`; el frontend antiguo de Leptos no interviene.
 | `interactions.js` | Arrastre, pan, zoom y teclado mediante Pointer Events. |
 | `node.js`, `edge.js` | Tarjetas y geometría de conexiones en coordenadas del mundo. |
 | `sidebar.js` | Inspector seleccionado, reutilizando los controles existentes. |
+| `configuration/` | Esquemas por servicio, borradores y formulario Visual/JSON con estilos propios. |
 | `layout.js` | Auto layout y cálculo de Fit view, sin dependencias del navegador. |
 | `api.js` | Cliente del backend local, sin conocimiento del canvas. |
 | `index.js` | Adaptador de integración y ciclo de vida. |
@@ -31,6 +32,11 @@ Uso: arrastrar un nodo para colocarlo; arrastrar el fondo o mantener Espacio par
 mover el lienzo; rueda o botones +/- para zoom. Las flechas del teclado mueven el
 nodo enfocado (Shift amplía el paso). Auto layout reorganiza y Fit view encuadra.
 Las conexiones representan relaciones configuradas, no confirmaciones de entrega.
+
+El inspector edita una misma configuración en modo Visual o JSON y conserva los
+campos adicionales. Reader aplica cambios en directo; los otros contenedores
+gestionados se reinician al guardar. Para servicios externos solo genera un archivo.
+Los borradores quedan en memoria y no se guardan secretos en localStorage.
 
 Pruebas de geometría, persistencia, modelo y API, sin instalar paquetes:
 
