@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useRef } from 'react';
 import { CONFIG, KNOWN } from '../config.js';
-import { fetchPayments } from '../lib/stellar.js';
+import { fetchPayments, mergePayments } from '../lib/stellar.js';
 import { formatAmount } from '../lib/format.js';
 import { useStateRef } from '../lib/useStateRef.js';
 import { useI18n } from './I18nProvider.jsx';
@@ -22,11 +22,15 @@ export function PaymentsProvider({ children }) {
 
   useEffect(() => {
     let active = true;
+    // Cada refresco sigue desde el último cursor: solo se piden los pagos nuevos.
+    let cursor = null;
     const refresh = async () => {
       const previous = current.current;
       let next = previous;
       try {
-        const events = await fetchPayments();
+        const result = await fetchPayments(cursor);
+        cursor = result.cursor;
+        const events = mergePayments(previous.net === 'live' ? previous.events : [], result.payments);
         const known = new Set(previous.events.map((e) => e.id));
         const firstLoad = previous.net !== 'live';
         const fresh = new Set(firstLoad ? [] : events.filter((e) => !known.has(e.id)).map((e) => e.id));

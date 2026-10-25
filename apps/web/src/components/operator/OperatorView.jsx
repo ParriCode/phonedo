@@ -1,73 +1,76 @@
-import { useMemo } from 'react';
-import { networkModel } from '../../../service_network/models.js';
-import { CONFIG, ORGS } from '../../config.js';
-import { contractUrl, formatAmount, short, txUrl } from '../../lib/format.js';
+import { portLabel } from '../../lib/health.js';
 import { useI18n } from '../../providers/I18nProvider.jsx';
 import { useNetwork } from '../../providers/NetworkProvider.jsx';
 import { useOperator } from '../../providers/OperatorProvider.jsx';
-import { usePayments } from '../../providers/PaymentsProvider.jsx';
 import { ServiceCanvas } from '../canvas/ServiceCanvas.jsx';
-import { Icon } from '../Icon.jsx';
 import { useDeployDialog } from './DeployDialog.jsx';
+import { EdgeInspector, NodeInspector, StellarInspector, SystemSummary } from './Inspector.jsx';
 import { OperatorLogs } from './OperatorLogs.jsx';
-import { ContainerControls, ServiceDetails } from './ServiceDetails.jsx';
+import { edgeLabel, healthLabel, transportLabel } from './status.jsx';
+import { useSystemView } from './useSystemView.js';
 
-function StellarDetails() {
+/** Lo que muestra cada tarjeta del lienzo: estado, Stream y una sola línea de actividad. */
+function nodeViews(view, opText) {
+  const views = {};
+  for (const node of view.model.nodes) {
+    const health = view.health[node.id];
+    const activity = view.activity[node.id];
+    const problem = view.problems[node.id];
+    let line = null;
+    if (node.kind === 'stellar') line = { tone: 'info', text: opText(`${activity.payments} pagos`, `${activity.payments} payouts`) };
+    else if (health === 'degraded' && problem) line = { tone: problem.level === 'warning' ? 'warning' : 'error', text: problem.log.message };
+    else if (health !== 'error' && activity.receiving) line = { tone: 'live', text: opText('Recibiendo datos', 'Receiving data') };
+    else if (health !== 'error' && activity.perMinute) line = { tone: 'info', text: opText(`${activity.perMinute} eventos/min`, `${activity.perMinute} events/min`) };
+    views[node.id] = {
+      health, healthText: healthLabel(health, opText), stream: Boolean(view.stream[node.id]), line,
+      port: node.kind === 'stellar' ? 'testnet' : portLabel(node.address),
+    };
+  }
+  return views;
+}
+
+function HealthSummary({ view }) {
   const { opText } = useI18n();
+  const order = ['error', 'degraded', 'stale', 'healthy', 'unknown'];
   return (
-    <div className="card panel"><h3>Stellar testnet</h3><p className="op-caption">{opText('Contratos configurados. Consulta pagos y transacciones en el explorador.', 'Configured contracts. View payments and transactions in the explorer.')}</p>{CONFIG.contracts.map((contract) => (
-      <p key={contract.id}><a className="mono" href={contractUrl(contract.id)} target="_blank" rel="noopener">{contract.asset} · {short(contract.id, 8, 6)}</a></p>
-    ))}</div>
+    <span className="canvas__summary">
+      <span className="canvas__node-count">{`${view.model.nodes.length} ${opText('servicios', 'services')}`}</span>
+      {order.filter((health) => view.counts[health]).map((health) => (
+        <span key={health} className={`summary-pill health--${health}`} title={healthLabel(health, opText)}><i />{view.counts[health]} {healthLabel(health, opText).toLowerCase()}</span>
+      ))}
+    </span>
   );
 }
 
-function Sidebar({ selectedNode }) {
-  const { opText } = useI18n();
-  const { nodeById } = useNetwork();
-  if (!selectedNode) return <div className="card panel service-network__empty-detail"><Icon name="hub" /><h3>{opText('Selecciona un nodo', 'Select a node')}</h3><p>{opText('Sus detalles y controles aparecerán aquí.', 'Its details and controls will appear here.')}</p></div>;
-  if (selectedNode.kind === 'stellar') return <StellarDetails />;
-  return <><ServiceDetails /><ContainerControls node={nodeById(selectedNode.id)} /></>;
-}
-
-function ContractsSection() {
-  const { t, lang, opText } = useI18n();
-  const { net, events } = usePayments();
-  return (
-    <section className="card panel operator-contracts"><div className="op-section-title"><h2>{opText('Contratos', 'Contracts')}</h2><span className="chip">{t(`net.${net}`)}</span></div>
-      <div className="contract-grid">{CONFIG.contracts.map((contract) => (
-        <a key={contract.id} className="contract-tile" href={contractUrl(contract.id)} target="_blank" rel="noopener"><Icon name="contract" /><b>{contract.asset} · adherence</b><span className="mono">{short(contract.id, 12, 8)}</span><Icon name="external" /></a>
-      ))}</div>
-      {events.length ? <ul className="feed-list">{events.slice(0, 4).map((event) => (
-        <li key={event.id}><Icon name="check" /><span><b>{formatAmount(event.amount, lang)} {event.asset}</b><small><a href={txUrl(event.txHash)} target="_blank" rel="noopener">{short(event.txHash, 10, 6)}</a></small></span></li>
-      ))}</ul> : <p className="op-caption">{opText('Sin pagos nuevos.', 'No new payouts.')}</p>}
-      {net === 'error' ? <p className="op-caption">{opText('Explorador sin conexión: se muestran pagos históricos conocidos.', 'Explorer offline: showing known historical payouts.')}</p> : null}</section>
-  );
-}
-
-/** Consola del operador: lienzo de servicios, actividad y contratos. */
+/** Consola del operador: mapa vivo del sistema, detalle contextual y actividad. */
 export function OperatorView() {
   const { t, opText } = useI18n();
-  const { network, status, selected, select } = useNetwork();
-  const { readers, epoch } = useOperator();
-  const { net } = usePayments();
+  const { selected, selectedEdge, select, selectEdge } = useNetwork();
   const { openDialog } = useDeployDialog();
-  const chainStatus = net === 'live' ? 'up' : net === 'error' ? 'down' : 'checking';
-  const model = useMemo(() => networkModel({ services: network, statuses: status, readers, contracts: CONFIG.contracts, rpc: CONFIG.rpc, chainStatus }),
-    [network, status, readers, chainStatus]);
-  const selectedNode = model.nodes.find((node) => node.id === selected);
+  // Tras cada acción confirmada el inspector se vuelve a montar con los valores reales.
+  const { epoch } = useOperator();
+  const view = useSystemView();
+  const label = (kind) => (kind === 'stellar' ? 'Stellar' : t(`kind.${kind}`));
+  const names = Object.fromEntries(view.model.nodes.map((node) => [node.id, node.name]));
+
+  const node = view.model.nodes.find((item) => item.id === selected);
+  const edge = view.model.connections.find((item) => item.id === selectedEdge);
+  let sidebar = <SystemSummary view={view} label={label} />;
+  if (node?.kind === 'stellar') sidebar = <StellarInspector node={node} view={view} />;
+  else if (node) sidebar = <NodeInspector key={`${node.id}:${epoch}`} node={node} view={view} label={label} />;
+  else if (edge) sidebar = <EdgeInspector edge={edge} view={view} label={label} />;
 
   return (
     <section className="page-body operator-body"><div className="wrap-wide">
       <ServiceCanvas
-        model={model} selectedId={selected} onSelect={select} onAdd={() => openDialog('reader')}
-        storageKey="phonendo.canvas.local.v1" text={opText}
-        label={(kind) => (kind === 'stellar' ? 'Stellar' : t(`kind.${kind}`))}
-        statusLabel={(value) => t(`status.${value}`)}
-        organizationLabel={(org) => (org === 'stellar' ? 'testnet' : ORGS.includes(org) ? t(`org.${org}`) : org)}
-        sidebar={<Sidebar key={epoch} selectedNode={selectedNode} />}
+        model={view.model} views={nodeViews(view, opText)} edgeStates={view.edges}
+        selectedId={selected} selectedEdgeId={selectedEdge} onSelect={select} onSelectEdge={selectEdge}
+        onAdd={() => openDialog('reader')} summary={<HealthSummary view={view} />}
+        storageKey="phonendo.canvas.local.v1" text={opText} label={label}
+        edgeLabel={(item, state) => `${names[item.sourceId]} → ${names[item.targetId]} · ${transportLabel(item.transport)} · ${edgeLabel(state, opText)}`}
+        sidebar={sidebar}
       />
-      <OperatorLogs />
-      <ContractsSection />
+      <OperatorLogs view={view} />
     </div></section>
   );
 }

@@ -88,8 +88,8 @@ test('almacenamiento corrupto o desactivado no bloquea el canvas', () => {
 test('las conexiones cambian de lado al mover el destino a la izquierda', () => {
   const right = edgeGeometry({x:0,y:0},{x:400,y:200});
   const left = edgeGeometry({x:400,y:0},{x:0,y:200});
-  assert.match(right.path, /^M 224 72 /);
-  assert.match(left.path, /^M 400 72 /);
+  assert.ok(right.path.startsWith(`M ${NODE_SIZE.width} ${NODE_SIZE.height / 2} `));
+  assert.ok(left.path.startsWith(`M 400 ${NODE_SIZE.height / 2} `));
   assert.notEqual(right.path,left.path);
 });
 

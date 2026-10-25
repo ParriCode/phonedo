@@ -14,6 +14,17 @@
   --coral: #e0483c;
   --coral-soft: #fbe1dd;
   --sky: #27a7c4;
+  /* Estados: el color siempre significa lo mismo. */
+  --ok: #1e9e6a;
+  --ok-soft: #dcf3e6;
+  --warn: #c7860a;
+  --warn-soft: #fcefd2;
+  --bad: #d63b2f;
+  --bad-soft: #fde3df;
+  --unknown: #97a3a0;
+  --unknown-soft: #edf0ed;
+  --stream: #4c6ef5;
+  --stream-soft: #e5eaff;
   --ink: #10282a;
   --muted: #5b6e6b;
   --line: #e3dccd;
@@ -402,16 +413,6 @@ body[data-panel="operator"] .wrap-wide { max-width: 1720px; }
 .op-section-title h3 { margin: 0; }
 .op-section-title .icon { width: 18px; height: 18px; vertical-align: middle; }
 .op-caption { color: var(--muted); font-size: 12px; line-height: 1.65; margin: 12px 0; }
-.lifecycle { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; margin-top: 24px; }
-.life-stage { position: relative; display: grid; gap: 5px; padding: 14px 10px; border: 1px solid #dbe4d9; border-radius: 12px; background: #f0f4ed; text-align: left; cursor: pointer; transition: background .2s, border-color .2s; }
-.life-stage small { position: absolute; top: 12px; right: 12px; font-family: var(--mono); color: #88988a; font-size: 11px; }
-.life-stage b { font-size: 12px; }
-.life-stage > span:last-child { font-size: 10px; color: var(--muted); }
-.life-icon { width: 32px; height: 32px; border-radius: 10px; background: white; display: grid; place-items: center; margin-bottom: 6px; }
-.life-icon .icon { width: 18px; height: 18px; }
-.life-stage.is-active { border-color: #3ca87b; background: #dff6ea; }
-.life-stage.is-active .life-icon { box-shadow: 0 0 0 5px rgb(61 220 151 / 15%); }
-.life-stage[aria-pressed="true"] { outline: 2px solid var(--brand); outline-offset: 1px; }
 .journey-empty { padding: 18px; border: 1px dashed #c8d6c7; border-radius: 12px; margin: 16px 0; color: var(--muted); font-size: 12px; display: flex; gap: 10px; align-items: center; }
 .journeys { padding: 16px; border: 1px solid #dbe4d9; border-radius: 12px; background: #fffdf8; margin: 16px 0; }
 .journeys h3 { font-size: 13px; margin-bottom: 12px; }
@@ -461,25 +462,12 @@ body[data-panel="operator"] .wrap-wide { max-width: 1720px; }
 .pulse-controls .btn { white-space: nowrap; }
 .operator-log-panel { overflow: hidden; }
 .operator-log-panel .panel { padding: 20px 24px; margin: 0; }
-.op-terminal { background: #0c2423; color: #dce9e3; min-height: 340px; max-height: 540px; overflow: auto; padding: 12px 24px; font-family: var(--mono); font-size: 12px; }
-.log-row { display: grid; grid-template-columns: 90px minmax(100px, 160px) 1fr; column-gap: 16px; padding: 11px 0; border-bottom: 1px solid #203e39; }
-.log-row code { overflow-wrap: anywhere; color: #b8e4ce; }
-.log-row b { font-size: 11px; overflow-wrap: anywhere; }
-.log-row small { grid-column: 3; color: #91aaa1; font-size: 10px; overflow-wrap: anywhere; }
-.log-kind { color: #86a69b; text-transform: uppercase; font-size: 10px; }
-.log-error code { color: #ffac99; }
-.log-empty { display: grid; justify-items: center; text-align: center; padding: 90px 15px; gap: 12px; color: #91aaa1; }
-.log-empty h3 { font-family: Inter, sans-serif; font-size: 16px; color: #dce9e3; }
-.log-empty p { max-width: 520px; font-size: 11px; }
-.live-indicator { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #39b57d; margin-left: 8px; }
 .contract-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin: 18px 0; }
 .contract-tile { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; border: 1px solid var(--line); border-radius: 12px; padding: 18px; text-decoration: none; background: #f6f4ed; }
 .contract-tile .mono { width: 100%; color: var(--muted); font-size: 11px; }
 .contract-tile .icon { width: 18px; height: 18px; }
 .operator-contracts .feed { box-shadow: none; }
-@media (max-width: 1150px) { .lifecycle { grid-template-columns: repeat(3, 1fr); } }
-@media (max-width: 850px) { .lifecycle { grid-template-columns: repeat(2, 1fr); } .log-row { grid-template-columns: 70px 1fr; gap: 6px; } .log-row code, .log-row small { grid-column: 1 / -1; } .op-terminal { padding: 12px; } }
-@media (prefers-reduced-motion: reduce) { .life-stage, .switch-row input::after { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .switch-row input::after { transition: none; } }
 
 @media (max-width: 1020px) {
   .hero-grid, .split, .cases, .two-col, .console-grid, .detail-cols { grid-template-columns: 1fr; }

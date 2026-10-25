@@ -3,6 +3,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { requestLocal } from '../../service_network/api.js';
 import { configFor, configName, dockerEndpoint, linkDockerNode } from '../lib/serviceConfig.js';
 import { download } from '../lib/format.js';
+import { logLevel } from '../lib/health.js';
 import { useStateRef } from '../lib/useStateRef.js';
 import { useI18n } from './I18nProvider.jsx';
 import { useNetwork } from './NetworkProvider.jsx';
@@ -23,7 +24,10 @@ export function OperatorProvider({ children }) {
   const [logs, setLogs, logsRef] = useStateRef([]);
   const [errors, setErrors] = useState({});
   const [active, setActive] = useState({});
-  const [stage, setStage] = useState('all');
+  // Filtro de la lista de actividad: servicio, nivel y texto.
+  const [logFilter, setLogFilter] = useState({ node: 'all', level: 'all', query: '', routine: false });
+  // Última respuesta de cada servicio: sin consultas recientes el dato está desactualizado.
+  const [checkedAt, setCheckedAt] = useState({});
   // Tras cada acción confirmada los formularios del inspector vuelven a sus valores reales.
   const [epoch, setEpoch] = useState(0);
 
@@ -36,7 +40,7 @@ export function OperatorProvider({ children }) {
   const configurationDrafts = useRef(new Map());
 
   const appendLog = useCallback((node, message, fields = {}) => {
-    const entry = { id: crypto.randomUUID(), node: node.id, name: node.name, kind: node.kind, message, ...fields };
+    const entry = { id: crypto.randomUUID(), node: node.id, name: node.name, kind: node.kind, message, at: Date.now(), level: logLevel(message, fields.detail), ...fields };
     setLogs((list) => [entry, ...list].slice(0, 300));
     if (!fields.historical && /observation|event_|batch_|session_|verified|accepted/.test(message)) {
       setActive((map) => ({ ...map, [node.id]: Date.now() }));
@@ -115,6 +119,7 @@ export function OperatorProvider({ children }) {
       }
       if (!node.managed) setStatus(node.id, 'up');
       if (!containersRef.current[node.id]?.error) setErrors((map) => without(map, node.id));
+      setCheckedAt((map) => ({ ...map, [node.id]: Date.now() }));
     } catch (error) {
       setStatus(node.id, 'down');
       setErrors((map) => ({ ...map, [node.id]: error.message }));
@@ -241,16 +246,20 @@ export function OperatorProvider({ children }) {
     saveConfiguration,
     configurationDrafts,
     isBusy: () => busy.current,
-    setStage,
-    toggleStage: (kind) => setStage((value) => (value === kind ? 'all' : kind)),
+    setLogFilter: (patch) => setLogFilter((value) => ({ ...value, ...patch })),
+    // Lleva la lista de actividad a los logs de un servicio.
+    focusLogs: (nodeId, level = 'all') => {
+      setLogFilter((value) => ({ ...value, node: nodeId, level, query: '' }));
+      document.getElementById('activity')?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
+    },
     clearLogs: () => setLogs([]),
     setToken: (id, value) => tokens.current.set(id, value),
     downloadConfig: (node) => download(configName(node), JSON.stringify(configFor(node, networkRef.current), null, 2)),
     removeFromView: (node) => { removeNode(node.id); toast(t('toast.removed')); },
   }), [checkNode, dockerAction, networkRef, readerAction, removeNode, saveConfiguration, setLogs, submitForm, t, toast]);
 
-  const value = useMemo(() => ({ readers, containers, logs, errors, active, stage, epoch, ...actions }),
-    [readers, containers, logs, errors, active, stage, epoch, actions]);
+  const value = useMemo(() => ({ readers, containers, logs, errors, active, logFilter, checkedAt, epoch, ...actions }),
+    [readers, containers, logs, errors, active, logFilter, checkedAt, epoch, actions]);
 
   return <OperatorContext.Provider value={value}>{children}</OperatorContext.Provider>;
 }

@@ -1,5 +1,5 @@
 /** Modelos de topología independientes de la interfaz y del runtime local/remoto. */
-export const NODE_SIZE = Object.freeze({ width: 224, height: 144 });
+export const NODE_SIZE = Object.freeze({ width: 236, height: 150 });
 export const KIND_ORDER = Object.freeze({ reader: 0, manager: 1, verifier: 2, storage: 2, publisher: 3, stellar: 4 });
 
 /** @typedef {{id:string,kind:string,name:string,status:string,address:string,organization:string,machineId:string|null,runtime:string,tags:string[]}} Service */
