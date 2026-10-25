@@ -60,6 +60,13 @@ Existing services (Python, in `apps/`):
 | Storage | Stores Verified events in LevelDB and organises its own database. Raw data stays off-chain here. |
 | Publisher | Empty (README + disabled config). This is where the ZK prover and the Stellar call plug in. |
 
+El Manager evita conexiones HTTP/SSE redundantes por servicio, no observaciones
+repetidas. Para Reader conserva el primer transporte seleccionado hasta reiniciar;
+para Verifier y Storage prioriza el HTTP configurado y rechaza SSE redundante (409).
+Los suscriptores Verifier/Storage se identifican con `server.publicUrl` y
+`X-Phonendo-Service-URL`; usar la misma URL canónica que en el Manager.
+Hay logs de selección/rechazo y pruebas en `tests/app_tests/test_manager_transports.py`.
+
 New pieces: `circuits/` (Circom + snarkjs) and a Soroban contract in Rust.
 
 End-to-end flow:
