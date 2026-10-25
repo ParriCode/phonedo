@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from collections import deque
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -35,6 +36,7 @@ class Logger:
     ) -> None:
         self.logs_dir = Path(logs_dir)
         self.service = service
+        self.messages = deque(maxlen=200)
         self.verbose = False if verbose is None else verbose #Por defecto, no mostrar logs en consola
         self.logging = True if logging is None else logging #Por defecto, guardar logs en archivos
         self.dev = False if dev is None else dev #Por defecto, no mostrar logs de desarrollo (debug)
@@ -107,6 +109,8 @@ class Logger:
     def _write(self, level: str, message: str, *, dev: bool, fields: dict[str, Any]) -> None:
         if dev and not self.dev:
             return
+
+        self.messages.append(message)
 
         record = {
             "ts": datetime.now(timezone.utc).isoformat(),

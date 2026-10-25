@@ -1,5 +1,6 @@
 """HTTP observation output targeting any number of independent Managers."""
 import json
+from collections import deque
 import logging
 from pathlib import Path
 from urllib.error import URLError
@@ -12,6 +13,7 @@ class ManagerOutput:
     def __init__(self, managers, *, timeout=10):
         self.managers = tuple(managers)
         self.timeout = timeout
+        self.messages = deque(maxlen=200)
 
     @classmethod
     def from_config(cls, path):
@@ -28,8 +30,10 @@ class ManagerOutput:
             request = Request(url, data=data, headers={'Content-Type': 'application/json'})
             try:
                 with urlopen(request, timeout=self.timeout) as response:
+                    self.messages.append('manager_http_delivery_ok')
                     results.append({'url': url, 'status': response.status})
             except (URLError, TimeoutError) as error:
+                self.messages.append('manager_http_delivery_failed')
                 logging.getLogger(__name__).warning('Manager delivery failed: %s: %s', url, error)
                 results.append({'url': url, 'error': str(error)})
         return results

@@ -67,6 +67,10 @@ Los suscriptores Verifier/Storage se identifican con `server.publicUrl` y
 `X-Phonendo-Service-URL`; usar la misma URL canónica que en el Manager.
 Hay logs de selección/rechazo y pruebas en `tests/app_tests/test_manager_transports.py`.
 
+Monitorización simple en los cuatro servidores Python: `/info` devuelve una lista
+de `peer`/`transport`; `/logs`, hasta 200 mensajes en memoria. Ambas sin token.
+SSE refleja conexiones activas; HTTP, destinos configurados o clientes recibidos.
+
 New pieces: `circuits/` (Circom + snarkjs) and a Soroban contract in Rust.
 
 End-to-end flow:

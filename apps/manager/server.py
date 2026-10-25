@@ -74,6 +74,29 @@ class ManagerServer:
 
 
 def register_routes(app, core):
+    @app.get('/info')
+    def info():
+        connections = []
+        for service in ('verifier', 'storage'):
+            for url in sorted(http_endpoints(core.client.config, service)):
+                connections.append({'peer': url, 'transport': 'http'})
+        connections.extend({'peer': reader, 'transport': 'http'}
+                           for reader in sorted(core.http_readers))
+        connections.extend({'peer': reader, 'transport': 'sse'}
+                           for reader in sorted(core.client.reader_streams))
+        for subscription in core.client.subscriptions:
+            connections.extend({'peer': url.rsplit('/stream', 1)[0], 'transport': 'sse'}
+                               for url in sorted(subscription.connected))
+        with core.server._connections_lock:
+            connections.extend({'peer': url, 'transport': 'sse'}
+                               for _, url in sorted(core.server._connections))
+        connections.extend({'peer': peer, 'transport': 'sse'}
+                           for peer in core.server.own_stream.peers())
+        return connections
+
+    @app.get('/logs')
+    def logs():
+        return list(Logger.instance().messages)
 
     @app.before_request
     def start_request_log():
@@ -81,6 +104,8 @@ def register_routes(app, core):
 
     @app.after_request
     def log_request(response):
+        if request.path in ('/info', '/logs'):
+            return response
         duration_ms = int((time.time() - g.get("request_started_at", time.time())) * 1000)
         body = request.get_json(silent=True) or {}
 

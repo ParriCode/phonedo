@@ -150,7 +150,7 @@ class ManagerCore:
             return
         with self.stream_lock:
             pending = self.stream_pending.get(message.get('key'))
-            if pending is None or source in pending[' sources']:
+            if pending is None or source in pending['sources']:
                 return
             original = pending['message']['value']
             if any(message['value'].get(key) != value for key, value in original.items() if key != 'status'):

@@ -18,6 +18,8 @@ class ManagerClient:
     def __init__(self, config, timeout: float = 10):
         self.config = config
         self.timeout = timeout
+        self.reader_streams = set()
+        self.subscriptions = []
 
 
     def _targets(self, service):
@@ -115,6 +117,7 @@ class ManagerClient:
         try:
             self._read_reader_stream(base_url, headers, reader_id, on_event, stop_event, core)
         finally:
+            self.reader_streams.discard(reader_id)
             if core is not None:
                 core.release_reader_stream(reader_id)
         return True
@@ -124,6 +127,7 @@ class ManagerClient:
         with requests.get(f'{base_url}/stream', headers=headers, stream=True,
                           timeout=(self.timeout, 30)) as response:
             response.raise_for_status()
+            self.reader_streams.add(reader_id)
             if core is not None:
                 core.activate_reader_stream(reader_id)
             event_type = None
@@ -204,6 +208,7 @@ class ManagerClient:
                 client = StreamClient([target], getattr(self.config, 'api_token_' + service),
                     lambda message, source=source, callback=callback: callback(source, message))
                 client.start()
+                self.subscriptions.append(client)
                 stops.append(client.close)
         def stop():
             for close in stops:

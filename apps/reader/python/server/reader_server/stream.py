@@ -9,15 +9,18 @@ class ObservationStream:
             raise ValueError("stream queue_size must be a positive integer")
         self.queue_size = queue_size
         self._subscribers = set()
+        self.peers = {}
 
     @contextmanager
-    def subscribe(self):
+    def subscribe(self, peer=None):
         queue = asyncio.Queue(maxsize=self.queue_size)
         self._subscribers.add(queue)
+        self.peers[queue] = peer
         try:
             yield queue
         finally:
             self._subscribers.discard(queue)
+            self.peers.pop(queue, None)
 
     def publish(self, event):
         # Called on the runtime's event loop, just like the source callbacks.
@@ -29,6 +32,7 @@ class ObservationStream:
 
     def _disconnect(self, queue):
         self._subscribers.discard(queue)
+        self.peers.pop(queue, None)
         while not queue.empty():
             queue.get_nowait()
         queue.put_nowait(None)

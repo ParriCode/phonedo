@@ -2,6 +2,7 @@
 import asyncio
 import hmac
 import json
+from collections import deque
 from dataclasses import dataclass
 from .service import ReaderService
 from .stream import ObservationStream, StreamOutput
@@ -21,10 +22,14 @@ class ReaderServer:
     """Single-use lifecycle: create -> start -> stop -> dispose."""
     def __init__(self, core, config=None, *, outputs=()):
         self.core = core
+        self.messages = deque(['reader_initialized'], maxlen=200)
         self.config = config if config is not None else ServerConfig()
         self.stream = (ObservationStream(self.config.queue_size)
                        if self.config.stream_enabled else None)
         service_outputs = list(outputs)
+        for output in service_outputs:
+            if hasattr(output, 'messages'):
+                output.messages = self.messages
         if self.stream is not None:
             service_outputs.insert(0, StreamOutput(self.stream))
         self.service = ReaderService(core, tuple(service_outputs))
@@ -37,6 +42,8 @@ class ReaderServer:
 
             @web.middleware
             async def authorize(request, handler):
+                if request.method == 'GET' and request.path in ('/info', '/logs'):
+                    return await handler(request)
                 if self.config.token and not hmac.compare_digest(
                     request.headers.get("Authorization", "").encode(),
                     ("Bearer " + self.config.token).encode(),
@@ -46,6 +53,8 @@ class ReaderServer:
 
             self._app = web.Application(middlewares=[authorize])
             self._app.add_routes([
+                web.get("/info", self.info),
+                web.get("/logs", self.logs),
                 web.get("/health", self.health),
                 web.get("/metadata", self.metadata),
                 web.get("/devices", self.devices),
@@ -71,6 +80,7 @@ class ReaderServer:
             await self.runner.setup()
             await web.TCPSite(self.runner, self.config.host, int(self.config.port)).start()
             self.running = True
+            self.messages.append('reader_started')
         except BaseException:
             await self.stop()
             raise
@@ -87,6 +97,21 @@ class ReaderServer:
             self.runner = None
             self.running = False
             self._stopped = True
+            self.messages.append('reader_stopped')
+
+    async def info(self, request):
+        connections = []
+        for output in self.service.outputs:
+            for target in getattr(output, 'managers', ()):
+                url = target if isinstance(target, str) else target['url']
+                connections.append({'peer': url.rstrip('/'), 'transport': 'http'})
+        if self.stream is not None:
+            connections.extend({'peer': peer, 'transport': 'sse'}
+                               for peer in self.stream.peers.values() if peer is not None)
+        return web.json_response(connections)
+
+    async def logs(self, request):
+        return web.json_response(list(self.messages))
 
     def status(self):
         return {"running": self.running, "http_enabled": self.config.enabled,
@@ -120,8 +145,9 @@ class ReaderServer:
             "Cache-Control": "no-cache",
             "X-Accel-Buffering": "no",
         })
-        with self.stream.subscribe() as queue:
+        with self.stream.subscribe(request.remote) as queue:
             await response.prepare(request)
+            self.messages.append('stream_connected')
             try:
                 await response.write(b": connected\n\n")
                 while True:
@@ -140,4 +166,6 @@ class ReaderServer:
                     await asyncio.wait_for(response.write(chunk), timeout=15)
             except (ConnectionError, asyncio.TimeoutError):
                 pass
+            finally:
+                self.messages.append('stream_disconnected')
         return response

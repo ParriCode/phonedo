@@ -8,8 +8,9 @@ def stream_response(stream, token, on_close=None):
     if not token or not hmac.compare_digest(supplied, 'Bearer ' + token):
         abort(401)
 
+    peer = request.remote_addr
     def events():
-        with stream.subscribe() as subscriber:
+        with stream.subscribe(peer) as subscriber:
             yield ': connected\n\n'
             while True:
                 try:

@@ -72,6 +72,19 @@ y observaciones manuales o periódicas: `./tools/lab.sh`. Permite parar, pausar 
 reanudar servicios.
 Consulta [las instrucciones del laboratorio](tools/LABORATORIO.md).
 
+## Información y logs
+
+Reader Python, Manager, Verifier y Storage exponen, sin token:
+
+- `GET /info`: lista `[{"peer": "...", "transport": "http|sse"}]`.
+  SSE muestra conexiones activas; HTTP, destinos configurados o clientes recibidos
+  desde el arranque (HTTP no mantiene una conexión permanente).
+- `GET /logs`: lista de los últimos 200 mensajes en memoria, sin niveles,
+  timestamps ni cuerpos de eventos. Consultarla no genera más logs.
+
+Las rutas de procesamiento conservan su autenticación. Publisher y Reader C++
+todavía no tienen un servidor HTTP concreto para estas consultas.
+
 ## Pruebas
 
 Prepara el entorno de pruebas:

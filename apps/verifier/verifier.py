@@ -116,6 +116,20 @@ from verifier_support.event_stream import EventStream
 from verifier_support.server_stream import stream_response
 verification_stream = EventStream()
 app = Flask(__name__)
+http_clients = set()
+
+
+@app.get('/info')
+def info():
+    return ([{'peer': peer, 'transport': 'http'} for peer in sorted(http_clients)]
+            + [{'peer': url.rsplit('/stream', 1)[0], 'transport': 'sse'}
+               for url in sorted(manager_subscriptions.connected)]
+            + [{'peer': peer, 'transport': 'sse'} for peer in verification_stream.peers()])
+
+
+@app.get('/logs')
+def logs():
+    return list(Logger.instance().messages)
 
 def results_stream():
     return stream_response(verification_stream, os.getenv("API_TOKEN_VERIFIER"))
@@ -159,6 +173,8 @@ def start_request_log():
 
 @app.after_request
 def log_request(response):
+    if request.path in ('/info', '/logs'):
+        return response
     duration_ms = int((time.time() - g.get("request_started_at", time.time())) * 1000)
     body = request.get_json(silent=True) or {}
     message = body.get("message") if isinstance(body, dict) else None
@@ -203,6 +219,7 @@ def verify():
         Logger.warning("verify_not_authorized")
         return jsonify({"verified": False, "error": "Not authorized"}), 401
 
+    http_clients.add(request.remote_addr or 'unknown')
     result, status = verify_message(data.get("message"))
     if status == 200:
         verification_stream.publish(result["message"])
