@@ -23,7 +23,24 @@ const KNOWN = [
 
 const I18N = {
   en: {
-    'nav.home': 'Overview', 'nav.operator': 'Operator console', 'nav.patient': 'Patient', 'nav.insurer': 'Insurer',
+    'launch.eyebrow': 'Choose your panel', 'launch.title': 'Verifiable sensor data, <em>without exposing the data</em>',
+    'launch.lead': 'Phonendo connects sensors to Stellar through hospital-controlled services and zero-knowledge proofs. Pick a panel to start.',
+    'launch.op.tag': 'Main panel', 'launch.op.t': 'Operator console',
+    'launch.op.p': 'Design, check and export the whole sensor network of your organisation: readers, managers, verifiers, storage and publishers, wired to the Stellar contract.',
+    'launch.op.b1': 'Add any number of nodes, per organisation', 'launch.op.b2': 'Live reachability check of every service', 'launch.op.b3': 'Download ready-to-run configuration files',
+    'launch.op.btn': 'Open the console',
+    'launch.uc.eyebrow': 'Use case', 'launch.uc.t': 'Cardiac rehabilitation', 'launch.uc.p': 'Two independent views of the same payout.',
+    'launch.pt.t': 'Patient panel', 'launch.pt.p': 'Rewards received for completed sessions.',
+    'launch.in.t': 'Insurer panel', 'launch.in.p': 'Verified payments, without health data.', 'launch.open': 'Open',
+    'op.laneDesc.reader': 'Collect sensor data', 'op.laneDesc.manager': 'Route and retry events', 'op.laneDesc.verifier': 'Check and sign, keep history',
+    'op.laneDesc.publisher': 'Prove and claim', 'op.laneDesc.chain': 'Verify and pay',
+    'op.filter': 'Organisation', 'op.filter.all': 'All', 'op.nodes': 'nodes',
+    'op.live': 'On-chain activity', 'op.liveEmpty': 'No payouts yet.', 'op.hintTitle': 'Select a node',
+    'op.configHint': 'Its ready-to-run configuration appears here.', 'op.how': 'How data flows',
+    'op.how1': 'Readers collect sensor data and push it to a Manager.', 'op.how2': 'The Manager routes each event and retries on failure.',
+    'op.how3': 'Verifiers check and sign it. Storage keeps the history.', 'op.how4': 'The Publisher proves the session and calls the contract.',
+    'op.how5': 'The Stellar contract verifies the proof and pays.',
+    'nav.home': 'Panels', 'nav.operator': 'Operator console', 'nav.patient': 'Patient', 'nav.insurer': 'Insurer',
     'footer.built': 'Built on Stellar testnet', 'footer.contract': 'View the contract on Stellar Expert',
     'net.checking': 'Connecting to testnet…', 'net.live': 'Stellar testnet · live', 'net.error': 'Testnet unreachable · snapshot',
     'hero.eyebrow': 'Proof of care on Stellar',
@@ -115,7 +132,24 @@ const I18N = {
     'time.now': 'just now', 'time.unknown': '25 Oct 2026',
   },
   es: {
-    'nav.home': 'Inicio', 'nav.operator': 'Consola del operador', 'nav.patient': 'Paciente', 'nav.insurer': 'Aseguradora',
+    'launch.eyebrow': 'Elige tu panel', 'launch.title': 'Datos de sensores verificables, <em>sin exponer los datos</em>',
+    'launch.lead': 'Phonendo conecta sensores con Stellar mediante servicios que controla el hospital y pruebas de conocimiento cero. Elige un panel para empezar.',
+    'launch.op.tag': 'Panel principal', 'launch.op.t': 'Consola del operador',
+    'launch.op.p': 'Diseña, comprueba y exporta toda la red de sensores de tu organización: readers, managers, verifiers, storage y publishers, conectados al contrato de Stellar.',
+    'launch.op.b1': 'Añade tantos nodos como quieras, por organización', 'launch.op.b2': 'Comprobación en vivo de cada servicio', 'launch.op.b3': 'Descarga las configuraciones listas para usar',
+    'launch.op.btn': 'Abrir la consola',
+    'launch.uc.eyebrow': 'Caso de uso', 'launch.uc.t': 'Rehabilitación cardíaca', 'launch.uc.p': 'Dos vistas independientes del mismo pago.',
+    'launch.pt.t': 'Panel del paciente', 'launch.pt.p': 'Premios recibidos por las sesiones completadas.',
+    'launch.in.t': 'Panel de la aseguradora', 'launch.in.p': 'Pagos verificados, sin datos de salud.', 'launch.open': 'Abrir',
+    'op.laneDesc.reader': 'Recogen datos del sensor', 'op.laneDesc.manager': 'Reparten y reintentan eventos', 'op.laneDesc.verifier': 'Comprueban y firman, guardan histórico',
+    'op.laneDesc.publisher': 'Prueban y cobran', 'op.laneDesc.chain': 'Verifica y paga',
+    'op.filter': 'Organización', 'op.filter.all': 'Todas', 'op.nodes': 'nodos',
+    'op.live': 'Actividad en cadena', 'op.liveEmpty': 'Aún no hay pagos.', 'op.hintTitle': 'Selecciona un nodo',
+    'op.configHint': 'Aquí aparece su configuración lista para usar.', 'op.how': 'Cómo viajan los datos',
+    'op.how1': 'Los Readers recogen datos del sensor y los envían a un Manager.', 'op.how2': 'El Manager reparte cada evento y reintenta si falla.',
+    'op.how3': 'Los Verifiers lo comprueban y firman. Storage guarda el histórico.', 'op.how4': 'El Publisher prueba la sesión y llama al contrato.',
+    'op.how5': 'El contrato de Stellar verifica la prueba y paga.',
+    'nav.home': 'Paneles', 'nav.operator': 'Consola del operador', 'nav.patient': 'Paciente', 'nav.insurer': 'Aseguradora',
     'footer.built': 'Construido sobre Stellar testnet', 'footer.contract': 'Ver el contrato en Stellar Expert',
     'net.checking': 'Conectando con testnet…', 'net.live': 'Stellar testnet · en directo', 'net.error': 'Testnet sin conexión · copia',
     'hero.eyebrow': 'Prueba de cuidado en Stellar',
@@ -230,6 +264,7 @@ const state = {
   network: loadNetwork(),
   status: {},
   selected: null,
+  orgFilter: 'all',
   patient: CONFIG.demoPatient,
 };
 
@@ -431,46 +466,47 @@ function pageHead(prefix, extra = '') {
 }
 
 // ---------- Inicio ----------
+// Esquema fijo de la red para la portada: reader, manager, verifier/storage, publisher y contrato.
+function miniNetwork() {
+  const boxes = [['cpu', 'Reader', 14, 56], ['hub', 'Manager', 112, 56], ['shield', 'Verifier', 210, 22], ['db', 'Storage', 210, 90], ['send', 'Publisher', 308, 56], ['contract', 'Stellar', 406, 56]];
+  const edges = [[0, 1], [1, 2], [1, 3], [1, 4], [4, 5]];
+  const at = (i, side) => [boxes[i][2] + (side ? 82 : 0), boxes[i][3] + 20];
+  return `<svg class="mini-net" viewBox="0 0 500 160" aria-hidden="true">
+    ${edges.map(([f, t2], i) => { const [x1, y1] = at(f, 1); const [x2, y2] = at(t2, 0); const m = (x1 + x2) / 2; const d = `M${x1},${y1} C${m},${y1} ${m},${y2} ${x2},${y2}`;
+      return `<path d="${d}" class="${t2 === 5 ? 'chain' : ''}"/><circle r="3.2" class="${t2 === 5 ? 'chain' : ''}"><animateMotion dur="${2 + i * 0.4}s" repeatCount="indefinite" path="${d}"/></circle>`; }).join('')}
+    ${boxes.map(([icon, label, x, y], i) => `<g transform="translate(${x} ${y})"><rect width="82" height="40" rx="9" class="${i === 5 ? 'contract' : ''}"/><text x="41" y="25" text-anchor="middle">${label}</text></g>`).join('')}
+  </svg>`;
+}
+
 function viewHome() {
   const s = stats(state.events);
-  const ecg = 'M0 40 H40 L48 30 L56 40 H70 L77 8 L85 64 L92 40 H112 L120 31 L128 40 H160 L168 30 L176 40 H190 L197 8 L205 64 L212 40 H232 L240 31 L248 40 H300';
   const steps = [['heart', 1], ['shield', 2], ['lock', 3], ['contract', 4], ['coin', 5]];
   const features = [
     ['bls12_381.pairing_check', 1], ['ed25519_verify', 2], ['token::Client · USDC SAC', 3],
     ['storage().persistent()', 4], ['events: session_paid', 5], ['set_policy()', 6],
   ];
   return `
-  <section class="hero"><div class="hero-grid">
-    <div>
-      <span class="eyebrow">${t('hero.eyebrow')}</span>
-      <h1>${t('hero.title')}</h1>
-      <p class="lead">${t('hero.lead')}</p>
-      <div class="hero-actions">
-        <a class="btn btn-gold" href="#/insurer">${t('hero.cta1')} ${ic('arrow')}</a>
-        <a class="btn btn-ghost" href="#/operator">${t('hero.cta2')}</a>
-      </div>
-      <div class="hero-proof">
-        <span>${ic('check')}${t('hero.p1')}</span><span>${ic('check')}${t('hero.p2')}</span><span>${ic('check')}${t('hero.p3')}</span>
-      </div>
-    </div>
-    <div class="flow-card" aria-label="${esc(t('how.title'))}">
-      <div class="flow-row">
-        <div class="flow-box">
-          <small>${t('flow.private')}</small>
-          <svg class="ecg" viewBox="0 0 300 70" preserveAspectRatio="none" aria-hidden="true"><path d="${ecg}"/></svg>
-          <span class="private-tag">${ic('eye-off', 'icon tiny')}${t('flow.stays')}</span>
+  <section class="hero launcher"><div class="wrap">
+    <span class="eyebrow">${t('launch.eyebrow')}</span>
+    <h1>${t('launch.title')}</h1>
+    <p class="lead">${t('launch.lead')}</p>
+    <div class="launch-grid">
+      <a class="launch-main" href="#/operator">
+        <div class="launch-main-top"><span class="chip chip-hot">${ic('star', 'icon tiny')}${t('launch.op.tag')}</span></div>
+        <div class="launch-main-body">
+          <div>
+            <h2>${t('launch.op.t')}</h2>
+            <p>${t('launch.op.p')}</p>
+            <ul class="tick-list">${[1, 2, 3].map((n) => `<li>${ic('check')}${t(`launch.op.b${n}`)}</li>`).join('')}</ul>
+            <span class="btn btn-gold">${t('launch.op.btn')} ${ic('arrow')}</span>
+          </div>
+          ${miniNetwork()}
         </div>
-        <div class="zk-lock" title="Zero-knowledge proof">${ic('lock')}</div>
-        <div class="flow-box">
-          <small>${t('flow.chain')}</small>
-          <div class="result-big">+${CONFIG.policy.payout} USDC</div>
-          <span class="chip chip-ok">${ic('shield', 'icon tiny')}${t('flow.verified')}</span>
-        </div>
-      </div>
-      <div class="flow-foot">
-        <div class="flow-stat"><b>${CONFIG.policy.minCount}/${CONFIG.policy.batch}</b><span>${t('flow.s1')}</span></div>
-        <div class="flow-stat"><b>0</b><span>${t('flow.s2')}</span></div>
-        <div class="flow-stat"><b>${CONFIG.policy.payout} USDC</b><span>${t('flow.s3')}</span></div>
+      </a>
+      <div class="launch-side">
+        <div class="launch-uc-head"><span class="eyebrow">${t('launch.uc.eyebrow')}</span><b>${t('launch.uc.t')}</b><small>${t('launch.uc.p')}</small></div>
+        <a class="launch-small" href="#/patient">${ic('user')}<span><b>${t('launch.pt.t')}</b><small>${t('launch.pt.p')}</small></span><em>${t('launch.open')} ${ic('arrow', 'icon tiny')}</em></a>
+        <a class="launch-small" href="#/insurer">${ic('building')}<span><b>${t('launch.in.t')}</b><small>${t('launch.in.p')}</small></span><em>${t('launch.open')} ${ic('arrow', 'icon tiny')}</em></a>
       </div>
     </div>
   </div></section>
@@ -534,16 +570,6 @@ function viewHome() {
           <dl>${['signal', 'rule', 'payer', 'reward'].map((k) => `<dt>${t(`case.${k}`)}</dt><dd>${t(`case${n}.${k}`)}</dd>`).join('')}</dl>
         </article>`).join('')}
     </div>
-  </div></section>
-
-  <section class="section dark cta"><div class="wrap">
-    <span class="eyebrow">Phonendo</span>
-    <h2>${t('cta.title')}</h2>
-    <p>${t('cta.lead')}</p>
-    <div class="hero-actions">
-      <a class="btn btn-gold" href="#/operator">${t('cta.btn')} ${ic('arrow')}</a>
-      <a class="btn btn-ghost" href="#/patient">${t('nav.patient')}</a>
-    </div>
   </div></section>`;
 }
 
@@ -554,7 +580,8 @@ function nodeCard(node) {
   const status = state.status[node.id] ?? 'unknown';
   const host = node.url.replace(/^https?:\/\//, '');
   const tpl = node.kind === 'reader' && node.template ? ` · ${t(`tpl.${node.template}`)}` : '';
-  return `<button type="button" class="node" data-node="${esc(node.id)}" aria-pressed="${state.selected === node.id}">
+  const dim = state.orgFilter !== 'all' && state.orgFilter !== node.org ? ' dim' : '';
+  return `<button type="button" class="node${dim}" data-node="${esc(node.id)}" aria-pressed="${state.selected === node.id}">
     <i class="status-dot" data-status="${status}" title="${esc(t(`status.${status}`))}"></i>
     <span class="node-top"><span class="node-icon">${ic(node.kind === 'reader' ? TEMPLATES[node.template] ?? 'cpu' : KIND_ICON[node.kind])}</span>
       <span><strong>${esc(node.name)}</strong><span class="node-kind">${t(`kind.${node.kind}`)}</span></span></span>
@@ -574,51 +601,71 @@ function contractCard() {
 }
 
 function viewOperator() {
-  const lanes = [[], [], [], []];
-  for (const node of state.network) lanes[LANE_OF[node.kind]].push(node);
-  const laneKinds = [['reader'], ['manager'], ['verifier', 'storage'], ['publisher']];
-  const laneKeys = ['reader', 'manager', 'verifier', 'publisher'];
+  const LANES = [
+    { key: 'reader', kinds: ['reader'] },
+    { key: 'manager', kinds: ['manager'] },
+    { key: 'verifier', kinds: ['verifier', 'storage'] },
+    { key: 'publisher', kinds: ['publisher'] },
+  ];
   const counts = KINDS.map((k) => [k, state.network.filter((n) => n.kind === k).length]);
   const up = state.network.filter((n) => state.status[n.id] === 'up').length;
+  const filters = ['all', ...ORGS].map((o) => `<button type="button" class="filter" data-org-filter="${o}" aria-pressed="${state.orgFilter === o}">${o === 'all' ? t('op.filter.all') : `<i class="org-dot org-${o}"></i>${t(`org.${o}`)}`}</button>`).join('');
   const tools = `<div class="toolbar">
     <button type="button" class="btn btn-ghost btn-sm" data-action="check-all">${ic('refresh', 'icon tiny')}${t('op.check')}</button>
     <button type="button" class="btn btn-ghost btn-sm" data-action="export">${ic('download', 'icon tiny')}${t('op.export')}</button>
     <button type="button" class="btn btn-gold btn-sm" data-action="add" data-kind="reader">${ic('plus', 'icon tiny')}${t('dlg.title')}</button>
   </div>`;
+  const lane = ({ key, kinds }, i) => {
+    const nodes = state.network.filter((n) => kinds.includes(n.kind));
+    return `<div class="lane">
+      <div class="lane-head"><span class="lane-num">${i + 1}</span><div><b>${t(`op.lane.${key}`)}</b><small>${t(`op.laneDesc.${key}`)}</small></div></div>
+      ${nodes.map(nodeCard).join('')}
+      ${kinds.map((k) => `<button type="button" class="lane-add" data-action="add" data-kind="${k}">${ic('plus', 'icon tiny')} ${t(`kind.${k}`)}</button>`).join('')}
+    </div>`;
+  };
   return `${pageHead('op', tools)}
-  <section class="page-body"><div class="wrap console">
+  <section class="page-body"><div class="wrap-wide">
     <div class="card canvas-card">
       <div class="canvas-head">
-        <h2>${t('op.canvas')}</h2>
-        <div class="legend"><span><i class="lg-http"></i>${t('op.legend.http')}</span><span><i class="lg-sse"></i>${t('op.legend.sse')}</span><span><i class="lg-chain"></i>${t('op.legend.chain')}</span></div>
+        <div class="canvas-title"><h2>${t('op.canvas')}</h2>
+          <div class="summary-inline">${counts.map(([k, c]) => `<span><b>${c}</b> ${t(`kind.${k}`)}</span>`).join('')}<span class="ok"><b>${up}/${state.network.length}</b> ${t('op.reachable')}</span></div></div>
+        <div class="filters" role="group" aria-label="${t('op.filter')}">${filters}</div>
       </div>
-      <div class="canvas-scroll"><div class="canvas" id="canvas">
+      <div class="canvas-scroll"><div class="canvas" id="canvas" data-filter="${state.orgFilter}">
         <svg class="links" id="links" aria-hidden="true"></svg>
-        ${lanes.map((nodes, i) => `<div class="lane">
-          <div class="lane-title">${t(`op.lane.${laneKeys[i]}`)}</div>
-          ${nodes.map(nodeCard).join('')}
-          ${laneKinds[i].map((k) => `<button type="button" class="lane-add" data-action="add" data-kind="${k}">${ic('plus', 'icon tiny')} ${t(`kind.${k}`)}</button>`).join('')}
-        </div>`).join('')}
-        <div class="lane"><div class="lane-title">${t('op.lane.chain')}</div>${contractCard()}</div>
-      </div></div>
-    </div>
-    <aside class="side">
-      <div class="card panel">
-        <h3>${ic('layers', 'icon tiny')}${t('op.summary')}</h3>
-        <div class="summary-grid">
-          ${counts.map(([k, c]) => `<div><b>${c}</b><span>${t(`kind.${k}`)}</span></div>`).join('')}
-          <div class="ok"><b>${up}/${state.network.length}</b><span>${t('op.reachable')}</span></div>
+        ${LANES.map(lane).join('')}
+        <div class="lane">
+          <div class="lane-head"><span class="lane-num chain">5</span><div><b>${t('op.lane.chain')}</b><small>${t('op.laneDesc.chain')}</small></div></div>
+          ${contractCard()}
         </div>
+      </div></div>
+      <div class="legend">
+        <span><i class="lg-http"></i>${t('op.legend.http')}</span><span><i class="lg-sse"></i>${t('op.legend.sse')}</span><span><i class="lg-chain"></i>${t('op.legend.chain')}</span>
+        <span class="legend-note">${t('op.tip')}</span>
       </div>
+    </div>
+    <div class="console-grid">
       ${detailPanel()}
-      <button type="button" class="btn btn-line btn-sm reset" data-action="reset">${t('op.reset')}</button>
-    </aside>
+      ${activityPanel()}
+    </div>
   </div></section>`;
+}
+
+function activityPanel() {
+  const items = state.events.slice(0, 5).map((e) => `
+    <li class="${state.fresh.has(e.id) ? 'fresh' : ''}"><span class="feed-icon">${ic('coin')}</span>
+      <span><b>+${formatAmount(e.amount)} ${esc(e.asset)}</b><small>${esc(timeAgo(e.paidAt))} · <a href="${txUrl(e.txHash)}" target="_blank" rel="noopener">${esc(short(e.txHash, 6, 4))}</a></small></span></li>`).join('');
+  return `<div class="card panel feed">
+    <h3>${ic('contract', 'icon tiny')}${t('op.live')} <span class="chip ${state.net === 'live' ? 'chip-ok' : 'chip-warn'}">${t(`net.${state.net}`)}</span></h3>
+    ${items ? `<ul class="feed-list">${items}</ul>` : `<p class="tip">${t('op.liveEmpty')}</p>`}
+    <h3 class="spaced">${ic('layers', 'icon tiny')}${t('op.how')}</h3>
+    <ol class="mini-steps">${[1, 2, 3, 4, 5].map((n) => `<li>${t(`op.how${n}`)}</li>`).join('')}</ol>
+  </div>`;
 }
 
 function detailPanel() {
   if (state.selected === 'contract') {
-    return `<div class="card panel">
+    return `<div class="detail-cols"><div class="card panel">
       <h3>${ic('contract', 'icon tiny')}adherence · Soroban</h3>
       <dl class="kv">
         ${CONFIG.contracts.map((c) => `<dt>${c.asset}</dt><dd class="mono"><a href="${CONFIG.explorer}/contract/${c.id}" target="_blank" rel="noopener">${short(c.id, 8, 6)}</a></dd>`).join('')}
@@ -626,10 +673,13 @@ function detailPanel() {
         <dt>${t('kpi.sessions')}</dt><dd>${state.events.length}</dd>
       </dl>
       <p class="tip">${t('op.contractTip')}</p>
-    </div>`;
+    </div></div>`;
   }
   const node = nodeById(state.selected);
-  if (!node) return `<div class="card panel empty-panel">${ic('hub')}<p>${t('op.select')}</p></div>`;
+  if (!node) {
+    return `<div class="detail-cols"><div class="card panel empty-panel">${ic('hub')}<h3>${t('op.hintTitle')}</h3><p>${t('op.select')}</p></div>
+      <div class="card panel empty-panel">${ic('contract')}<h3>${t('op.config')}</h3><p>${t('op.configHint')}</p></div></div>`;
+  }
   const status = state.status[node.id] ?? 'unknown';
   const chip = { up: 'chip-ok', down: 'chip-bad', checking: 'chip-warn', unknown: '' }[status];
   const managers = state.network.filter((n) => n.kind === 'manager');
@@ -639,7 +689,7 @@ function detailPanel() {
       ? `<div class="check-list">${managers.map((m) => `<label><input type="checkbox" data-link="${esc(m.id)}" ${node.managers.includes(m.id) ? 'checked' : ''}> ${esc(m.name)}</label>`).join('')}</div>`
       : `<small>${t('op.noManagers')}</small>`}</div>`;
   const config = JSON.stringify(configFor(node), null, 2);
-  return `<div class="card panel">
+  return `<div class="detail-cols"><div class="card panel">
     <h3>${ic(KIND_ICON[node.kind], 'icon tiny')}${esc(node.name)}</h3>
     <dl class="kv">
       <dt>${t('op.status')}</dt><dd><span class="chip ${chip}">${t(`status.${status}`)}</span></dd>
@@ -660,8 +710,7 @@ function detailPanel() {
       <button type="button" class="btn btn-dark btn-sm" data-action="copy-config" data-id="${esc(node.id)}">${ic('copy', 'icon tiny')}${t('op.copy')}</button>
       <button type="button" class="btn btn-line btn-sm" data-action="download-config" data-id="${esc(node.id)}">${ic('download', 'icon tiny')}${t('op.download')}</button>
     </div>
-    <p class="tip">${t('op.tip')}</p>
-  </div>`;
+  </div></div>`;
 }
 
 function portOf(url, fallback) {
@@ -743,6 +792,7 @@ function paintStatus(id) {
 function checkAll() { state.network.forEach(checkNode); }
 
 // Dibuja las conexiones entre tarjetas a partir de su posición real en pantalla.
+// Un punto recorre cada enlace cuyo origen responde (o la cadena, si el RPC está en directo).
 function drawLinks() {
   const canvas = $('#canvas');
   const svg = $('#links');
@@ -768,8 +818,11 @@ function drawLinks() {
     const a = anchor(from, 'out');
     const b = anchor(to, 'in');
     if (!a || !b) return '';
-    const bend = Math.max(40, (b.x - a.x) / 2);
-    return `<path class="${type}" d="M${a.x},${a.y} C${a.x + bend},${a.y} ${b.x - bend},${b.y} ${b.x},${b.y}"/>`;
+    const bend = Math.max(30, (b.x - a.x) / 2);
+    const d = `M${a.x},${a.y} C${a.x + bend},${a.y} ${b.x - bend},${b.y} ${b.x},${b.y}`;
+    const active = type === 'chain' ? state.net === 'live' && state.status[from] === 'up' : state.status[from] === 'up';
+    const dot = active ? `<circle r="3.6" class="${type}"><animateMotion dur="${type === 'chain' ? 2.4 : 1.8}s" repeatCount="indefinite" path="${d}"/></circle>` : '';
+    return `<path class="${type}" d="${d}"/>${dot}`;
   }).join('');
 }
 
@@ -843,6 +896,12 @@ function nodeDialog(kind) {
 }
 
 function onOperatorClick(event) {
+  const filter = event.target.closest('[data-org-filter]');
+  if (filter) {
+    state.orgFilter = filter.dataset.orgFilter;
+    render();
+    return;
+  }
   const nodeEl = event.target.closest('[data-node]');
   if (nodeEl) {
     state.selected = nodeEl.dataset.node;
