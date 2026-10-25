@@ -140,7 +140,7 @@ class ManagerCore:
                 self.client.get_device_storage(message["value"]["deviceId"])
                 job["stage"] = "store_verified"
             except DeviceNotRegisteredError:
-                job["state"] = "discover_device"
+                job["stage"] = "discover_device"
             else: 
                 job["stage"] = "store_verified"
         if job["stage"] == "lookup":
@@ -148,7 +148,7 @@ class ManagerCore:
                 self.client.get_device_storage(message["value"]["deviceId"])
                 job["stage"] = "signing"
             except DeviceNotRegisteredError:
-                job["state"] = "discover_device"
+                job["stage"] = "discover_device"
             else: 
                 job["stage"] = "signing"
 
