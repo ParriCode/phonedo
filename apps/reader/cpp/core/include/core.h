@@ -68,6 +68,7 @@ public:
     const std::string& getLastError() const;
 
     void setOnObservationCallback(OnObservationCallback callback);
+    bool hasOnObservationCallback() const;
 
 private:
     std::string readerId;

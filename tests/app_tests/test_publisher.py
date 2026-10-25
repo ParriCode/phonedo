@@ -18,6 +18,7 @@ def publisher(tmp_path, monkeypatch):
     config = tmp_path / 'publisher.json'
     config.write_text(json.dumps({
         'batchSize': 4,
+        'contracts': {'verifier-a': 'CCONTRACT'},
         'policy': {'minValue': 90, 'maxValue': 130, 'minCount': 3},
         'patients': {'default': ZERO_ACCOUNT},
         'stellar': {'contractId': 'CCONTRACT', 'source': 'alex'},
@@ -35,6 +36,8 @@ def publisher(tmp_path, monkeypatch):
 def verified(device_id, result, created=1000, key=None):
     return {'key': key or f'{device_id}-{result}', 'value': {
         'status': 'Verified', 'verifierSign': 'sig', 'deviceId': device_id,
+        'managerId': 'manager-a', 'verifierId': 'verifier-a', 'readerId': 'reader-a',
+        'observationId': key or f'{device_id}-{result}',
         'creationDatetime': created, 'payload': {'simple_result': result}}}
 
 
@@ -54,8 +57,11 @@ def test_batches_verified_readings_per_device_once():
     assert batcher.add(verified('a', 101.6, created=5)) is None
     assert batcher.add(verified('b', 300)) is None
     assert batcher.add({'key': 'x', 'value': {'status': 'Captured', 'payload': {'simple_result': 1}}}) is None
-    assert batcher.add(verified('a', -4)) == {'deviceId': 'a', 'readings': [102, 0], 'eventKeys': ['a-101.6', 'a--4'], 'startedAt': 5}
-    assert batcher.pending['b']['readings'] == [255]
+    batch = batcher.add(verified('a', -4))
+    assert batch['readings'] == [102, 0]
+    assert batch['eventKeys'] == ['a-101.6', 'a--4']
+    assert batch['startedAt'] == 5
+    assert batcher.pending[('manager-a', 'verifier-a', 'reader-a', 'b')]['readings'] == [255]
 
 
 def test_public_info_and_logs(publisher):
@@ -66,10 +72,39 @@ def test_public_info_and_logs(publisher):
     assert client.get('/logs').json[-1] == 'publisher_connected'
 
 
+@pytest.mark.parametrize('field', ['managerId', 'verifierId', 'readerId', 'deviceId'])
+def test_batches_keep_origins_separate(field):
+    from publisher_support.batcher import SessionBatcher
+    batcher = SessionBatcher(2)
+    first = verified('sensor', 100, key='one')
+    second = verified('sensor', 101, key='two')
+    second['value'][field] = 'other'
+    assert batcher.add(first, 'http://manager-a', 'token-a') is None
+    assert batcher.add(second, 'http://manager-b', 'token-b') is None
+    third = verified('sensor', 102, key='three')
+    batch = batcher.add(third, 'http://manager-a', 'token-a')
+    assert batch['eventKeys'] == ['one', 'three']
+    assert batch['managerUrl'] == 'http://manager-a'
+    assert batch['managerToken'] == 'token-a'
+
+
+def test_repeated_identity_is_ignored_but_other_manager_is_independent():
+    from publisher_support.batcher import SessionBatcher
+    batcher = SessionBatcher(2)
+    first = verified('sensor', 100, key='one')
+    assert batcher.add(first) is None
+    repeated = {**first, 'key': 'different-envelope'}
+    assert batcher.add(repeated) is None
+    other = {**first, 'value': {**first['value'], 'managerId': 'manager-b'}}
+    assert batcher.add(other) is None
+    assert len(batcher.pending) == 2
+
+
 def test_full_batch_from_manager_is_proved_signed_and_claimed(publisher):
     publisher.prover.prove = MagicMock(return_value=('ef' * 32, Path('proof.json')))
     publisher.signer = MagicMock(sign=MagicMock(return_value='aa' * 64))
     publisher.claimer.claim = MagicMock(return_value='12' * 32)
+    publisher.StellarClaimer = MagicMock(return_value=publisher.claimer)
     for result in (100, 101, 102, 103):
         publisher.consume_manager_event(verified('sensor-1', result, created=42))
 

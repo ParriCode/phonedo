@@ -132,7 +132,11 @@ def register_routes(app, core):
         if not expected or not hmac.compare_digest(str(body.get("token", "")), expected):
             Logger.warning("manager_sign_batch_not_authorized")
             return {"error": "Not authorized"}, 401
-        batch = {name: body.get(name) for name in ("sessionId", "salt", "patient", "eventKeys")}
+        batch = {name: body.get(name) for name in ("sessionId", "salt", "patient", "eventKeys", "verifierId", "managerId", "readerId")}
+        if any(not isinstance(batch[field], str) or not batch[field] for field in ('managerId', 'verifierId', 'readerId')):
+            return {'error': 'managerId, verifierId y readerId son obligatorios'}, 422
+        if batch['managerId'] != core.client.config.manager_id:
+            return {'error': 'El lote pertenece a otro Manager'}, 422
         try:
             return core.client.sign_batch(batch)
         except InternalPostError as error:

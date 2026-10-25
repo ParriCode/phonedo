@@ -89,6 +89,8 @@ class ManagerCore:
                 "schemaVersion": "phonendo.event.v1",
                 "eventType": "observation",
                 "readerId": reader_id,
+                "managerId": self.client.config.manager_id,
+                "observationId": body.get('observationId') or (payload.get('observation_id') if isinstance(payload, dict) else None) or str(uuid.uuid4()),
                 "deviceId": device_id,
                 "payloadFormat": payload_format,
                 "payload": payload,

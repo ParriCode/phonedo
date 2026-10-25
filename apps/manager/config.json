@@ -1,4 +1,5 @@
 {
+  "managerId": "manager-local",
   "services": {
     "readers": [],
     "verifiers": [

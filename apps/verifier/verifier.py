@@ -107,6 +107,7 @@ if signing_key is None:
     Logger.warning("verifier_key_missing", path=str(KEY_PATH))
     signing_key = Ed25519PrivateKey.generate()
 batch_signer = BatchSigner(signing_key)
+verifier_id = batch_signer.verifier_id
 
 from verifier_support.event_stream import EventStream
 from verifier_support.server_stream import stream_response
@@ -195,6 +196,11 @@ def healthcheck():
     return "Service is alive", 200
 
 
+@app.get('/metadata')
+def metadata():
+    return {'verifierId': verifier_id}
+
+
 @app.post("/verify")
 def verify():
     data = request.get_json(silent=True)
@@ -242,14 +248,18 @@ def sign_batch():
         return jsonify({"error": "Not authorized"}), 401
 
     session_id = data.get("sessionId")
+    if data.get('verifierId') != verifier_id:
+        return {'error': 'verifierId no corresponde a este Verifier'}, 422
+    if any(not isinstance(data.get(field), str) or not data[field] for field in ('managerId', 'readerId')):
+        return {'error': 'managerId y readerId son obligatorios'}, 422
     try:
-        commitment, signature = batch_signer.sign(session_id, data.get("salt"), data.get("patient"), data.get("eventKeys"))
+        commitment, signature = batch_signer.sign(session_id, data.get("salt"), data.get("patient"), data.get("eventKeys"), data.get('managerId'), data.get('readerId'))
     except ValueError as error:
         Logger.warning("sign_batch_rejected", sessionId=session_id, error=str(error))
         return jsonify({"error": str(error)}), 422
 
     Logger.info("batch_signed", sessionId=session_id)
-    return jsonify({"commitment": commitment, "signature": signature}), 200
+    return jsonify({"commitment": commitment, "signature": signature, 'verifierId': verifier_id}), 200
 
 
 def verify_message(message):
@@ -348,6 +358,9 @@ def verify_message(message):
         Logger.warning('verify_rejected_invalid_time', eventId=key, deviceId=device_id, readerId=reader_id, errors=errors)
         return ({'verified': False, 'status': 'Rejected', 'errors': errors}, 422)
     verified_message = {'key': key, 'value': {'schemaVersion': schema_version, 'eventType': event_type, 'readerId': reader_id, 'deviceId': device_id, 'payloadFormat': payload_format, 'payload': payload, 'status': 'Verified', 'creationDatetime': creation_datetime, 'managerHash': manager_hash, 'verifierSignDatetime': now_ms}}
+    for field in ('managerId', 'observationId'):
+        verified_message['value'][field] = value.get(field)
+    verified_message['value']['verifierId'] = verifier_id
     signature = sign_with_verifier(verified_message)
     verified_message['value']['verifierSign'] = signature
     batch_signer.remember(verified_message)

@@ -6,7 +6,7 @@ from .logger import Logger
 
 
 class StreamClient:
-    def __init__(self, urls, token, on_event, retry_seconds=5, service_url=None):
+    def __init__(self, urls, token, on_event, retry_seconds=5, service_url=None, with_source=False):
         self.urls = urls
         self.token = token
         self.on_event = on_event
@@ -15,6 +15,7 @@ class StreamClient:
         self.threads = []
         self.connected = set()
         self.service_url = service_url
+        self.with_source = with_source
 
     def start(self):
         if self.threads:
@@ -45,7 +46,11 @@ class StreamClient:
                             if kind == 'stream_closed':
                                 break
                             if kind == 'observation' and data:
-                                self.on_event(json.loads('\n'.join(data)))
+                                message = json.loads('\n'.join(data))
+                                if self.with_source:
+                                    self.on_event(message, url.removesuffix('/stream'), token)
+                                else:
+                                    self.on_event(message)
                             kind, data = '', []
                         elif line.startswith('event:'):
                             kind = line[6:].strip()

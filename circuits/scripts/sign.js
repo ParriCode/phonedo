@@ -35,8 +35,8 @@ if (!patient) throw new Error("Uso: node scripts/sign.js <cuenta G de la pacient
 
 const args = JSON.parse(fs.readFileSync(path.join(BUILD, "soroban_args.json"), "utf8"));
 const session = Buffer.from(BigInt(args.session_id).toString(16).padStart(64, "0"), "hex");
-const message = Buffer.concat([Buffer.from(args.commitment, "hex"), session, accountKey(patient)]);
 const { privateKey, publicKey } = loadKey();
+const message = Buffer.concat([Buffer.from(args.commitment, "hex"), session, accountKey(patient), publicKey]);
 
 console.log(`verifier_key: ${publicKey.toString("hex")}`);
 console.log(`signature:    ${crypto.sign(null, message, privateKey).toString("hex")}`);
