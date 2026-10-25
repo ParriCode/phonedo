@@ -3,9 +3,9 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 PROJECT="phonendo-test-${RANDOM}-${RANDOM}"
-read -r READER_PORT MANAGER_PORT VERIFIER_PORT STORAGE_PORT < <(python3 - <<'PY'
+read -r READER_PORT MANAGER_PORT VERIFIER_PORT STORAGE_PORT PUBLISHER_PORT < <(python3 - <<'PY'
 import socket
-sockets = [socket.socket() for _ in range(4)]
+sockets = [socket.socket() for _ in range(5)]
 for sock in sockets:
     sock.bind(('127.0.0.1', 0))
 print(*(sock.getsockname()[1] for sock in sockets))
@@ -13,7 +13,7 @@ for sock in sockets:
     sock.close()
 PY
 )
-export READER_PORT MANAGER_PORT VERIFIER_PORT STORAGE_PORT
+export READER_PORT MANAGER_PORT VERIFIER_PORT STORAGE_PORT PUBLISHER_PORT
 COMPOSE=(docker compose -p "$PROJECT" -f deploy/docker/compose.yml)
 cleanup() {
     result=$?
@@ -33,7 +33,7 @@ import time
 import urllib.request
 
 base = {name: 'http://127.0.0.1:' + os.environ[name.upper() + '_PORT']
-        for name in ('reader', 'manager', 'verifier', 'storage')}
+        for name in ('reader', 'manager', 'verifier', 'storage', 'publisher')}
 def get(url):
     with urllib.request.urlopen(url, timeout=5) as response:
         return json.load(response)
@@ -65,5 +65,13 @@ with urllib.request.urlopen(request, timeout=10) as response:
         if line.startswith(b'data: '):
             assert json.loads(line[6:])['value']['status'] == 'Verified'
             break
-print('OK: cuatro contenedores saludables, Reader → Manager → Verifier → Storage y SSE accesibles.')
+
+# Publisher is alive and subscribed to the Manager stream.
+end = time.monotonic() + 10
+while True:
+    if {'peer': 'http://manager:3003', 'transport': 'sse'} in get(base['publisher'] + '/info'):
+        break
+    assert time.monotonic() < end, 'Publisher did not connect to Manager SSE'
+    time.sleep(.2)
+print('OK: cinco contenedores saludables; flujo base y Publisher conectado al Manager por SSE.')
 PY

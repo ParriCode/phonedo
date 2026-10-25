@@ -67,7 +67,7 @@ Los suscriptores Verifier/Storage se identifican con `server.publicUrl` y
 `X-Phonendo-Service-URL`; usar la misma URL canónica que en el Manager.
 Hay logs de selección/rechazo y pruebas en `tests/app_tests/test_manager_transports.py`.
 
-Monitorización simple en los cuatro servidores Python: `/info` devuelve una lista
+Monitorización simple en los cinco servidores Python: `/info` devuelve una lista
 de `peer`/`transport`; `/logs`, hasta 200 mensajes en memoria. Ambas sin token.
 SSE refleja conexiones activas; HTTP, destinos configurados o clientes recibidos.
 
@@ -204,7 +204,7 @@ development Verifier key from `circuits/build/verifier_dev_key.json`. A new
 
 ## Commands
 
-Local stack (Docker, simulated Reader; ports 7101-7104):
+Local stack (Docker, simulated Reader and Publisher; ports 7101-7105):
 
 ```sh
 docker compose -f deploy/docker/compose.yml up --build -d --wait

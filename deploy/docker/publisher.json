@@ -1,0 +1,26 @@
+{
+  "server": {
+    "host": "0.0.0.0",
+    "port": 3005
+  },
+  "subscriptions": {
+    "managers": [
+      "http://manager:3003"
+    ]
+  },
+  "batchSize": 32,
+  "policy": {
+    "minValue": 90,
+    "maxValue": 130,
+    "minCount": 28
+  },
+  "patients": {
+    "default": "GBBO4ZD2YNV3ZBUIBIQAH3VK73Y2RHTSMURUR5LYEK5JMXACK24YN3BC"
+  },
+  "circuitsPath": "../../circuits",
+  "stellar": {
+    "contractId": "CBF2MBQ6W4S6LD3JSIM3NNZET5KBUKOADRZSKIYZRZBAXRM6OJZCNSFI",
+    "source": "alex",
+    "network": "testnet"
+  }
+}

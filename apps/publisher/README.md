@@ -23,6 +23,8 @@ llama a `claim()` del contrato `contracts/adherence`.
 | Ruta | Uso |
 | --- | --- |
 | `GET /` | Comprobar que el servicio responde. |
+| `GET /info` | Manager conectado por SSE. |
+| `GET /logs` | Últimos 200 mensajes. |
 
 ## Configuración
 
@@ -41,12 +43,12 @@ Requiere Node.js con `circuits/` preparado (`npm install`, `npm run setup`,
 `node scripts/sign.js <cuenta G>` crea la clave de desarrollo que el Verifier usa como
 `signing_key.json`), Stellar CLI con el alias configurado y el contrato desplegado con
 la clave pública de esa clave y con esa política. Además, el Manager y el Verifier
-deben estar en marcha con `POST /signBatch`. Con el ejemplo de Docker:
+deben estar en marcha con `POST /signBatch`. Con el ejemplo de Docker el
+Publisher ya se arranca automáticamente:
 
 ```sh
-cd apps/publisher
-pip install -r requirements.txt
-API_TOKEN_MANAGER=demo-manager python publisher.py
+docker compose -f deploy/docker/compose.yml up --build -d --wait
+curl http://127.0.0.1:7105/info
 ```
 
 El Reader simulado de Docker emite pulso de 95 a 120 (`"simulation": "pulse"` en

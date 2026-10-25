@@ -58,6 +58,14 @@ def test_batches_verified_readings_per_device_once():
     assert batcher.pending['b']['readings'] == [255]
 
 
+def test_public_info_and_logs(publisher):
+    client = publisher.app.test_client()
+    publisher.manager_subscriptions.connected.add('http://manager:3003/stream')
+    assert client.get('/info').json == [{'peer': 'http://manager:3003', 'transport': 'sse'}]
+    publisher.Logger.info('publisher_connected')
+    assert client.get('/logs').json[-1] == 'publisher_connected'
+
+
 def test_full_batch_from_manager_is_proved_signed_and_claimed(publisher):
     publisher.prover.prove = MagicMock(return_value=('ef' * 32, Path('proof.json')))
     publisher.signer = MagicMock(sign=MagicMock(return_value='aa' * 64))
