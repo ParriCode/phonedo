@@ -12,7 +12,7 @@ export const CONFIG = {
   coldPolicy: { min: 2, max: 8, minCount: 32, batch: 32, payout: 0.1 },
   demoPatient: 'GBBO4ZD2YNV3ZBUIBIQAH3VK73Y2RHTSMURUR5LYEK5JMXACK24YN3BC',
   // Cada panel es una página independiente; mañana cada dirección puede ser un servicio aparte.
-  panels: { operator: 'operator.html', patient: 'patient.html', insurer: 'insurer.html' },
+  panels: { operator: 'operator.html', patient: 'patient.html', company: 'company.html' },
   refreshMs: 15000,
   decimals: 7,
 };

@@ -7,21 +7,21 @@ import { ToastProvider } from '../providers/ToastProvider.jsx';
 import { CONFIG } from '../config.js';
 import { mockFetch, paidEvent } from '../test/fakes.js';
 import { ColdChainView } from './ColdChainView.jsx';
-import { InsurerView } from './InsurerView.jsx';
+import { CompanyView } from './CompanyView.jsx';
 import { PatientView } from './PatientView.jsx';
 
-function renderPanel(view, defaultLang = 'en') {
+function renderPanel(view, defaultLang = 'en', nav = []) {
   return render(
     <I18nProvider defaultLang={defaultLang}>
-      <ToastProvider><PaymentsProvider><PageShell>{view}</PageShell></PaymentsProvider></ToastProvider>
+      <ToastProvider><PaymentsProvider><PageShell nav={nav}>{view}</PageShell></PaymentsProvider></ToastProvider>
     </I18nProvider>,
   );
 }
 
 describe('paneles de pagos', () => {
-  it('la aseguradora ve los pagos en directo con su transacción', async () => {
+  it('la empresa ve los pagos en directo con su transacción', async () => {
     mockFetch();
-    const { container } = renderPanel(<InsurerView />);
+    const { container } = renderPanel(<CompanyView />);
     await waitFor(() => expect(container.querySelector('#net-pill').dataset.state).toBe('live'));
     expect(container.querySelector('#net-label').textContent).toBe('Stellar testnet · live');
     const link = container.querySelector('tbody a');
@@ -32,7 +32,7 @@ describe('paneles de pagos', () => {
 
   it('sin RPC muestra los cobros confirmados y avisa', async () => {
     mockFetch({ events: null });
-    const { container } = renderPanel(<InsurerView />);
+    const { container } = renderPanel(<CompanyView />);
     await waitFor(() => expect(container.querySelector('#net-pill').dataset.state).toBe('error'));
     expect(container.querySelector('.notice')).toBeTruthy();
     expect(container.querySelectorAll('tbody tr')).toHaveLength(5);
@@ -62,7 +62,7 @@ describe('paneles de pagos', () => {
 
   it('el idioma se guarda y cambia toda la página', async () => {
     mockFetch();
-    const { container } = renderPanel(<InsurerView />);
+    const { container } = renderPanel(<CompanyView />);
     expect(document.documentElement.lang).toBe('en');
     fireEvent.click(container.querySelector('[data-lang="es"]'));
     expect(document.documentElement.lang).toBe('es');
@@ -74,7 +74,7 @@ describe('paneles de pagos', () => {
 
   it('la consola abre en español salvo que se haya elegido inglés', () => {
     mockFetch();
-    renderPanel(<InsurerView />, 'es');
+    renderPanel(<CompanyView />, 'es');
     expect(document.documentElement.lang).toBe('es');
   });
 });
@@ -101,5 +101,36 @@ describe('panel de cadena de frío', () => {
     expect(container.querySelector('.thermo')).toBeTruthy();
     expect(container.querySelectorAll('.ring line')).toHaveLength(CONFIG.coldPolicy.batch);
     expect(screen.getByText('Cold-chain transport')).toBeTruthy();
+  });
+});
+
+describe('panel de empresa', () => {
+  it('reparte los pagos por caso de uso y enlaza a cada panel', async () => {
+    mockFetch({ events: [paidEvent(), paidEvent({ id: 'frio', contractId: CONFIG.contracts[1].id })] });
+    const { container } = renderPanel(<CompanyView />);
+    await waitFor(() => expect(container.querySelectorAll('tbody tr')).toHaveLength(2));
+    const rehab = container.querySelector('[data-case="rehab"]');
+    const cold = container.querySelector('[data-case="cold-chain"]');
+    expect(rehab.textContent).toContain('Sessions paid: 1');
+    expect(cold.textContent).toContain('Shipments paid: 1');
+    expect(rehab.querySelector('a.case-open').getAttribute('href')).toBe('patient.html');
+    expect(cold.querySelector('a.case-open').getAttribute('href')).toBe('coldchain.html');
+  });
+
+  it('ignora los pagos de contratos que no son suyos', async () => {
+    mockFetch({ events: [paidEvent({ contractId: 'CAJENO' })] });
+    const { container } = renderPanel(<CompanyView />);
+    await waitFor(() => expect(container.querySelector('#net-pill').dataset.state).toBe('live'));
+    expect(container.querySelectorAll('tbody tr')).toHaveLength(0);
+  });
+});
+
+describe('barra superior', () => {
+  it('muestra los enlaces a otros paneles', () => {
+    mockFetch();
+    const { container } = renderPanel(<CompanyView />, 'en', [{ href: 'company.html', label: 'nav.company', icon: 'building' }]);
+    const link = container.querySelector('.topbar-link');
+    expect(link.getAttribute('href')).toBe('company.html');
+    expect(link.textContent).toBe('Companies');
   });
 });

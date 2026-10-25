@@ -1,6 +1,7 @@
 import { createRoot } from 'react-dom/client';
 import { IconSprite } from '../components/Icon.jsx';
 import { PageShell } from '../components/PageShell.jsx';
+import { CONFIG } from '../config.js';
 import { DeployDialogProvider } from '../components/operator/DeployDialog.jsx';
 import { OperatorView } from '../components/operator/OperatorView.jsx';
 import { I18nProvider } from '../providers/I18nProvider.jsx';
@@ -18,7 +19,7 @@ createRoot(document.getElementById('root')).render(
           <NetworkProvider>
             <OperatorProvider>
               <DeployDialogProvider>
-                <PageShell><OperatorView /></PageShell>
+                <PageShell nav={[{ href: CONFIG.panels.company, label: 'nav.company', icon: 'building' }]}><OperatorView /></PageShell>
               </DeployDialogProvider>
             </OperatorProvider>
           </NetworkProvider>

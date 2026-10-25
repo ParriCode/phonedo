@@ -26,16 +26,22 @@ export function SnapshotNotice() {
   return net === 'error' ? <div className="notice"><Icon name="alert" /><span>{t('notice.snapshot')}</span></div> : null;
 }
 
-export function PaymentsTable({ events, showPatient = true, limit = 50 }) {
+function useCaseChip(event, t) {
+  const useCase = CONFIG.contracts.find((c) => c.id === event.contractId)?.useCase;
+  return useCase ? <span className="chip chip-info">{t(`co.case.${useCase}`)}</span> : '—';
+}
+
+export function PaymentsTable({ events, showPatient = true, showCase = false, payee = 'tbl.patient', limit = 50 }) {
   const { t, lang } = useI18n();
   const { fresh } = usePayments();
   if (!events.length) return <div className="empty">{t('tbl.empty')}</div>;
   return (
     <div className="table-scroll"><table>
-      <thead><tr><th>{t('tbl.session')}</th>{showPatient && <th>{t('tbl.patient')}</th>}<th>{t('tbl.amount')}</th><th>{t('tbl.when')}</th><th>{t('tbl.proof')}</th><th>{t('tbl.tx')}</th></tr></thead>
+      <thead><tr><th>{t('tbl.session')}</th>{showCase && <th>{t('tbl.case')}</th>}{showPatient && <th>{t(payee)}</th>}<th>{t('tbl.amount')}</th><th>{t('tbl.when')}</th><th>{t('tbl.proof')}</th><th>{t('tbl.tx')}</th></tr></thead>
       <tbody>{events.slice(0, limit).map((e) => (
         <tr key={e.id} className={fresh.has(e.id) ? 'fresh' : ''}>
           <td className="mono">{e.sessionId ?? '—'}</td>
+          {showCase && <td>{useCaseChip(e, t)}</td>}
           {showPatient && <td className="mono" title={e.patient}>{short(e.patient, 5, 4)}</td>}
           <td><b>+{formatAmount(e.amount, lang)}</b> {e.asset}</td>
           <td>{timeAgo(e.paidAt, lang, t)}</td>

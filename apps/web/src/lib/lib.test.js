@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { CONFIG } from '../config.js';
 import { paidEvent, PATIENT } from '../test/fakes.js';
 import { configFor, configName, dockerDefaultConfig, linkDockerNode } from './serviceConfig.js';
-import { cursorLedger, fetchPayments, mergePayments, parseEvent, sortedTotals, stats } from './stellar.js';
+import { cursorLedger, fetchPayments, groupByUseCase, mergePayments, parseEvent, sortedTotals, stats } from './stellar.js';
 import { short } from './format.js';
 
 describe('stellar', () => {
@@ -21,6 +21,15 @@ describe('stellar', () => {
     expect(summary.sessions).toBe(3);
     expect(summary.patients).toBe(2);
     expect(sortedTotals(summary.totals)).toEqual([['USDC', 7.5], ['XLM', 5]]);
+  });
+
+  it('agrupa los pagos por caso de uso y descarta contratos desconocidos', () => {
+    const [rehab, cold] = CONFIG.contracts;
+    const events = [{ contractId: rehab.id }, { contractId: cold.id }, { contractId: rehab.id }, { contractId: 'CAJENO' }];
+    const groups = groupByUseCase(events);
+    expect(groups.rehab).toHaveLength(2);
+    expect(groups['cold-chain']).toHaveLength(1);
+    expect(Object.keys(groups)).toEqual(['rehab', 'cold-chain']);
   });
 
   it('recorre todas las páginas del RPC hasta el último ledger y sigue desde el cursor', async () => {

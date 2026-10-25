@@ -10,7 +10,7 @@ export default defineConfig({
   plugins: [react()],
   build: {
     rollupOptions: {
-      input: { index: page('index'), operator: page('operator'), patient: page('patient'), coldchain: page('coldchain'), insurer: page('insurer') },
+      input: { index: page('index'), operator: page('operator'), patient: page('patient'), coldchain: page('coldchain'), company: page('company') },
     },
   },
   server: {

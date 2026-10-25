@@ -2,6 +2,7 @@ import { useI18n } from '../providers/I18nProvider.jsx';
 import { usePayments } from '../providers/PaymentsProvider.jsx';
 import { contractUrl } from '../lib/format.js';
 import { CONFIG } from '../config.js';
+import { Icon } from './Icon.jsx';
 
 function LangSwitch() {
   const { lang, setLang } = useI18n();
@@ -22,14 +23,15 @@ function NetPill() {
   );
 }
 
-/** Barra superior, contenido y pie comunes a los paneles. */
-export function PageShell({ children }) {
+/** Barra superior, contenido y pie comunes a los paneles. `nav` añade enlaces a otros paneles. */
+export function PageShell({ children, nav = [] }) {
   const { t } = useI18n();
   return (
     <>
       <header className="topbar">
         <span className="brand"><span className="brand-mark"><svg className="icon"><use href="#i-pulse" /></svg></span><span>Phon<b>endo</b></span></span>
         <div className="topbar-end">
+          {nav.map((item) => <a key={item.href} className="topbar-link" href={item.href}><Icon name={item.icon} />{t(item.label)}</a>)}
           <NetPill />
           <LangSwitch />
         </div>

@@ -87,6 +87,17 @@ export function stats(events) {
   };
 }
 
+/** Pagos agrupados por caso de uso del contrato que los emitió (los contratos desconocidos se ignoran). */
+export function groupByUseCase(events, contracts = CONFIG.contracts) {
+  const useCases = new Map(contracts.map((c) => [c.id, c.useCase]));
+  const groups = {};
+  for (const e of events) {
+    const useCase = useCases.get(e.contractId);
+    if (useCase) (groups[useCase] ??= []).push(e);
+  }
+  return groups;
+}
+
 /** Totales por activo con USDC primero. */
 export function sortedTotals(totals) {
   return Object.entries(totals).sort(([a], [b]) => (a === 'USDC' ? -1 : b === 'USDC' ? 1 : 0));
