@@ -8,33 +8,11 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="./styles.css">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23ff6a4d'/%3E%3Cpath d='M5 17h6l2-5 4 10 3-7h7' fill='none' stroke='%23ffffff' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
 </head>
 <body data-panel="patient">
-  <header class="topbar">
-    <span class="brand"><span class="brand-mark"><svg class="icon"><use href="#i-pulse"/></svg></span><span>Phon<b>endo</b></span></span>
-    <div class="topbar-end">
-      <span class="net-pill" id="net-pill" data-state="checking" role="status"><i class="net-dot"></i><span id="net-label">Stellar testnet</span></span>
-      <div class="lang" role="group" aria-label="Language">
-        <button type="button" data-lang="en" aria-pressed="true">EN</button>
-        <button type="button" data-lang="es" aria-pressed="false">ES</button>
-      </div>
-    </div>
-  </header>
-
-  <main id="app" tabindex="-1"></main>
-
-  <footer class="footer">
-    <div class="wrap">
-      <span>Phonendo · HackMeridian 2026 · <span data-i18n="footer.built">Built on Stellar testnet</span></span>
-      <a href="https://stellar.expert/explorer/testnet/contract/CBF2MBQ6W4S6LD3JSIM3NNZET5KBUKOADRZSKIYZRZBAXRM6OJZCNSFI" target="_blank" rel="noopener" data-i18n="footer.contract">View the contract on Stellar Expert</a>
-    </div>
-  </footer>
-
-  <div class="toast" id="toast" role="status" aria-live="polite"></div>
-
-  <script src="icons.js"></script>
-  <script src="app.js"></script>
+  <div id="root" style="display: contents"></div>
+  <script type="module" src="./src/pages/patient.jsx"></script>
 </body>
 </html>

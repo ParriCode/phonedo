@@ -399,9 +399,11 @@ def create_app():
     app.router.add_get('/api/local/operations/{identifier}', docker_operation)
     app.router.add_route('*', '/api/local/readers/{identifier}', docker_reader)
     app.router.add_post('/api/local/probe', probe)
+    # La web React se sirve compilada (apps/web/dist); sin compilar se sirven las fuentes.
+    web_root = ROOT / 'apps/web/dist' if (ROOT / 'apps/web/dist/operator.html').is_file() else ROOT / 'apps/web'
     async def static(request):
-        path = (ROOT / 'apps/web' / (request.match_info['file'] or 'index.html')).resolve()
-        if not path.is_relative_to(ROOT / 'apps/web') or not path.is_file():
+        path = (web_root / (request.match_info['file'] or 'index.html')).resolve()
+        if not path.is_relative_to(web_root) or not path.is_file():
             raise web.HTTPNotFound()
         # Respuesta directa: evita el HTML antiguo cacheado en el mismo puerto.
         import mimetypes

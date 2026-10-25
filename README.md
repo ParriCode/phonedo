@@ -228,11 +228,11 @@ tiene un servidor HTTP concreto para estas consultas.
 
 ## Web de Phonendo
 
-[`apps/web`](apps/web/index.html) es una web estática sin compilación ni dependencias:
-se abre con doble clic en `index.html` o se publica tal cual en cualquier hosting
-estático (GitHub Pages, Netlify, Vercel). `index.html` solo explica el flujo y lleva a
-tres paneles, cada uno en su propia página y sin enlaces entre ellos (pensados para
-desplegarse por separado; sus direcciones están en `CONFIG.panels` de `app.js`):
+[`apps/web`](apps/web/README.md) es una web React compilada con Vite (Node.js 20 o
+superior). `npm run build` genera en `apps/web/dist` páginas estáticas que se publican
+tal cual en cualquier hosting estático (GitHub Pages, Netlify, Vercel). `index.html`
+solo explica el flujo y lleva a tres paneles, cada uno en su propia página y sin
+enlaces entre ellos (pensados para desplegarse por separado):
 
 - [`operator.html`](apps/web/operator.html): consola del operador. Mapa de Readers,
   Managers, Verifiers, Storages y Publishers por organización, comprobación de si
@@ -247,13 +247,15 @@ Arranque local sin Docker:
 ```
 
 El operador ofrece un canvas libre con drag & drop, zoom/pan, Auto layout y
-Fit view. Su arquitectura modular está en [service_network](apps/web/service_network/README.md).
+Fit view. La arquitectura de la web (providers y consumers de React) está en
+[apps/web](apps/web/README.md).
 
 Abre dos pestañas automáticamente cuando el servidor responde: el operador en
 `http://127.0.0.1:8080/operator.html` y Stellar Expert en testnet con el primer contrato de
 `apps/publisher/config.json`, o el explorador general si no hay configurados.
 `Ctrl+C` detiene el servidor. Instala Python 3 y el abridor de navegador si faltan
-(Debian/Ubuntu). Prepara `.venv` e instala `aiohttp` si falta.
+(Debian/Ubuntu). Prepara `.venv` e instala `aiohttp` si falta. Si hay `npm`, compila antes
+la web en `apps/web/dist`.
 Puedes cambiar el puerto con `WEB_PORT=8081 ./tools/web.sh` y elegir otro JSON
 con `PUBLISHER_CONFIG_PATH=deploy/docker/publisher.json ./tools/web.sh`.
 

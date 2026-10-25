@@ -76,11 +76,12 @@ New pieces: `circuits/` (Circom + snarkjs) and a Soroban contract in Rust.
 `tools/web.sh` sirve el operador con `tools/web_runtime.py` (aiohttp local).
 Crea Readers reales en memoria, gestiona dispositivos/sensores y pulsos; configura
 push HTTP/SSE y tokens en vivo. Consulta logs externos mediante un puente local
-limitado a IPs privadas/loopback. Los servicios externos no se editan. El operador
-en `apps/web/operator.js` muestra únicamente confirmaciones observadas.
-El canvas libre vive en `apps/web/service_network/` (módulos ES): modelos, estado,
-interacciones, nodos, conexiones, inspector, layout y API separados. Conserva
-posiciones/viewport por despliegue; el polling no reconstruye el lienzo.
+limitado a IPs privadas/loopback. Los servicios externos no se editan. La web
+(`apps/web`) es React + Vite con providers/consumers (`src/providers`): el operador
+(`OperatorProvider`) muestra únicamente confirmaciones observadas. El canvas es
+`src/components/canvas`; su lógica pura (modelos, estado, layout, geometría y API)
+sigue en `apps/web/service_network/` con sus tests. Conserva posiciones/viewport por
+despliegue; el polling no mueve el lienzo.
 
 End-to-end flow:
 
