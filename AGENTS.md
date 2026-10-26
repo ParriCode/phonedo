@@ -239,6 +239,7 @@ development Verifier key `keys/verifiers/dev.json`. A new
 Public web demo (Vercel, project `phonendo`): https://phonendo.vercel.app. Redeploy from
 `apps/web` with `npm run build && npx vercel deploy dist --prod`; the repo is not
 connected to Vercel. The operator console works only locally.
+Demo video (YouTube): https://youtu.be/nX8ho0uSeZE
 
 Local stack (Docker, simulated Reader and Publisher; ports 7101-7105):
 

@@ -8,6 +8,7 @@ Phonendo proves that sensor readings meet a condition **without revealing them**
 A Soroban contract checks the zero-knowledge proof and pays in USDC, automatically.
 
 [![Live demo](https://img.shields.io/badge/▶_Live_demo-phonendo.vercel.app-000000?style=for-the-badge&logo=vercel)](https://phonendo.vercel.app)
+[![Demo video](https://img.shields.io/badge/▶_Demo_video-YouTube-FF0000?style=for-the-badge&logo=youtube)](https://youtu.be/nX8ho0uSeZE)
 [![Demo payment](https://img.shields.io/badge/Testnet_payment-view_on_Stellar_Expert-7D00FF?style=for-the-badge&logo=stellar)](https://stellar.expert/explorer/testnet/tx/084d4e8223cb1a2db2d040920c59b19aa10968352815839e4134836f70fbb1ed)
 
 ![Network](https://img.shields.io/badge/Stellar-testnet-7D00FF)
@@ -322,6 +323,8 @@ from 95 to 120 bpm and then temperature from 2 to 8 °C (`"simulation": "demo"` 
 on any static host (GitHub Pages, Netlify, Vercel).
 
 **Public demo:** https://phonendo.vercel.app (the operator console only works locally).
+
+**Demo video:** https://youtu.be/nX8ho0uSeZE
 
 | Page | Audience | What it shows |
 | --- | --- | --- |
