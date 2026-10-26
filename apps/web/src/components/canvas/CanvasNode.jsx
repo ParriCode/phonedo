@@ -7,7 +7,7 @@ const ICONS = { reader: 'cpu', manager: 'hub', verifier: 'shield', storage: 'db'
  * La selección y el arrastre llegan por Pointer Events del lienzo.
  */
 export function CanvasNode({ node, position, selected, label, view }) {
-  const className = `service-node service-node--${view.health}${selected ? ' service-node--selected' : ''}${node.kind === 'stellar' ? ' service-node--stellar' : ''}`;
+  const className = `service-node service-node--${view.health} service-node--${node.kind}${selected ? ' service-node--selected' : ''}${node.kind === 'stellar' ? ' service-node--stellar' : ''}`;
   return (
     <button type="button" className={className} data-service-id={node.id} aria-pressed={selected}
       aria-label={`${node.name}, ${label(node.kind)}, ${view.healthText}`} title={node.name}

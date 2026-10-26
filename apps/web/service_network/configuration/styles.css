@@ -28,4 +28,4 @@
 .config-error { color: #b1382b; font-size: .8rem; overflow-wrap: anywhere; }
 .config-error:empty { display: none; }
 .config-actions { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .85rem; }
-.config-json { font-family: 'JetBrains Mono', monospace; font-size: .72rem; line-height: 1.6; resize: vertical; tab-size: 2; }
+.config-json { font-family: var(--mono); font-size: .72rem; line-height: 1.6; resize: vertical; tab-size: 2; }

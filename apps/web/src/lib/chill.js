@@ -1,7 +1,7 @@
 // Enfriamiento acumulado por las pulsaciones del panel de cadena de frío; se recupera solo.
 
 /** Nivel de frío en °C que suma cada pulsación y baja con el tiempo (`recovery` °C por segundo). */
-export function createChill({ drop = 0.7, recovery = 0.35, max = 6 } = {}, now = () => performance.now()) {
+export function createChill({ drop = 2.5, recovery = 0.2, max = 5 } = {}, now = () => performance.now()) {
   let amount = 0;
   let stamp = now();
   const settle = () => {

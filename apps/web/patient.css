@@ -12,7 +12,7 @@ body[data-panel="patient"] .footer { position: relative; z-index: 1; }
 body[data-panel="patient"] .topbar { background: rgb(6 32 30 / 55%); }
 body[data-panel="patient"] .footer { background: rgb(6 32 30 / 60%); backdrop-filter: blur(8px); }
 body[data-panel="patient"] .page-head { background: transparent; padding-bottom: 96px; }
-body[data-panel="patient"] .page-head h1 { font-size: clamp(32px, 4.4vw, 56px); letter-spacing: -1.6px; text-shadow: 0 2px 30px rgb(0 0 0 / 40%); }
+body[data-panel="patient"] .page-head h1 { font-size: clamp(38px, 5.2vw, 68px); letter-spacing: 0; text-shadow: 0 2px 30px rgb(0 0 0 / 40%); }
 body[data-panel="patient"] .page-head .wrap { align-items: center; }
 
 body[data-panel="patient"] .card {
@@ -36,7 +36,7 @@ body[data-panel="patient"] .kpi small,
 body[data-panel="patient"] .kpi b small,
 body[data-panel="patient"] .policy span,
 body[data-panel="patient"] .mini-steps { color: rgb(234 246 242 / 66%); }
-body[data-panel="patient"] .kpi b { font-size: clamp(26px, 2.6vw, 34px); font-variant-numeric: tabular-nums; }
+body[data-panel="patient"] .kpi b { font-size: clamp(30px, 3vw, 40px); font-variant-numeric: tabular-nums; }
 body[data-panel="patient"] .kpi b.accent { color: var(--mint); text-shadow: 0 0 24px rgb(61 220 151 / 45%); }
 
 body[data-panel="patient"] .earned + .earned { font-size: .5em; opacity: .75; }
@@ -87,7 +87,7 @@ body[data-panel="patient"] .privacy-list .no { animation: breathe 3.2s ease-in-o
 .ring line.on { stroke: #ff5a64; filter: drop-shadow(0 0 4px rgb(255 70 80 / 90%)); }
 .ring line.on.spare { stroke: rgb(255 90 100 / 45%); }
 .ring-center { position: absolute; z-index: 1; inset: 0; display: grid; place-content: center; text-align: center; }
-.ring-center b { font-size: clamp(16px, 1.7vw, 22px); letter-spacing: -.6px; color: #fff; font-variant-numeric: tabular-nums; }
+.ring-center b { font-size: clamp(20px, 2vw, 26px); letter-spacing: 0; color: #fff; font-variant-numeric: tabular-nums; }
 .ring-center span { font-size: 11px; letter-spacing: 1px; text-transform: uppercase; color: rgb(234 246 242 / 60%); max-width: 110px; }
 .ring.paid .ring-center b { color: var(--mint); animation: pop .5s ease-out; text-shadow: 0 0 22px rgb(61 220 151 / 80%); }
 .ring.paid { animation: glow 1.2s ease-out; }

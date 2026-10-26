@@ -2,9 +2,9 @@
 
 Phonendo recoge datos de sensores, verifica su integridad y los guarda, y en Stellar
 demuestra que cumplen una condición **sin revelarlos**. Un contrato Soroban comprueba
-la prueba y paga automáticamente. Nació como prototipo académico que publicaba en IOTA
-y en HackMeridian 2026 (Lisboa) se ha llevado a Stellar con pruebas de conocimiento
-cero (ZK): ruta Genesis, con los temas Stellar Unlocked y Stellar Composed.
+la prueba y paga automáticamente. En HackMeridian 2026 (Lisboa) usa pruebas de
+conocimiento cero (ZK) sobre Stellar: ruta Genesis, con los temas Stellar Unlocked y
+Stellar Composed.
 
 ## Qué resuelve
 
@@ -205,17 +205,15 @@ echo "STELLAR_SECRET_KEY=$(stellar keys show <alias>)" > deploy/docker/.env
   `tools/generate_configs.sh`. La clave RSA antigua del Verifier sigue en el historial
   de git y no debe reutilizarse.
 
-## Trabajo previo y novedades
+## Qué se construyó en el evento
 
-Phonendo existía antes del evento como prototipo académico que publicaba en IOTA, sin
-código de Stellar, pruebas ZK ni pagos.
-
-| Antes del evento | Hecho en el evento |
+| Pieza | Qué hace |
 | --- | --- |
-| Reader, Manager, Verifier y Storage en Python, pila Docker y pruebas | Circuito ZK y scripts de prueba (`circuits/`) |
-| Publisher como carpeta vacía | Publisher: lotes, prueba, firma del lote y llamada a `claim()` |
-| El Verifier firmaba cada evento con RSA | Una sola clave ed25519 firma los eventos y el commitment del lote |
-| Publicación en IOTA (artículo) | Contrato Soroban: prueba Groth16, antirrepetición y pago |
+| Circuito ZK (`circuits/`) | Prueba Groth16 de que al menos N lecturas están en rango, sin revelarlas |
+| Publisher | Lotes de 32 lecturas, prueba, firma del lote y llamada a `claim()` |
+| Verifier | Una clave ed25519 firma los eventos y el commitment del lote |
+| Contrato Soroban | Verifica la prueba y la firma, evita cobrar dos veces y paga en USDC |
+| Paneles web | Consola del operador y paneles de rehabilitación, cadena de frío y empresa |
 
 ## Hoja de ruta
 
@@ -332,4 +330,3 @@ firmas e integridad del dato almacenado y cierra los servicios al terminar.
   [Publisher](apps/publisher/README.md).
 - [Circuito ZK](circuits/README.md) y [contrato Soroban](contracts/README.md).
 - [Diagramas y fuentes PlantUML editables](docs/diagramas.md).
-- Moya, F., Quesada, F. J., Martínez, L. et al. *Phonendo: a platform for publishing wearable data on distributed ledger technologies*. Wireless Networks (2023). [Publicación original](https://doi.org/10.1007/s11276-023-03458-7).

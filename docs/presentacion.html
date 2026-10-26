@@ -555,7 +555,7 @@ message = commitment + session_id.to_bytes(32, <span class="cm">'big'</span>) + 
   <div class="module">
     <div class="module-head"><h3>Publisher</h3><span class="path"><a href="../apps/publisher/README.md">apps/publisher/</a> · Python</span><span class="tag new">nuevo en el evento</span></div>
     <div class="prose">
-      <p>Antes del evento era una carpeta vacía. Ahora escucha el <code>/stream</code> del Manager y agrupa 32 lecturas por dispositivo, contando cada evento una sola vez aunque el stream lo repita. Genera la prueba con los scripts de <code>circuits/</code>, pide la firma con <code>signBatch</code> y envía <code>claim()</code> con la CLI de Stellar. Un lote que no cumple la pauta se registra y no se cobra.</p>
+      <p>Escucha el <code>/stream</code> del Manager y agrupa 32 lecturas por dispositivo, contando cada evento una sola vez aunque el stream lo repita. Genera la prueba con los scripts de <code>circuits/</code>, pide la firma con <code>signBatch</code> y envía <code>claim()</code> con la CLI de Stellar. Un lote que no cumple la pauta se registra y no se cobra.</p>
     </div>
     <details>
       <summary>publisher.py · process_batch()</summary>
@@ -573,9 +573,9 @@ message = commitment + session_id.to_bytes(32, <span class="cm">'big'</span>) + 
   </div>
 
   <div class="module">
-    <div class="module-head"><h3>Pipeline de datos</h3><span class="path">apps/reader · manager · storage · Python y C++</span><span class="tag">anterior al evento</span></div>
+    <div class="module-head"><h3>Pipeline de datos</h3><span class="path">apps/reader · manager · storage · Python y C++</span></div>
     <div class="prose">
-      <p>Reader, Manager, Verifier y Storage vienen del prototipo académico de Phonendo (Moya et al., <em>Wireless Networks</em>, 2023), que publicaba en IOTA. En el evento se ha adaptado: el Reader simula pulso, el Manager evita conexiones HTTP/SSE redundantes por servicio, el Verifier firma con ed25519 en lugar de RSA y todos los servicios exponen <code>/info</code> y <code>/logs</code> para el panel.</p>
+      <p>Reader, Manager, Verifier y Storage forman el pipeline de datos. En el evento se ha adaptado: el Reader simula pulso, el Manager evita conexiones HTTP/SSE redundantes por servicio, el Verifier firma con ed25519 en lugar de RSA y todos los servicios exponen <code>/info</code> y <code>/logs</code> para el panel.</p>
     </div>
   </div>
 </section>
@@ -677,16 +677,16 @@ docker compose -f deploy/docker/compose.yml logs -f publisher   <span class="cm"
 <!-- Evento -->
 <section id="evento">
   <div class="eyebrow">10 · Progreso en el hackathon</div>
-  <h2>Antes y durante el evento</h2>
+  <h2>Hecho en el evento</h2>
   <div class="table-wrap">
     <table>
-      <thead><tr><th>Antes del evento</th><th>Hecho en HackMeridian</th></tr></thead>
+      <thead><tr><th>Pieza</th><th>Qué hace</th></tr></thead>
       <tbody>
-        <tr><td>Reader, Manager, Verifier y Storage en Python, pila Docker y pruebas</td><td>Circuito ZK y scripts de prueba (<code>circuits/</code>)</td></tr>
-        <tr><td>Publisher como carpeta vacía</td><td>Publisher: lotes, prueba, firma del lote y <code>claim()</code></td></tr>
-        <tr><td>El Verifier firmaba cada evento con RSA</td><td>Una clave ed25519 firma los eventos y el commitment del lote</td></tr>
-        <tr><td>Publicación en IOTA (artículo)</td><td>Contrato Soroban: Groth16, antirrepetición y pago en USDC</td></tr>
-        <tr><td>Sin interfaz para el caso de uso</td><td>Panel de control: backend Axum con roles y frontend Leptos</td></tr>
+        <tr><td>Circuito ZK y scripts de prueba (<code>circuits/</code>)</td><td>Prueba Groth16 de que al menos N lecturas están en rango</td></tr>
+        <tr><td>Publisher</td><td>Lotes, prueba, firma del lote y <code>claim()</code></td></tr>
+        <tr><td>Verifier</td><td>Una clave ed25519 firma los eventos y el commitment del lote</td></tr>
+        <tr><td>Contrato Soroban</td><td>Groth16, antirrepetición y pago en USDC</td></tr>
+        <tr><td>Paneles web</td><td>Consola del operador y paneles de rehabilitación, cadena de frío y empresa</td></tr>
       </tbody>
     </table>
   </div>
@@ -711,8 +711,7 @@ docker compose -f deploy/docker/compose.yml logs -f publisher   <span class="cm"
 </section>
 
 <footer>
-  <p>Phonendo · HackMeridian 2026, Lisboa. Código y documentación en este repositorio: <a href="../README.md">README</a>, <a href="../circuits/README.md">circuito</a>, <a href="../contracts/README.md">contrato</a>, <a href="../apps/control/backend/README.md">backend del panel</a>, <a href="../apps/control/frontend/README.md">frontend del panel</a>.</p>
-  <p>Moya, F., Quesada, F. J., Martínez, L. et al. <em>Phonendo: a platform for publishing wearable data on distributed ledger technologies.</em> Wireless Networks (2023). <a href="https://doi.org/10.1007/s11276-023-03458-7">doi:10.1007/s11276-023-03458-7</a></p>
+  <p>Phonendo · HackMeridian 2026, Lisboa. Código y documentación en este repositorio: <a href="../README.md">README</a>, <a href="../circuits/README.md">circuito</a>, <a href="../contracts/README.md">contrato</a>.</p>
 </footer>
 
 </main>

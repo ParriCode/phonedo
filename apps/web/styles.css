@@ -33,7 +33,7 @@
   --soft: #efe9dc;
   --radius: 14px;
   --shadow: 0 1px 2px rgb(11 47 44 / 6%), 0 8px 24px rgb(11 47 44 / 7%);
-  --mono: "JetBrains Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  --mono: "DM Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
   color-scheme: light;
 }
 
@@ -41,13 +41,16 @@
 html { scroll-behavior: smooth; }
 body {
   margin: 0;
-  font: 15px/1.6 "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  font: 15px/1.6 "Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
   color: var(--ink);
   background: var(--bg);
   -webkit-font-smoothing: antialiased;
 }
 a { color: inherit; }
 button, input, select { font: inherit; color: inherit; }
+h2, h3, h4 { font-family: "Bricolage Grotesque", "Figtree", system-ui, sans-serif; }
+/* Fuente de píxeles para lo importante: títulos, logotipo y cifras. */
+h1, .brand, .kpi b, .case-total, .ring-center b, .thermo-value b, .canvas__heading h2 { font-family: "DotGothic16", "Bricolage Grotesque", "Figtree", system-ui, sans-serif; font-weight: 400; }
 h1, h2, h3, h4, p { margin: 0; }
 .mono { font-family: var(--mono); font-size: .9em; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
@@ -64,7 +67,7 @@ h1, h2, h3, h4, p { margin: 0; }
   color: #fff;
   border-bottom: 1px solid rgb(255 255 255 / 8%);
 }
-.brand { display: flex; align-items: center; gap: 10px; text-decoration: none; font-weight: 700; font-size: 20px; letter-spacing: -.5px; }
+.brand { display: flex; align-items: center; gap: 10px; text-decoration: none; font-weight: 700; font-size: 24px; letter-spacing: 0; }
 .brand-mark { width: 30px; height: 30px; border-radius: 8px; background: var(--gold); color: #fff; display: grid; place-items: center; }
 .brand b { color: var(--gold); }
 .topbar-end { margin-left: auto; display: flex; align-items: center; gap: 12px; }
@@ -196,7 +199,7 @@ h1, h2, h3, h4, p { margin: 0; }
 .live-strip { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 20px; }
 .kpi { padding: 20px; }
 .kpi span { display: block; font-size: 12px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); }
-.kpi b { display: block; font-size: 30px; letter-spacing: -1px; margin-top: 6px; }
+.kpi b { display: block; font-size: 34px; letter-spacing: 0; margin-top: 6px; }
 .kpi small { color: var(--muted); font-size: 12px; }
 
 .cases { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
@@ -221,7 +224,7 @@ h1, h2, h3, h4, p { margin: 0; }
   padding: 36px clamp(16px, 4vw, 40px) 76px;
 }
 .page-head .wrap { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 20px; }
-.page-head h1 { font-size: clamp(26px, 3vw, 36px); letter-spacing: -.8px; margin: 8px 0 6px; }
+.page-head h1 { font-size: clamp(32px, 3.8vw, 48px); letter-spacing: 0; margin: 8px 0 6px; }
 .page-head p { color: rgb(255 255 255 / 70%); max-width: 640px; }
 .page-body { padding: 0 clamp(16px, 4vw, 40px) 56px; margin-top: -48px; }
 .toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
@@ -296,7 +299,7 @@ dialog::backdrop { background: rgb(6 32 30 / 55%); backdrop-filter: blur(3px); }
 .case-card h3 { font-size: 16px; }
 .case-icon { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; background: var(--soft); color: var(--brand); }
 .case-icon .icon { width: 18px; height: 18px; }
-.case-total { font-size: 28px; letter-spacing: -.8px; }
+.case-total { font-size: 32px; letter-spacing: 0; }
 .case-total small { font-size: 14px; font-weight: 600; color: var(--muted); letter-spacing: 0; }
 .case-count { font-size: 13px; color: var(--muted); }
 .case-count b { color: var(--ink); }

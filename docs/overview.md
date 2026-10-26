@@ -232,7 +232,7 @@ Pero no firma criptográficamente el dato. Es decir, el token no demuestra por s
 
 2. Firma del Manager
 
-El artículo indica que el Manager tiene la responsabilidad de certificar datos y procedencia. Para ello, cada mensaje se firma con una clave asociada al wearable/device, generada usando la MAC address del dispositivo y una contraseña propia del Manager mediante SHA256.
+El Manager tiene la responsabilidad de certificar datos y procedencia. Para ello, cada mensaje se firma con una clave asociada al wearable/device, generada usando la MAC address del dispositivo y una contraseña propia del Manager mediante SHA256.
 
 Conceptualmente:
 
@@ -334,7 +334,7 @@ Por eso cada firma debe incluir identidad del servicio:
   "verifierKeyId": "verifier-uja-health-key-001",
   "verifierSignature": "...",
 
-  "publisherId": "publisher-iota-001"
+  "publisherId": "publisher-001"
 }
 
 Así, quien lea el dato publicado puede decidir:

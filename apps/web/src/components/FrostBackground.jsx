@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { chill } from '../lib/chill.js';
 import { frostAlpha, sideAlpha } from '../lib/frost.js';
 
-const CALM = 0.3; // opacidad de las esquinas en reposo; suben hasta 1 al enfriarse
+const CALM = 0.4; // opacidad de las esquinas en reposo; suben hasta 1 al enfriarse
 const SIDES = 0.9; // opacidad máxima de la escarcha que se extiende por los laterales
 const TOPBAR = 57; // alto de la barra superior: la escarcha de arriba nace justo debajo
 const CORNERS = [[0, 0, 1, 1, 11], [1, 0, -1, 1, 23], [0, 1, 1, -1, 37], [1, 1, -1, -1, 51]];
@@ -27,6 +27,7 @@ function texture(size, high, alphaAt) {
 export function FrostBackground() {
   const corners = useRef(null);
   const sides = useRef(null);
+  const veil = useRef(null);
 
   useEffect(() => {
     const cornerContext = corners.current?.getContext?.('2d');
@@ -65,7 +66,8 @@ export function FrostBackground() {
     const tint = setInterval(() => {
       const level = chill.ratio();
       corners.current.style.opacity = String(CALM + (1 - CALM) * level);
-      sides.current.style.opacity = String(SIDES * level ** 1.5);
+      sides.current.style.opacity = String(SIDES * level ** 0.8);
+      veil.current.style.opacity = String(level);
     }, 100);
     // Calcular la textura tarda ~1 s: se hace tras pintar la página y sin repetirla en cada resize.
     let timer = setTimeout(paint, 50);
@@ -78,6 +80,7 @@ export function FrostBackground() {
     <>
       <canvas ref={corners} className="frost" aria-hidden="true" />
       <canvas ref={sides} className="frost frost-sides" aria-hidden="true" />
+      <div ref={veil} className="frost-veil" aria-hidden="true" />
     </>
   );
 }

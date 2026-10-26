@@ -14,8 +14,6 @@ verify that proof in a Soroban contract and pay automatically in USDC.
 - Thematic tracks: **Stellar Unlocked** (ZK proof verified in Soroban with native
   host functions) and **Stellar Composed** (ZK + USDC payments combined).
 - Prize pool: 30,000 USD for 6 winners, paid in XLM.
-- Phonendo paper: Moya et al., *Wireless Networks* (2023),
-  doi:10.1007/s11276-023-03458-7.
 
 ## Use case
 
@@ -41,7 +39,7 @@ so one deployment serves different policies without new code.
 | User value / problem | 20 | Clear payer (insurer) and payee (patient). Health data is special-category data under GDPR, hence ZK. |
 | Technical execution | 15 | It works end to end on testnet. Contract tests: valid proof, tampered proof, session already claimed, forged signature. Contract IDs and tx hashes in the README. Clean repo, no keys. |
 | Innovation | 15 | ZK over real signed sensor data on Stellar, with the proof bound to verified data (see binding below). |
-| Hackathon progress | 10 | Small, frequent, meaningful commits. Before/after table (see Prior work). |
+| Hackathon progress | 10 | Small, frequent, meaningful commits. List of what was built at the event (see Built at the event). |
 | Market / ecosystem | 10 | Customer (insurers), revenue (fee per verified proof), why now (native ZK on Stellar), and a clear next-steps roadmap (Genesis values potential to continue). |
 | Design / UX | 10 | One screen, two columns: patient (own chart) and insurer (only ✓, amount, stellar.expert link). A "Simulate session" button in case the sensor fails. |
 
@@ -157,19 +155,17 @@ phonedo/
 Generated folders (`circuits/build/`, `node_modules/`, `target/`, `.venv/`) are
 local only. All are in `.gitignore` (`contracts/.gitignore` covers `target/` and `test_snapshots/`).
 
-## Prior work
+## Built at the event
 
-Declare it in the README and the pitch. Phonendo existed before the event as an
-academic prototype (paper above) that published to IOTA, with no Stellar, ZK or
-payment code. Everything Stellar is built at the event.
+List it in the README and the pitch.
 
-| Before the event | Built at the event |
+| Piece | What it does |
 | --- | --- |
-| Reader, Manager, Verifier, Storage (Python), Docker stack, tests | ZK circuit and proving scripts (`circuits/`) |
-| Publisher as an empty placeholder | Publisher: batching, proof, batch signature, `claim()` call |
-| Verifier signs events with RSA | One ed25519 key signs events and the batch commitment |
-| Publishing to IOTA (paper) | Soroban contract: Groth16 verification, anti-replay, USDC payout |
-| No user interface for the use case | Patient / insurer dashboard |
+| ZK circuit and proving scripts (`circuits/`) | Groth16 proof that at least N readings are in range |
+| Publisher | Batching, proof, batch signature, `claim()` call |
+| Verifier | One ed25519 key signs events and the batch commitment |
+| Soroban contract | Groth16 verification, anti-replay, USDC payout |
+| Web panels | Operator console, rehab, cold-chain and company panels |
 
 ## Stellar and ZK decisions (verified)
 
@@ -285,7 +281,7 @@ stellar contract invoke --id <contract_id> --source <alias> --network testnet --
   Do not commit or push unless the human asks.
 - The final README must include: summary, problem, setup, environment
   variables, demo steps, architecture with how Stellar is used, contract IDs,
-  at least one testnet tx hash, and a clear split between prior work and what
+  at least one testnet tx hash, and a clear list of what
   was built at the event.
 
 ## Out of scope (next steps)

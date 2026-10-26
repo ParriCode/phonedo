@@ -1,6 +1,12 @@
 /* Panel de rehabilitación cardiaca: electrocardiograma rojo de fondo y tarjetas de cristal. */
-.frost { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; opacity: .3; transition: opacity .35s linear; }
+.frost { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; opacity: .4; transition: opacity .25s linear; }
 .frost-sides { opacity: 0; }
+/* Velo helado: el borde de la pantalla se empaña más cuanto más se enfría. */
+.frost-veil {
+  position: fixed; inset: 0; z-index: 0; pointer-events: none; opacity: 0; transition: opacity .25s linear;
+  box-shadow: inset 0 0 140px 30px rgb(205 235 255 / 38%), inset 0 0 40px rgb(235 248 255 / 30%);
+  background: radial-gradient(ellipse at center, transparent 55%, rgb(190 228 255 / 16%) 100%);
+}
 
 body[data-panel="coldchain"] {
   background: radial-gradient(1200px 700px at 15% 0%, #134642 0%, transparent 60%), radial-gradient(900px 600px at 100% 100%, #1c3a5f 0%, transparent 55%), var(--navy-950);
@@ -13,7 +19,7 @@ body[data-panel="coldchain"] .footer { position: relative; z-index: 1; }
 body[data-panel="coldchain"] .topbar { background: rgb(6 32 30 / 55%); }
 body[data-panel="coldchain"] .footer { background: rgb(6 32 30 / 60%); backdrop-filter: blur(8px); }
 body[data-panel="coldchain"] .page-head { background: transparent; padding-bottom: 96px; }
-body[data-panel="coldchain"] .page-head h1 { font-size: clamp(32px, 4.4vw, 56px); letter-spacing: -1.6px; text-shadow: 0 2px 30px rgb(0 0 0 / 40%); }
+body[data-panel="coldchain"] .page-head h1 { font-size: clamp(38px, 5.2vw, 68px); letter-spacing: 0; text-shadow: 0 2px 30px rgb(0 0 0 / 40%); }
 body[data-panel="coldchain"] .page-head .wrap { align-items: center; }
 
 body[data-panel="coldchain"] .card {
@@ -37,7 +43,7 @@ body[data-panel="coldchain"] .kpi small,
 body[data-panel="coldchain"] .kpi b small,
 body[data-panel="coldchain"] .policy span,
 body[data-panel="coldchain"] .mini-steps { color: rgb(234 246 242 / 66%); }
-body[data-panel="coldchain"] .kpi b { font-size: clamp(26px, 2.6vw, 34px); font-variant-numeric: tabular-nums; }
+body[data-panel="coldchain"] .kpi b { font-size: clamp(30px, 3vw, 40px); font-variant-numeric: tabular-nums; }
 body[data-panel="coldchain"] .kpi b.accent { color: var(--mint); text-shadow: 0 0 24px rgb(61 220 151 / 45%); }
 
 body[data-panel="coldchain"] .earned + .earned { font-size: .5em; opacity: .75; }
@@ -88,7 +94,7 @@ body[data-panel="coldchain"] .privacy-list .no { animation: breathe 3.2s ease-in
 .ring line.on { stroke: #3ddc97; filter: drop-shadow(0 0 4px rgb(61 220 151 / 90%)); }
 .ring line.on.spare { stroke: rgb(61 220 151 / 45%); }
 .ring-center { position: absolute; z-index: 1; inset: 0; display: grid; place-content: center; text-align: center; }
-.ring-center b { font-size: clamp(16px, 1.7vw, 22px); letter-spacing: -.6px; color: #fff; font-variant-numeric: tabular-nums; }
+.ring-center b { font-size: clamp(20px, 2vw, 26px); letter-spacing: 0; color: #fff; font-variant-numeric: tabular-nums; }
 .ring-center span { font-size: 11px; letter-spacing: 1px; text-transform: uppercase; color: rgb(234 246 242 / 60%); max-width: 110px; }
 .ring.paid .ring-center b { color: var(--mint); animation: pop .5s ease-out; text-shadow: 0 0 22px rgb(61 220 151 / 80%); }
 .ring.paid { animation: glow 1.2s ease-out; }
@@ -111,6 +117,6 @@ body[data-panel="coldchain"] .privacy-list .no { animation: breathe 3.2s ease-in
 .thermo-mark { stroke: rgb(200 245 230 / 70%); stroke-width: 1.5; }
 .thermo text { fill: rgb(200 245 230 / 75%); font: 600 10px var(--mono); }
 .thermo-value { display: grid; }
-.thermo-value b { font-size: clamp(20px, 2.2vw, 28px); letter-spacing: -.6px; font-variant-numeric: tabular-nums; }
+.thermo-value b { font-size: clamp(24px, 2.6vw, 32px); letter-spacing: 0; font-variant-numeric: tabular-nums; }
 .thermo-value span { font-size: 11px; letter-spacing: 1px; text-transform: uppercase; color: rgb(220 245 235 / 60%); }
 @media (max-width: 640px) { .gauges { flex-direction: column; align-items: flex-start; } }
