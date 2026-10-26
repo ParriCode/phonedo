@@ -40,6 +40,8 @@ Dejar las claves ordenadas y poder ir a producción sin secretos en git, sin cla
 - [ ] **T6 Autenticación del panel.** Token local obligatorio para operaciones que muevan claves.
 - [ ] **T7 Escáner de secretos.** `gitleaks` en pre-commit.
 
+- [ ] **T8 Demo preconfigurada (opción A).** Al clonar y hacer `docker compose up` el sistema cobra solo en testnet. Cuenta de demo `phonendo` (publisher, admin y fuente de despliegue) y clave de verifier de demo, ambas versionadas y marcadas «solo testnet». Requiere: instalar circom 2.2, regenerar `circuits/build` (zkey y claves, versionadas), desplegar contratos de rehabilitación y cadena de frío (pagan XLM nativo), fondearlos y poner sus ids en `deploy/docker/publisher.json`. Autorizado por el usuario: Friendbot, desplegar contratos, fondearlos con XLM, instalar circom. Check: `docker compose up` desde un clon limpio produce un `SessionPaid` en testnet.
+
 ## Pendiente de decidir
 1. Archivo de claves en claro con 0600 o cifrado con `age` (añade una contraseña a gestionar).
 2. Añadir `set_verifier_key` al contrato (T5) o aceptar redesplegar para rotar.
@@ -55,4 +57,5 @@ Dejar las claves ordenadas y poder ir a producción sin secretos en git, sin cla
 ## Progreso
 - Mirror Engram `odd/gestion-claves/tasks`: **pendiente** (herramientas de memoria no disponibles en esta sesión).
 - T1 hecho: `bash -n` correcto; la generación de tokens aleatorios probada aparte (48 car., 0600, mismas variables). No se ejecutó `generate_configs.sh` entero para no tocar tus `config.env`. Tiene `signing_key.json` y `tools/web_docker.py` sin tocar todavía.
-- Siguiente paso: T2 (almacén de claves), pendiente de la decisión 1.
+- T8 autorizado (testnet con la cuenta phonendo; el usuario aceptó publicar la clave de demo). Cuenta: `GBZCQXYS…EMGJ`.
+- Siguiente paso: T8 (worker delegado), luego limpieza T3/T4 según el plan.
