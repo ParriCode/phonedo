@@ -161,6 +161,7 @@ def test_claim_command_and_already_claimed_error():
     with patch('subprocess.run', return_value=failed), pytest.raises(ClaimFailed, match='ya cobrada'):
         claimer.claim({'sessionId': 9}, ZERO_ACCOUNT, 'ab', 'cd', 'p.json')
     for output, reason in [('error: insufficient balance', 'Saldo insuficiente'),
+                           ('data:["zero balance is not sufficient to spend", 1000000]', 'Saldo insuficiente'),
                            ('error: ed25519 signature verification failed', 'Firma del Verifier'),
                            ('error: Error(Contract, #2)', 'prueba no coincide')]:
         failed.stderr = output

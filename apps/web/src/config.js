@@ -3,6 +3,8 @@ export const CONFIG = {
   rpc: 'https://soroban-testnet.stellar.org',
   explorer: 'https://stellar.expert/explorer/testnet',
   contracts: [
+    { id: 'CDH7PZQYQCYBCRO56F4WJP5BMEFPIBAEAQUAHKENXRYHZCTZPEH6UW3E', asset: 'XLM', useCase: 'rehab' },
+    { id: 'CALYXI6MEJMR5HFBFSGVATUFZDCUPQSNVBQEVWFHREJH4DVOCQ5QMP6N', asset: 'XLM', useCase: 'cold-chain' },
     { id: 'CCLQFKRWBLRSPLVAFWBLG22LPRGP3GEV47CGXA6C3VAGPQ2QITE3DNYL', asset: 'USDC', useCase: 'rehab' },
     { id: 'CACUZG5V45NPFFB5JSLHMTF6NHEP5GMGZ5QJKJPET4ZIRTWOW6VS2VQS', asset: 'USDC', useCase: 'cold-chain' },
     { id: 'CD3ZLDTB7QKJLMAIBSCL75TRHE6IUZ27RW5FLWNB4F3GUQENZZZSM45H', asset: 'USDC', useCase: 'rehab' },

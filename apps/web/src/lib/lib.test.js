@@ -8,7 +8,7 @@ import { short } from './format.js';
 describe('stellar', () => {
   it('convierte un evento session_paid real', () => {
     expect(parseEvent(paidEvent())).toEqual({
-      id: '0023112773797957632-0000000001', sessionId: '20261025001', amount: 5, asset: 'USDC', patient: PATIENT,
+      id: '0023112773797957632-0000000001', sessionId: '20261025001', amount: 5, asset: CONFIG.contracts[0].asset, patient: PATIENT,
       txHash: paidEvent().txHash, ledger: 5381362, paidAt: '2026-10-25T12:13:17Z', contractId: CONFIG.contracts[0].id,
     });
     expect(parseEvent({ topicJson: [{ symbol: 'set_policy' }] })).toBeNull();

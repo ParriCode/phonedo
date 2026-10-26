@@ -37,7 +37,7 @@ class StellarClaimer:
                 raise ClaimFailed('Sesión ya cobrada')
             if INVALID_PROOF in output:
                 raise ClaimFailed('La prueba no coincide con la política o la clave de verificación del contrato')
-            if re.search(r'insufficient|underfunded|low balance|saldo insuficiente', output, re.I):
+            if re.search(r'insufficient|not sufficient|underfunded|low balance|saldo insuficiente', output, re.I):
                 raise ClaimFailed('Saldo insuficiente en la cuenta emisora o en el contrato para pagar la sesión')
             if re.search(r'ed25519|invalid signature|signature verification', output, re.I):
                 raise ClaimFailed('Firma del Verifier rechazada por el contrato: comprueba su clave pública')
