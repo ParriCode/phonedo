@@ -19,16 +19,19 @@ consume el SSE del Manager y prepara lotes de 32.
 ## Cobro real en testnet
 
 Prepara antes `circuits/` con `npm run setup`. El Publisher firma con una cuenta de
-Stellar cuya clave secreta recibe por entorno y que nunca entra en la imagen. Crea
-`deploy/docker/.env` (ignorado por git) con la clave de tu alias:
+Stellar cuya clave secreta recibe por entorno y que nunca entra en la imagen. Copia
+`.env.example` como `deploy/docker/.env` (ignorado por git) y completa:
 
-```sh
-echo "STELLAR_SECRET_KEY=$(stellar keys show alex)" > deploy/docker/.env
+```env
+STELLAR_SOURCE=phonendo
+STELLAR_SECRET_KEY=S...
 ```
 
-En PowerShell: `"STELLAR_SECRET_KEY=$(stellar keys show alex)" | Set-Content -Encoding ascii deploy/docker/.env`.
+Puedes consultar la clave de una identidad ya creada con `stellar keys show phonendo`.
+No copies la clave en `compose.yml`, `publisher.json` ni en Git.
 
-El contenedor crea con ella el alias `alex`. `deploy/docker/publisher.json` indica a qué
+El contenedor crea el alias indicado por `STELLAR_SOURCE`, y ese valor prevalece sobre
+`stellar.source` del JSON. `deploy/docker/publisher.json` indica a qué
 contrato va cada caso: `contracts` por `verifierId` (rehabilitación) y `devices` por
 dispositivo (cadena de frío). Sin `.env` el Publisher prepara los lotes pero no cobra.
 El Reader arranca cuando el Publisher ya escucha, para que no pierda lecturas; si

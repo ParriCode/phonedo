@@ -32,7 +32,7 @@
   },
   "circuitsPath": "../../circuits",
   "stellar": {
-    "source": "jose",
+    "source": "phonendo",
     "network": "testnet"
   }
 }

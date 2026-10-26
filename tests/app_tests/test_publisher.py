@@ -41,6 +41,16 @@ def verified(device_id, result, created=1000, key=None):
         'creationDatetime': created, 'payload': {'simple_result': result}}}
 
 
+def test_stellar_source_environment_overrides_json_for_docker(tmp_path, monkeypatch):
+    from publisher_support.config import PublisherConfig
+
+    config = tmp_path / 'publisher.json'
+    config.write_text(json.dumps({'stellar': {'source': 'json-alias', 'network': 'testnet'}}))
+    monkeypatch.setenv('STELLAR_SOURCE', 'docker-alias')
+    monkeypatch.setenv('PUBLISHER_STELLAR_SOURCE', 'legacy-alias')
+    assert PublisherConfig(config).stellar['source'] == 'docker-alias'
+
+
 def wait_until(condition):
     for _ in range(100):
         if condition():

@@ -28,8 +28,9 @@ class PublisherConfig:
         self.stellar = dict(data.get('stellar', {}))
         self.contracts = data.get('contracts', {})
         self.devices = data.get('devices', {})
-        if os.getenv('PUBLISHER_STELLAR_SOURCE'):
-            self.stellar['source'] = os.environ['PUBLISHER_STELLAR_SOURCE']
+        source = os.getenv('STELLAR_SOURCE') or os.getenv('PUBLISHER_STELLAR_SOURCE')
+        if source:
+            self.stellar['source'] = source
 
     def patient_for(self, device_id):
         return self.patients.get(device_id) or self.patients.get('default')
