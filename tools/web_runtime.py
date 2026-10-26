@@ -297,6 +297,12 @@ async def resources(app):
         await asyncio.gather(*tuple(app['operation_tasks']), return_exceptions=True)
 
 
+async def local_keys(request):
+    """Claves de Verifier y carteras de keys/, solo con su parte pública."""
+    import keys
+    return web.json_response(await asyncio.to_thread(keys.inventory))
+
+
 async def docker_list(request):
     result = await request.app['docker'].compose_snapshots()
     for identifier in tuple(request.app['docker'].records):
@@ -424,6 +430,7 @@ def create_app():
     app.router.add_get('/api/local/operations/{identifier}', docker_operation)
     app.router.add_route('*', '/api/local/readers/{identifier}', docker_reader)
     app.router.add_post('/api/local/probe', probe)
+    app.router.add_get('/api/local/keys', local_keys)
     # La web React se sirve compilada (apps/web/dist); sin compilar se sirven las fuentes.
     web_root = ROOT / 'apps/web/dist' if (ROOT / 'apps/web/dist/operator.html').is_file() else ROOT / 'apps/web'
     async def static(request):

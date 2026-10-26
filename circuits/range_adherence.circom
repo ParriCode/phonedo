@@ -55,4 +55,4 @@ template RangeAdherence(N) {
     commitment <== commit.out;
 }
 
-component main {public [minValue, maxValue, minCount, sessionId]} = RangeAdherence(32);
+component main {public [minValue, maxValue, minCount, sessionId]} = RangeAdherence(5);

@@ -12,15 +12,17 @@ class ClaimFailed(Exception):
 
 
 class StellarClaimer:
-    def __init__(self, contract_id, source, network='testnet', timeout=120):
+    def __init__(self, contract_id, source, network='testnet', timeout=120, config_dir=None):
         self.contract_id = contract_id
         self.source = source
         self.network = network
         self.timeout = timeout
+        self.config_dir = config_dir
 
     def command(self, batch, patient, commitment_hex, signature_hex, proof_file):
+        config = ['--config-dir', str(self.config_dir)] if self.config_dir else []
         return ['stellar', 'contract', 'invoke', '--id', self.contract_id, '--source', self.source,
-                '--network', self.network, '--', 'claim', '--patient', patient,
+                '--network', self.network, *config, '--', 'claim', '--patient', patient,
                 '--session_id', str(batch['sessionId']), '--commitment', commitment_hex,
                 '--signature', signature_hex, '--proof-file-path', str(proof_file)]
 

@@ -7,6 +7,8 @@ const { useSingleThreadCurve, run } = require("./curve");
 
 const ROOT = path.resolve(__dirname, "..");
 const BUILD = path.join(ROOT, "build");
+// PROOF_DIR: carpeta propia de cada prueba, para que varios Publishers no se pisen.
+const OUT = process.env.PROOF_DIR ? path.resolve(process.env.PROOF_DIR) : BUILD;
 
 async function computeCommitment(batch) {
     const builder = require(path.join(BUILD, "commit_js", "witness_calculator.js"));
@@ -46,8 +48,8 @@ async function main() {
 
     const vkey = JSON.parse(fs.readFileSync(path.join(BUILD, "verification_key.json"), "utf8"));
     const valid = await snarkjs.groth16.verify(vkey, publicSignals, proof);
-    fs.writeFileSync(path.join(BUILD, "proof.json"), JSON.stringify(proof, null, 2));
-    fs.writeFileSync(path.join(BUILD, "public.json"), JSON.stringify(publicSignals, null, 2));
+    fs.writeFileSync(path.join(OUT, "proof.json"), JSON.stringify(proof, null, 2));
+    fs.writeFileSync(path.join(OUT, "public.json"), JSON.stringify(publicSignals, null, 2));
 
     const [, minValue, maxValue, minCount, sessionId] = publicSignals;
     console.log(`Compromiso: ${commitment}`);

@@ -27,8 +27,10 @@ apps/storage/python/data/
 config.env
 config.env.save
 
-# Claves privadas (se generan en local)
+# Claves privadas (se generan en local con tools/keys.sh)
 apps/verifier/signing_key.json
+keys/*
+!keys/README.md
 
 
 # Runtime databases

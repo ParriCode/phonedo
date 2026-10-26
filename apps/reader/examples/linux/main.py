@@ -26,8 +26,8 @@ COLD_CHAIN = {"deviceId": "simulated-cold-chain", "sensorId": "simulated-cold-ch
 
 
 PRESETS = {"temperature": TEMPERATURE, "pulse": PULSE, "coldchain": COLD_CHAIN}
-# Pulso y cadena de frío uno detrás de otro, un lote de 32 lecturas cada vez, sin mezclarlos.
-DEMO = {"sequence": ["pulse", "coldchain"], "readings": 32, "rounds": 1}
+# Pulso y cadena de frío uno detrás de otro, lecturas en múltiplos de 5 (un lote del Publisher) cada vez, sin mezclarlos.
+DEMO = {"sequence": ["pulse", "coldchain"], "readings": 30, "rounds": 1}
 
 
 def simulation_settings(settings):

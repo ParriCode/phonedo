@@ -1,7 +1,7 @@
 # Circuits
 
 Circuito Groth16 (BLS12-381) que demuestra que un lote de lecturas cumple una
-condición sin revelar las lecturas: al menos `minCount` de 32 valores están en
+condición sin revelar las lecturas: al menos `minCount` de 5 valores están en
 `[minValue, maxValue]`. Sirve igual para pulso en rehabilitación cardíaca o para
 temperatura en cadena de frío.
 
@@ -9,7 +9,7 @@ temperatura en cadena de frío.
 
 | Señal | Tipo | Uso |
 | --- | --- | --- |
-| `readings[32]` | privada | Lecturas del lote, enteros de 0 a 255. |
+| `readings[5]` | privada | Lecturas del lote, enteros de 0 a 255. |
 | `salt` | privada | Valor aleatorio del lote para que el compromiso no revele las lecturas. |
 | `minValue`, `maxValue` | pública | Rango permitido. |
 | `minCount` | pública | Lecturas mínimas dentro del rango. |
@@ -29,7 +29,7 @@ npm install
 npm run setup                          # compila y genera las claves en build/
 npm run prove                          # prueba inputs/session.json y la verifica
 npm run prove -- inputs/session_fail.json   # lote fuera de rango: no hay prueba
-npm run prove -- inputs/cold_chain.json     # cadena de frío: 32 de 32 lecturas entre 2 y 8 °C
+npm run prove -- inputs/cold_chain.json     # cadena de frío: 5 de 5 lecturas entre 2 y 8 °C
 npm run soroban                        # argumentos para el contrato en build/
 node scripts/sign.js <cuenta G>        # firma de desarrollo del lote
 ```

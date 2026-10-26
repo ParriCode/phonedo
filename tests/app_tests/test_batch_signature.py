@@ -13,6 +13,7 @@ import pytest
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
 ROOT = Path(__file__).resolve().parents[2]
+BATCH = 5
 ZERO_ACCOUNT = 'GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF'
 ENV = {'API_TOKEN_VERIFIER': 'verify', 'API_TOKEN_MANAGER': 'manager', 'MANAGER_PASSWORD': 'test-only-secret',
        'PHONENDO_LOGGING': 'false', 'PHONENDO_VERBOSE': 'false'}
@@ -50,6 +51,12 @@ def captured(verifier, reading, device_id='sensor-1'):
     return message
 
 
+def session_for(keys):
+    sys.path.insert(0, str(ROOT / 'apps/verifier'))
+    from verifier_support.batch_signer import session_id_for
+    return session_id_for(keys)
+
+
 def verify_batch(verifier, readings):
     keys = []
     for reading in readings:
@@ -66,22 +73,23 @@ def test_poseidon_matches_circuit_commitment():
 
     session = json.loads((ROOT / 'circuits/inputs/session.json').read_text())
     commitment = batch_commitment(session['readings'], session['salt'], session['sessionId'])
-    assert f'{commitment:064x}' == '182e03dee1287a69bf32b2cf9e0b0a433a642ea9dcc287e30100bccdb4481f2e'
+    assert f'{commitment:064x}' == '7379e4a244af326f1523c9f7f555cb6b76f1ff4b38140018e5b23bd6adc6b8d6'
 
 
 def test_verifier_signs_batch_with_its_own_readings(verifier):
     from verifier_support.poseidon import batch_commitment
 
-    readings = [100 + i for i in range(32)]
+    readings = [100 + i for i in range(BATCH)]
     keys = verify_batch(verifier, readings)
-    body = {'token': 'verify', 'sessionId': 7, 'salt': '123', 'patient': ZERO_ACCOUNT, 'eventKeys': keys,
+    session = session_for(keys)
+    body = {'token': 'verify', 'sessionId': session, 'salt': '123', 'patient': ZERO_ACCOUNT, 'eventKeys': keys,
             'verifierId': verifier.verifier_id, 'managerId': 'manager-default', 'readerId': 'reader'}
     with patch.dict(os.environ, ENV):
         response = verifier.app.test_client().post('/signBatch', json=body)
     assert response.status_code == 200
     reply = response.get_json()
-    assert reply['commitment'] == f'{batch_commitment(readings, 123, 7):064x}'
-    message = bytes.fromhex(reply['commitment']) + (7).to_bytes(32, 'big') + bytes(32) + bytes.fromhex(verifier.verifier_id)
+    assert reply['commitment'] == f'{batch_commitment(readings, 123, session):064x}'
+    message = bytes.fromhex(reply['commitment']) + session.to_bytes(32, 'big') + bytes(32) + bytes.fromhex(verifier.verifier_id)
     verifier.public_key.verify(bytes.fromhex(reply['signature']), message)
 
 
@@ -95,8 +103,8 @@ def test_event_and_batch_signatures_share_one_ed25519_key(verifier):
 
 
 def test_verifier_rejects_wrong_identity_and_cross_manager_batch(verifier):
-    keys = verify_batch(verifier, [100] * 32)
-    body = {'token': 'verify', 'sessionId': 7, 'salt': '1', 'patient': ZERO_ACCOUNT,
+    keys = verify_batch(verifier, [100] * BATCH)
+    body = {'token': 'verify', 'sessionId': session_for(keys), 'salt': '1', 'patient': ZERO_ACCOUNT,
             'eventKeys': keys, 'managerId': 'manager-default', 'readerId': 'reader',
             'verifierId': verifier.verifier_id}
     with patch.dict(os.environ, ENV):
@@ -109,18 +117,37 @@ def test_verifier_rejects_wrong_identity_and_cross_manager_batch(verifier):
         result, status = verifier.verify_message(event)
         assert status == 200
         assert result['message']['value']['managerId'] == 'manager-b'
-        assert client.post('/signBatch', json=dict(body, eventKeys=keys[:31] + [event['key']])).status_code == 422
+        mixed = keys[:BATCH - 1] + [event['key']]
+        assert client.post('/signBatch', json=dict(body, eventKeys=mixed, sessionId=session_for(mixed))).status_code == 422
 
 
 def test_verifier_rejects_unknown_events_and_bad_token(verifier):
-    keys = verify_batch(verifier, [100] * 31) + [str(uuid.uuid4())]
-    body = {'token': 'verify', 'sessionId': 7, 'salt': '1', 'patient': ZERO_ACCOUNT, 'eventKeys': keys,
+    keys = verify_batch(verifier, [100] * (BATCH - 1)) + [str(uuid.uuid4())]
+    body = {'token': 'verify', 'sessionId': session_for(keys), 'salt': '1', 'patient': ZERO_ACCOUNT, 'eventKeys': keys,
             'verifierId': verifier.verifier_id, 'managerId': 'manager-default', 'readerId': 'reader'}
     with patch.dict(os.environ, ENV):
         client = verifier.app.test_client()
         assert client.post('/signBatch', json=body).status_code == 422
-        assert client.post('/signBatch', json=dict(body, eventKeys=keys[:31] * 2)).status_code == 422
+        assert client.post('/signBatch', json=dict(body, eventKeys=keys[:BATCH - 1] * 2)).status_code == 422
         assert client.post('/signBatch', json=dict(body, token='other')).status_code == 401
+
+
+def test_session_is_derived_from_its_events_and_cannot_be_reused(verifier):
+    """Dos Publishers con los mismos datos obtienen la misma sesión: el contrato no paga dos veces."""
+    keys = verify_batch(verifier, [100] * (BATCH + 1))
+    first, shifted = keys[:BATCH], keys[1:]
+    assert session_for(first) == session_for(list(reversed(first))) != session_for(shifted)
+    body = {'token': 'verify', 'salt': '1', 'patient': ZERO_ACCOUNT, 'verifierId': verifier.verifier_id,
+            'managerId': 'manager-default', 'readerId': 'reader'}
+    with patch.dict(os.environ, ENV):
+        client = verifier.app.test_client()
+        assert client.post('/signBatch', json=dict(body, eventKeys=first, sessionId=7)).status_code == 422
+        assert client.post('/signBatch', json=dict(body, eventKeys=first, sessionId=session_for(first))).status_code == 200
+        # Reintento de la misma sesión: se vuelve a firmar.
+        assert client.post('/signBatch', json=dict(body, eventKeys=first, sessionId=session_for(first))).status_code == 200
+        # Las mismas lecturas en otra sesión (ventana desplazada): rechazado.
+        reply = client.post('/signBatch', json=dict(body, eventKeys=shifted, sessionId=session_for(shifted)))
+        assert reply.status_code == 422 and 'otra sesión' in reply.get_json()['error']
 
 
 def test_manager_forwards_sign_batch_to_verifier():
@@ -207,11 +234,12 @@ def test_signature_travels_publisher_manager_verifier(verifier):
     from publisher_support.signer import ManagerSigner
     from verifier_support.poseidon import batch_commitment
 
-    readings = [100 + i for i in range(32)]
+    readings = [100 + i for i in range(BATCH)]
     keys = verify_batch(verifier, readings)
-    batch = {'sessionId': 9, 'salt': '5', 'eventKeys': keys,
+    session = session_for(keys)
+    batch = {'sessionId': session, 'salt': '5', 'eventKeys': keys,
              'verifierId': verifier.verifier_id, 'managerId': 'manager-default', 'readerId': 'reader'}
-    commitment = f'{batch_commitment(readings, 5, 9):064x}'
+    commitment = f'{batch_commitment(readings, 5, session):064x}'
     with patch.dict(os.environ, ENV):
         manager = load('manager_chain_test', 'apps/manager/manager.py')
         manager.manager_config.manager_id = 'manager-default'
@@ -228,10 +256,11 @@ def test_signature_travels_publisher_manager_verifier(verifier):
             metadata = MagicMock(json=MagicMock(return_value={'verifierId': verifier.verifier_id}))
             with patch('requests.post', side_effect=route), patch('requests.get', return_value=metadata):
                 signature = ManagerSigner('http://manager:3003', 'manager').sign(batch, commitment, ZERO_ACCOUNT)
-                bad = dict(batch, eventKeys=keys[:31] + [str(uuid.uuid4())])
+                unknown = keys[:BATCH - 1] + [str(uuid.uuid4())]
+                bad = dict(batch, eventKeys=unknown, sessionId=session_for(unknown))
                 with pytest.raises(RuntimeError, match='422'):
                     ManagerSigner('http://manager:3003', 'manager').sign(bad, commitment, ZERO_ACCOUNT)
-            message = bytes.fromhex(commitment) + (9).to_bytes(32, 'big') + bytes(32) + bytes.fromhex(verifier.verifier_id)
+            message = bytes.fromhex(commitment) + session.to_bytes(32, 'big') + bytes(32) + bytes.fromhex(verifier.verifier_id)
             verifier.public_key.verify(bytes.fromhex(signature), message)
         finally:
             manager.core.close()

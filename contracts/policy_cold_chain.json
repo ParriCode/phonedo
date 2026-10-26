@@ -1,6 +1,6 @@
 {
     "min_value": 2,
     "max_value": 8,
-    "min_count": 32,
+    "min_count": 5,
     "payout": "1000000"
 }

@@ -12,28 +12,22 @@ Desde la raíz del proyecto, con Docker y Docker Compose instalados:
 docker compose -f deploy/docker/compose.yml up --build -d --wait
 ```
 
-El ejemplo usa credenciales de demostración y un Reader simulado (`"demo"`): 32 lecturas
-de pulso (95-120 BPM) y luego 32 de temperatura de transporte (2-8 °C). El Publisher
-consume el SSE del Manager y prepara lotes de 32.
+El ejemplo usa credenciales de demostración y un Reader simulado (`"demo"`): 30 lecturas
+de pulso (95-120 BPM) y luego 30 de temperatura de transporte (2-8 °C). El Publisher
+consume el SSE del Manager y prepara lotes de 5.
 
 ## Cobro real en testnet
 
-Prepara antes `circuits/` con `npm run setup`. El Publisher firma con una cuenta de
-Stellar cuya clave secreta recibe por entorno y que nunca entra en la imagen. Copia
-`.env.example` como `deploy/docker/.env` (ignorado por git) y completa:
+Prepara antes `circuits/` con `npm run setup` y las claves con `./tools/keys.sh init`
+(ver [keys](../../keys/README.md)). El Verifier monta solo `keys/verifiers/${VERIFIER_KEY:-dev}.json`
+y el Publisher solo `keys/stellar/identity`, los dos en solo lectura: las claves nunca
+entran en la imagen ni en `compose.yml`.
 
-```env
-STELLAR_SOURCE=phonendo
-STELLAR_SECRET_KEY=S...
-```
-
-Puedes consultar la clave de una identidad ya creada con `stellar keys show phonendo`.
-No copies la clave en `compose.yml`, `publisher.json` ni en Git.
-
-El contenedor crea el alias indicado por `STELLAR_SOURCE`, y ese valor prevalece sobre
+`STELLAR_SOURCE` (por defecto `phonendo`) elige la cartera que paga y prevalece sobre
 `stellar.source` del JSON. `deploy/docker/publisher.json` indica a qué
 contrato va cada caso: `contracts` por `verifierId` (rehabilitación) y `devices` por
-dispositivo (cadena de frío). Sin `.env` el Publisher prepara los lotes pero no cobra.
+dispositivo (cadena de frío; con `verifierId` si hay varios Verifiers). Sin cartera el
+Publisher prepara los lotes pero no cobra.
 El Reader arranca cuando el Publisher ya escucha, para que no pierda lecturas; si
 repites la demo, reinícialo: `docker compose -f deploy/docker/compose.yml restart reader`.
 
@@ -86,7 +80,7 @@ docker build -t phonendo-publisher -f apps/publisher/Dockerfile .
 
 Cada contenedor admite su `config.json` montado en `/app/<servicio>/config.json`.
 Manager necesita `MANAGER_PASSWORD` y sus tokens; Verifier necesita la misma clave
-compartida, su token y `signing_key.json` montado en `/app/verifier/signing_key.json`.
+compartida, su token y su clave de `keys/verifiers` montada en la ruta de `keyPath`.
 Storage recibe `API_TOKEN_STORAGE` y utiliza `/data/phonendo` para su base de datos.
 El Reader ejecuta el ejemplo Linux configurable con `READER_CONFIG_PATH`.
 

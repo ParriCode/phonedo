@@ -28,8 +28,6 @@ WORKDIR /app/publisher
 COPY apps/publisher/requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 COPY apps/publisher/ ./
-RUN sed -i 's/\r$//' docker-entrypoint.sh && chmod +x docker-entrypoint.sh
 
 EXPOSE 3005
-ENTRYPOINT ["./docker-entrypoint.sh"]
 CMD ["python", "publisher.py"]

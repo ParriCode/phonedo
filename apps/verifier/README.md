@@ -16,7 +16,7 @@ ed25519. Un rechazo no se publica como resultado verificado.
 | --- | --- |
 | `GET /` | Comprobar que el servicio responde. |
 | `POST /verify` | Verificar el evento enviado en `message`. |
-| `POST /signBatch` | Firmar con ed25519 un lote de 32 eventos ya verificados. |
+| `POST /signBatch` | Firmar con ed25519 un lote de 5 eventos ya verificados. |
 | `GET /stream` | Recibir eventos Verified por SSE. |
 
 El POST requiere `token` en el JSON, igual a `API_TOKEN_VERIFIER`. Devuelve
@@ -29,13 +29,18 @@ El stream requiere `Authorization: Bearer <API_TOKEN_VERIFIER>` y emite
 ## Firma del lote
 
 `POST /signBatch` recibe `token`, `sessionId`, `salt`, `patient` (cuenta G) y
-`eventKeys` (32 ids de eventos de un mismo dispositivo). Toma las lecturas
+`eventKeys` (5 ids de eventos de un mismo dispositivo). Toma las lecturas
 (`payload.simple_result`, de 0 a 255) de los eventos que este Verifier verificó y
 guarda en memoria; nunca las recibe del cliente. Calcula el commitment Poseidon
 del circuito (`verifier_support/poseidon.py`) y firma
 `commitment || sessionId || clave de la cuenta G` con la misma clave ed25519 que firma cada evento.
 Devuelve `{commitment, signature}` en hexadecimal y `422` si algún evento no es suyo
 o el lote no es válido.
+
+`sessionId` debe ser el derivado de `eventKeys` (SHA-256 de los ids ordenados, 63 bits):
+las mismas lecturas son siempre la misma sesión, así que el contrato no paga dos veces
+aunque varios Publishers pidan la firma. Un reintento de la misma sesión se vuelve a
+firmar; un evento ya firmado en otra sesión se rechaza con `422`.
 
 ## Consumo de Managers
 
@@ -68,7 +73,7 @@ El servicio carga `config.env` sin sustituir las variables ya definidas en el en
 | `VERIFIER_CONFIG_PATH` | Ruta del JSON; por defecto `config.json` junto al servicio. |
 | `MAX_EVENT_AGE_MS` | Antigüedad máxima del evento; por defecto `300000` ms. |
 | `MAX_FUTURE_DRIFT_MS` | Desfase futuro permitido; por defecto `30000` ms. |
-| `signing_key.json` | Clave ed25519 (JWK) que firma cada evento y cada lote, junto a `verifier.py`. No se versiona: `tools/generate_configs.sh` copia la de `circuits/build/verifier_dev_key.json`, que es la que conoce el contrato. Si falta, el Verifier no arranca y registra el motivo. |
+| `keyPath` (JSON) | Clave ed25519 (JWK) que firma cada evento y cada lote; por defecto `keys/verifiers/dev.json` del repo, en Docker `/keys/verifier.json`. La crea `./tools/keys.sh` y no se versiona. El Verifier no tiene cartera: solo firma. Si falta, no arranca y registra el motivo. |
 
 La configuración actual comparte clave y token entre Managers; no define
 credenciales independientes por Manager. El cálculo del hash está en

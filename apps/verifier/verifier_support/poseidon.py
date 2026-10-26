@@ -12,7 +12,8 @@ T = 5
 FULL_ROUNDS = 8
 PARTIAL_ROUNDS = 60
 PER_WORD = 30
-BATCH_SIZE = 32
+BATCH_SIZE = 5
+WORDS = 2
 
 _constants = json.loads((Path(__file__).with_name('poseidon_t5.json')).read_text(encoding='utf-8'))
 C = [int(value, 16) for value in _constants['C']]
@@ -55,7 +56,8 @@ def poseidon(inputs):
 def batch_commitment(readings, salt, session_id):
     """Poseidon(sessionId, salt, lecturas empaquetadas de 30 en 30), como el circuito."""
     if len(readings) != BATCH_SIZE or any(not 0 <= r <= 255 for r in readings):
-        raise ValueError('El lote debe tener 32 lecturas de 0 a 255')
+        raise ValueError(f'El lote debe tener {BATCH_SIZE} lecturas de 0 a 255')
     words = [sum(r * 256 ** j for j, r in enumerate(readings[w:w + PER_WORD]))
              for w in range(0, len(readings), PER_WORD)]
+    words += [0] * (WORDS - len(words))
     return poseidon([int(session_id), int(salt)] + words)

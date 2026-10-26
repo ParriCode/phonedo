@@ -2,20 +2,24 @@
 
 Cobra en Stellar las sesiones que cumplen la política, sin publicar las lecturas.
 Escucha el `/stream` del Manager, junta las lecturas Verified de cada dispositivo
-en lotes de `batchSize` (32), genera la prueba ZK con `circuits/`, firma el lote y
+en lotes de `batchSize` (5, el tamaño del circuito), genera la prueba ZK con `circuits/`, firma el lote y
 llama a `claim()` del contrato `contracts/adherence`.
 
 ## Flujo por lote
 
 1. Toma `payload.simple_result` de cada evento Verified, redondeado a un entero de 0 a 255.
-   Cada evento cuenta una vez aunque el stream lo repita.
-2. Al completar el lote asigna `sessionId` (inicio del lote en ms) y una sal aleatoria.
-3. `node scripts/prove.js` y `node scripts/soroban.js` en `circuits/` generan la prueba.
+   Cada evento cuenta una vez aunque el stream lo repita. Ignora los eventos de Verifiers
+   que no sirve (ni en `contracts` ni en un `devices` con su `verifierId`).
+2. Al completar el lote deriva `sessionId` de los ids de sus eventos (SHA-256, 63 bits) y
+   elige una sal aleatoria. El Verifier rechaza otro `sessionId`: las mismas lecturas son
+   siempre la misma sesión y el contrato no la cobra dos veces, haya los Publishers que haya.
+3. `node scripts/prove.js` y `node scripts/soroban.js` en `circuits/` generan la prueba,
+   cada lote en su carpeta (`build/publisher/`) para que varios Publishers no se pisen.
    Si el lote no cumple la política no hay prueba y no se cobra.
 4. Pide la firma ed25519 de `commitment || sessionId || cuenta G de la paciente` a
    `POST /signBatch` del Manager, que la obtiene del Verifier. Solo envía los ids de
    los eventos; si el commitment firmado no coincide con el de la prueba, no cobra.
-5. `stellar contract invoke ... -- claim` con el alias de cuenta configurado.
+5. `stellar contract invoke --config-dir keys/stellar ... -- claim` con la cartera configurada.
    Registra en el log el hash de la transacción o el motivo del fallo.
 
 ## Endpoints
@@ -37,9 +41,9 @@ llama a `claim()` del contrato `contracts/adherence`.
 | `batchSize`, `policy` | Lecturas por lote y política; debe coincidir con la guardada en el contrato. |
 | `patients` | Cuenta G que cobra por `deviceId`; `default` para el resto. |
 | `signer.manager` | Manager al que pide la firma del lote; por defecto el primero de `subscriptions.managers`. |
-| `stellar` | Alias `source` de la CLI y `network`. El contrato se selecciona con `contracts`. |
+| `stellar` | `source`: cartera de `keys/stellar/identity` que paga (`./tools/keys.sh wallet new <alias>`); `network`; `configDir` opcional (por defecto `keys/stellar`, en Docker `/keys/stellar`). El contrato se selecciona con `contracts`. |
 | `contracts` | Mapa `verifierId → contractId`; obligatorio para publicar cada Verifier. |
-| `devices` | Opcional: `deviceId → {"contractId", "policy"}` para un dispositivo con contrato y política propios. |
+| `devices` | Opcional: `deviceId → {"contractId", "policy", "verifierId"}` para un dispositivo con contrato y política propios. Sin `verifierId` vale para los Verifiers de `contracts`. |
 
 `verifierId` es su clave pública ed25519 hexadecimal, disponible en
 `GET /metadata` del Verifier. Ejemplo:
@@ -56,14 +60,14 @@ Cada contrato guarda su propia política. Para cobrar casos distintos con el mis
 Verifier, `devices` asocia un `deviceId` a su contrato y a su política, que
 sobrescribe campo a campo la global; si el dispositivo no está en `devices`, se elige
 el contrato por `verifierId` como siempre. Ejemplo con rehabilitación (global) y
-transporte refrigerado (2 a 8 °C, las 32 lecturas):
+transporte refrigerado (2 a 8 °C, las 5 lecturas):
 
 ```json
 "contracts": {"<verifierId>": "<contrato de rehabilitación>"},
 "devices": {
   "simulated-cold-chain": {
     "contractId": "<contrato de cadena de frío>",
-    "policy": {"minValue": 2, "maxValue": 8, "minCount": 32}
+    "policy": {"minValue": 2, "maxValue": 8, "minCount": 5}
   }
 }
 ```
@@ -84,10 +88,9 @@ El Publisher comprueba también la firma ed25519 antes de llamar al contrato.
 Los contratos antiguos necesitan redesplegarse: el mensaje firmado ahora añade
 los 32 bytes de `verifierId` después de `commitment || sessionId || patient`.
 
-Requiere Node.js con `circuits/` preparado (`npm install`, `npm run setup`,
-`node scripts/sign.js <cuenta G>` crea la clave de desarrollo que el Verifier usa como
-`signing_key.json`), Stellar CLI con el alias configurado y el contrato desplegado con
-la clave pública de esa clave y con esa política. Además, el Manager y el Verifier
+Requiere Node.js con `circuits/` preparado (`npm install`, `npm run setup`), las claves
+de `./tools/keys.sh init` (cartera del Publisher y clave del Verifier), Stellar CLI y el
+contrato desplegado con el `verifierId` del Verifier y con esa política. Además, el Manager y el Verifier
 deben estar en marcha con `POST /signBatch`. Con el ejemplo de Docker el
 Publisher ya se arranca automáticamente:
 
@@ -97,8 +100,8 @@ curl http://127.0.0.1:7105/info
 ```
 
 El Reader simulado de Docker (`"simulation": "demo"` en `deploy/docker/reader.json`)
-emite 32 lecturas de pulso de 95 a 120, que cumplen la política de rehabilitación
-(90-130), y después 32 de temperatura de 2 a 8 °C para la cadena de frío, que se
+emite 30 lecturas de pulso de 95 a 120, que cumplen la política de rehabilitación
+(90-130), y después 30 de temperatura de 2 a 8 °C para la cadena de frío, que se
 cobra en el contrato de `devices` de `deploy/docker/publisher.json`. Con temperaturas
 de 20 a 30 sus lotes no cumplirían y no se cobrarían.
 

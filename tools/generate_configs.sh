@@ -165,23 +165,5 @@ PHONENDO_LOGS_DIR=${PHONENDO_LOGS_DIR}"
 
 ok "Todos los config.env han sido generados"
 
-# Clave ed25519 del Verifier (firma eventos y lotes): la de desarrollo de circuits/ si existe,
-# porque es la que conoce el contrato desplegado; si no, una nueva
-KEY_FILE="$ROOT_DIR/apps/verifier/signing_key.json"
-DEV_KEY="$ROOT_DIR/circuits/build/verifier_dev_key.json"
-if [[ ! -f "$KEY_FILE" && -f "$DEV_KEY" ]]; then
-    cp "$DEV_KEY" "$KEY_FILE"
-    ok "Copiado $DEV_KEY a $KEY_FILE"
-elif [[ ! -f "$KEY_FILE" ]]; then
-    "${PYTHON_BIN:-$ROOT_DIR/.venv/bin/python}" - "$KEY_FILE" <<'EOF'
-import base64, json, sys
-from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
-
-key = Ed25519PrivateKey.generate()
-encode = lambda raw: base64.urlsafe_b64encode(raw).decode().rstrip("=")
-with open(sys.argv[1], "w", encoding="utf-8") as f:
-    json.dump({"kty": "OKP", "crv": "Ed25519", "d": encode(key.private_bytes_raw()),
-               "x": encode(key.public_key().public_bytes_raw())}, f)
-EOF
-    warn "Generado $KEY_FILE: el contrato debe desplegarse con su clave pública"
-fi
+# Claves de Verifier y carteras en keys/ (solo crea las que falten)
+"$ROOT_DIR/tools/keys.sh" init

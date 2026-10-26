@@ -130,7 +130,8 @@ def test_full_batch_from_manager_is_proved_signed_and_claimed(publisher):
 
     wait_until(lambda: publisher.claimer.claim.called)
     batch, patient, commitment, signature, _ = publisher.claimer.claim.call_args.args
-    assert batch['readings'] == [100, 101, 102, 103] and batch['sessionId'] == 42
+    assert batch['readings'] == [100, 101, 102, 103]
+    assert batch['sessionId'] == publisher.session_id_for(batch['eventKeys'])
     assert (patient, commitment, signature) == (ZERO_ACCOUNT, 'ef' * 32, 'aa' * 64)
 
 
@@ -194,6 +195,44 @@ def test_a_device_can_route_to_its_own_contract_and_policy(tmp_path):
     assert config.route_for('unknown', 'pulse-band') == (None, rehab)
 
 
+def test_devices_route_per_verifier_and_unserved_verifiers_are_ignored(tmp_path):
+    """Dos Verifiers en el mismo Manager: cada Publisher solo procesa los suyos."""
+    from publisher_support.config import PublisherConfig
+
+    path = tmp_path / 'publisher.json'
+    path.write_text(json.dumps({
+        'contracts': {'verifier-a': 'CREHAB'},
+        'devices': {'cold-device': {'verifierId': 'verifier-b', 'contractId': 'CCOLD'}}}))
+    config = PublisherConfig(path)
+    assert config.serves('verifier-a') and config.serves('verifier-b') and not config.serves('verifier-c')
+    assert config.route_for('verifier-a', 'cold-device')[0] == 'CREHAB'
+    assert config.route_for('verifier-b', 'cold-device')[0] == 'CCOLD'
+    assert config.route_for('verifier-b', 'pulse-band')[0] is None
+
+
+def test_events_of_other_verifiers_never_form_a_batch(publisher):
+    publisher.prover.prove = MagicMock()
+    for result in (100, 101, 102, 103):
+        event = verified('sensor-1', result)
+        event['value']['verifierId'] = 'verifier-b'
+        publisher.consume_manager_event(event)
+    assert publisher.batcher.pending == {}
+    publisher.prover.prove.assert_not_called()
+    assert not any('publisher_session_failed' in line for line in publisher.Logger.instance().messages)
+
+
+def test_claim_uses_the_wallets_of_keys(tmp_path):
+    from publisher_support.config import PublisherConfig
+    from publisher_support.stellar import StellarClaimer
+
+    path = tmp_path / 'publisher.json'
+    path.write_text(json.dumps({'stellar': {'source': 'phonendo'}}))
+    assert PublisherConfig(path).stellar_config_dir == ROOT / 'keys/stellar'
+    command = StellarClaimer('CCONTRACT', 'phonendo', config_dir=ROOT / 'keys/stellar').command({'sessionId': 9}, ZERO_ACCOUNT, 'ab', 'cd', Path('p.json'))
+    assert command[command.index('--config-dir') + 1] == str(ROOT / 'keys/stellar')
+    assert command.index('--config-dir') < command.index('--')
+
+
 def test_cold_chain_batch_is_proved_with_its_own_policy_and_claimed_on_its_contract(publisher):
     publisher.publisher_config.devices = {'cold-1': {'contractId': 'CCOLD', 'policy': {'minValue': 2, 'maxValue': 8, 'minCount': 4}}}
     publisher.prover.prove = MagicMock(return_value=('ef' * 32, Path('proof.json')))
@@ -215,9 +254,10 @@ def test_prover_uses_the_policy_it_is_given(tmp_path):
     (tmp_path / 'build').mkdir()
     proved = []
 
-    def fake_node(*args):
-        proved.append(json.loads((tmp_path / 'build' / 'publisher_input.json').read_text()))
-        (tmp_path / 'build' / 'soroban_args.json').write_text(json.dumps({'commitment': 'ab', 'session_id': '7', 'proof': {}}))
+    def fake_node(*args, out):
+        assert out.parent == tmp_path / 'build/publisher'
+        proved.append(json.loads((out / 'publisher_input.json').read_text()))
+        (out / 'soroban_args.json').write_text(json.dumps({'commitment': 'ab', 'session_id': '7', 'proof': {}}))
         return MagicMock(returncode=0, stderr='')
 
     prover._node = fake_node

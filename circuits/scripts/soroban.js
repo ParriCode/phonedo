@@ -4,6 +4,8 @@ const fs = require("fs");
 const path = require("path");
 
 const BUILD = path.resolve(__dirname, "..", "build");
+// Misma carpeta PROOF_DIR que prove.js; la clave de verificación sigue en build/.
+const OUT = process.env.PROOF_DIR ? path.resolve(process.env.PROOF_DIR) : BUILD;
 
 function fq(value) {
     return BigInt(value).toString(16).padStart(96, "0");
@@ -22,11 +24,11 @@ function g2([[x0, x1], [y0, y1]]) {
     return fq(x1) + fq(x0) + fq(y1) + fq(y0);
 }
 
-function read(name) {
-    return JSON.parse(fs.readFileSync(path.join(BUILD, name), "utf8"));
+function read(name, dir = OUT) {
+    return JSON.parse(fs.readFileSync(path.join(dir, name), "utf8"));
 }
 
-const vkey = read("verification_key.json");
+const vkey = read("verification_key.json", BUILD);
 const proof = read("proof.json");
 const publicSignals = read("public.json");
 
@@ -44,7 +46,7 @@ const sorobanProof = {
 };
 
 function write(name, value) {
-    fs.writeFileSync(path.join(BUILD, name), JSON.stringify(value, null, 2));
+    fs.writeFileSync(path.join(OUT, name), JSON.stringify(value, null, 2));
 }
 
 // Todo junto para los tests y por separado para pasarlo a la CLI con --*-file-path.

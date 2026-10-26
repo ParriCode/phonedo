@@ -1,5 +1,12 @@
 """Agrupa lecturas Verified por Manager, Verifier, Reader y dispositivo."""
+import hashlib
 import threading
+
+
+def session_id_for(event_keys):
+    """sessionId de 63 bits derivado de los eventos, igual que en el Verifier, que lo comprueba."""
+    digest = hashlib.sha256('\n'.join(sorted(map(str, event_keys))).encode()).digest()
+    return int.from_bytes(digest[:8], 'big') & (2 ** 63 - 1) or 1
 
 
 def reading_from_event(message):

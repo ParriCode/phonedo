@@ -100,13 +100,14 @@ Logger.init(
 
 BASE_DIR = Path(__file__).resolve().parent
 verifier_config = json.loads(Path(os.getenv("VERIFIER_CONFIG_PATH", str(BASE_DIR / "config.json"))).read_text())
-KEY_PATH = BASE_DIR / verifier_config.get('keyPath', 'signing_key.json')
+# Clave de firma en keys/verifiers/ (tools/keys.sh); en Docker se monta solo ese archivo.
+KEY_PATH = BASE_DIR / verifier_config.get('keyPath', str(BASE_DIR.parents[1] / 'keys/verifiers/dev.json'))
 
 # Una sola clave ed25519 firma cada evento y cada lote; su clave pública es la que confía el contrato
 signing_key = load_signing_key(KEY_PATH)
 if signing_key is None:
     Logger.error('verifier_key_missing', path=str(KEY_PATH), error='No se puede verificar contra el contrato sin la clave configurada')
-    raise RuntimeError(f'Falta la clave ed25519 del Verifier: {KEY_PATH}')
+    raise RuntimeError(f'Falta la clave ed25519 del Verifier: {KEY_PATH}. Créala con ./tools/keys.sh init')
 batch_signer = BatchSigner(signing_key)
 verifier_id = batch_signer.verifier_id
 

@@ -56,7 +56,7 @@ Existing services (Python, in `apps/`):
 | Manager | Coordinates the flow, computes the HMAC-SHA256 `managerHash`, retries on timeout. |
 | Verifier | Validates fields, time and hash; signs each Verified event and, on `POST /signBatch`, the batch commitment, both with one ed25519 key. |
 | Storage | Stores Verified events in LevelDB and organises its own database. Raw data stays off-chain here. |
-| Publisher | Listens only to the Manager `/stream`, batches 32 Verified readings per device, proves with `circuits/`, signs and calls `claim()` through the Stellar CLI. |
+| Publisher | Listens only to the Manager `/stream`, batches 5 Verified readings per device, proves with `circuits/`, signs and calls `claim()` through the Stellar CLI. |
 
 El Manager evita conexiones HTTP/SSE redundantes por servicio, no observaciones
 repetidas. Para Reader conserva el primer transporte seleccionado hasta reiniciar;
@@ -86,9 +86,14 @@ End-to-end flow:
 1. Sensor -> Reader -> Manager -> Verifier -> Storage (existing pipeline). Each
    observation carries `readerId` and `deviceId`; there is no device registration.
 2. Publisher (subscribed to the Manager `/stream`; it talks to no other service)
-   groups 32 Verified readings of a session and picks a random `salt`.
+   groups 5 Verified readings of a session and picks a random `salt`. It ignores
+   events of Verifiers it does not serve. `sessionId` = first 63 bits of
+   SHA-256 of the sorted `eventKeys`; the Verifier rejects any other value and
+   never signs one event in two sessions, so the same readings are always the
+   same session and the contract never pays them twice, whatever the number of
+   Publishers. Each proof is written to its own folder (`PROOF_DIR`).
 3. Publisher -> Manager `POST /signBatch` -> Verifier `POST /signBatch` with only
-   `sessionId`, `salt`, `patient` and the 32 `eventKeys`. The Verifier takes the
+   `sessionId`, `salt`, `patient` and the 5 `eventKeys`. The Verifier takes the
    readings from its own memory of events it verified (never from the caller),
    computes `Poseidon(sessionId, salt, readings)` in Python
    (`apps/verifier/verifier_support/poseidon.py`, identical to the circuit) and
@@ -97,9 +102,8 @@ End-to-end flow:
    message (128 bytes):
    `commitment (32 B, big-endian) || sessionId (32 B, big-endian) || ed25519
    public key of the patient's G account (32 B) || verifierId (32 B)`. The key is
-   `apps/verifier/signing_key.json` (gitignored JWK, copied by
-   `tools/generate_configs.sh` from `circuits/build/verifier_dev_key.json`, the
-   key the deployed contract trusts). `circuits/scripts/sign.js` is the reference
+   `keys/verifiers/<name>.json` (gitignored JWK; `dev` is the key the deployed
+   contracts trust). `circuits/scripts/sign.js` is the reference
    implementation. The Publisher never signs by itself.
 4. The Publisher rejects the signature if the returned commitment differs from
    the one in its proof.
@@ -148,8 +152,9 @@ phonedo/
 │   ├── docker/           # compose.yml and per-service JSON config
 │   └── env/              # dev.env for local runs
 ├── docs/                 # PlantUML diagrams (.plantuml + .png/.svg) and overview.md
+├── keys/                 # gitignored secrets (README only): verifiers/ signing keys, stellar/ wallets
 ├── tests/                # app_tests/, integration/, arduino_uno_test/
-└── tools/                # configs, tests and operator console (web.sh)
+└── tools/                # keys.sh, configs, tests and operator console (web.sh --regenerate-keys --rebuild)
 ```
 
 Generated folders (`circuits/build/`, `node_modules/`, `target/`, `.venv/`) are
@@ -192,8 +197,15 @@ List it in the README and the pitch.
   faucet.circle.com), issuer `GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5`.
   Get its contract id with
   `stellar contract id asset --asset USDC:<issuer> --network testnet`.
-- Accounts: use Stellar CLI key aliases (`--source <alias>`). Never write
-  secret keys or seed phrases in code, config, docs or commits.
+- Keys: everything secret lives in `keys/` (gitignored, managed by
+  `tools/keys.sh`). The Verifier has an ed25519 signing key and no wallet
+  (`keys/verifiers/<name>.json`); the Publisher has a Stellar wallet and signs
+  no data (`keys/stellar/identity/<alias>.toml`, Stellar CLI format, used with
+  `--config-dir keys/stellar --source <alias>`). Docker and the operator mount
+  only the key or wallets each container needs, read-only. Never write secret
+  keys or seed phrases in code, config, docs or commits. A secret of the
+  `phonendo` wallet was committed once (`deploy/docker/.env.example`, removed):
+  it counts as leaked.
 - The Circle faucet first gave no testnet USDC, so the first claim paid native XLM.
   USDC arrived later on 25 Oct and the USDC instance is funded (20 USDC).
   Same wasm; only the `token` argument of the deploy changes.
@@ -204,17 +216,19 @@ List it in the README and the pitch.
 | What | Value |
 | --- | --- |
 | `adherence`, paying XLM (used for the first claim) | `CAPZ2O7LPTRGJ2Q7TTHMCHOKRZ4T7KU5I4E74M2U3YUTC3XONIQDOP2D` |
-| `adherence`, paying USDC, current format (rehabilitation, 0.1 USDC per session; used by the Publisher) | `CD3ZLDTB7QKJLMAIBSCL75TRHE6IUZ27RW5FLWNB4F3GUQENZZZSM45H` |
+| `adherence`, paying USDC, 5-reading batches (rehabilitation, 4 of 5, 0.1 USDC per session; used by the Publisher) | `CCLQFKRWBLRSPLVAFWBLG22LPRGP3GEV47CGXA6C3VAGPQ2QITE3DNYL` |
+| `adherence`, paying USDC, 32-reading batches (retired: its Verifier key is not on this machine) | `CD3ZLDTB7QKJLMAIBSCL75TRHE6IUZ27RW5FLWNB4F3GUQENZZZSM45H` |
 | `adherence`, paying USDC, previous signature format (retired) | `CBF2MBQ6W4S6LD3JSIM3NNZET5KBUKOADRZSKIYZRZBAXRM6OJZCNSFI` |
 | First on-chain claim (proof + signature verified, 5 XLM paid) | `891b2fe1504a9d9c0a34146828e9caac9527a41e3d467eaecf5a994c145c0aa1` |
 | Fund the USDC contract (20 USDC) | `f791426c649045fc02dfbbf7cc69d1b6796292d53da0a4455a6499a0657dc4fa` |
 | First USDC claim (manual, 5 USDC paid) | `0ba0adb7ca42e09350f71eec15c09d252dcfacf13b6cc3672afab8017ce78033` |
 | First end-to-end USDC claim (simulated pulse Reader through the Publisher) | `2a345e9fdf594fc385107a2e1a2e973d3cb16f5274fc14e763bbe9dc0406ef47` |
-| `adherence` for cold chain (2-8 °C, USDC, same Verifier key) | `CDNPBN6HZP4PZKRFOOA2PYC772KF4THXTJNKHBS5Y33HCAVDWCVO5SRE` |
+| `adherence` for cold chain (2-8 °C, 5 of 5, USDC, same Verifier key) | `CACUZG5V45NPFFB5JSLHMTF6NHEP5GMGZ5QJKJPET4ZIRTWOW6VS2VQS` |
+| `adherence` for cold chain, 32-reading batches (retired) | `CDNPBN6HZP4PZKRFOOA2PYC772KF4THXTJNKHBS5Y33HCAVDWCVO5SRE` |
 | First cold-chain claim (simulated temperature Reader through the Publisher, 5 USDC) | `639fcfddd74ddcd1344a26cd1638ac5f66e12a7bc2f69be04da8fb7815a9efb6` |
 
-Both use policy 90-130 bpm, 28 of 32 readings, payout 5 units, and the
-development Verifier key from `circuits/build/verifier_dev_key.json`. A new
+Both trust the Verifier key `keys/verifiers/dev.json` (`d407a2…`), have admin `phonendo` and pay 0.1 USDC (rehabilitation 90-130 bpm, 4 of 5 readings; cold chain 2-8 °C, 5 of 5). Check it with `./tools/keys.sh verifier check <contract>`. The old payout was 5 units, and the
+development Verifier key `keys/verifiers/dev.json`. A new
 `npm run setup` makes new circuit keys: redeploy the contract with the new
 `soroban_vk.json` after it.
 - When unsure about Soroban/Stellar APIs, check the official docs
@@ -245,9 +259,9 @@ npm install
 npm run setup                               # compile + dev keys in build/
 npm run prove                               # proves inputs/session.json
 npm run prove -- inputs/session_fail.json   # out of range: no proof
-npm run prove -- inputs/cold_chain.json     # cold chain: 32 of 32 readings in 2-8 °C
+npm run prove -- inputs/cold_chain.json     # cold chain: 5 of 5 readings in 2-8 °C
 npm run soroban                             # build/soroban_*.json for the contract
-node scripts/sign.js <G account>            # dev signature of the batch
+node scripts/sign.js <G account>            # dev signature of the batch (VERIFIER_KEY=dev)
 ```
 
 Contract (Rust, soroban-sdk, Stellar CLI, `rustup target add wasm32v1-none`;
@@ -268,8 +282,8 @@ stellar contract invoke --id <contract_id> --source <alias> --network testnet --
   no generated artifacts. `circuits/build/`, `node_modules/`, `target/`,
   `.wasm`, `.zkey`, `.ptau` stay out of git.
 - No secrets in git: no private keys, seeds, tokens or personal paths.
-  `apps/verifier/signing_key.json` and `config.env` are gitignored and generated
-  by `tools/generate_configs.sh`; the old RSA `keys.json` (removed) was in git
+  `keys/` and `config.env` are gitignored and generated by `tools/keys.sh` and
+  `tools/generate_configs.sh`; the old RSA `keys.json` (removed) was in git
   history, so it counts as leaked. Never commit files like them.
 - Match the existing style. Code comments, READMEs and user-facing messages are
   in **Spanish**; keep them short. Follow each service's current structure.

@@ -21,7 +21,8 @@ services:
       MANAGER_PASSWORD: demo-shared-secret
     volumes:
       - ./verifier.json:/app/verifier/config.json:ro
-      - ../../circuits:/circuits:ro
+      # Solo su clave de firma (./tools/keys.sh init); VERIFIER_KEY elige otra de keys/verifiers.
+      - ../../keys/verifiers/${VERIFIER_KEY:-dev}.json:/keys/verifier.json:ro
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5000/', timeout=2)"]
       interval: 3s
@@ -66,10 +67,11 @@ services:
     environment:
       API_TOKEN_MANAGER: demo-manager
       PHONENDO_VERBOSE: "true"
-      STELLAR_SECRET_KEY: ${STELLAR_SECRET_KEY:-}
       STELLAR_SOURCE: ${STELLAR_SOURCE:-phonendo}
     volumes:
       - ./publisher.json:/app/publisher/config.json:ro
+      # Solo las carteras (formato de la Stellar CLI); la del alias STELLAR_SOURCE paga el claim.
+      - ../../keys/stellar/identity:/keys/stellar/identity:ro
       - ../../circuits:/circuits
       - publisher-node-modules:/circuits/node_modules
     depends_on:

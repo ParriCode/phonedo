@@ -4,6 +4,8 @@ import os
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parents[1]
+# Carteras en keys/stellar (tools/keys.sh); en Docker se monta en /keys/stellar.
+KEYS_DIR = BASE_DIR.parents[1] / 'keys/stellar'
 
 
 class PublisherConfig:
@@ -14,7 +16,7 @@ class PublisherConfig:
         self.host = server.get('host', '0.0.0.0')
         self.port = int(os.getenv('PORT_PUBLISHER', server.get('port', 5000)))
         self.manager_subscriptions = data.get('subscriptions', {}).get('managers', [])
-        self.batch_size = int(data.get('batchSize', 32))
+        self.batch_size = int(data.get('batchSize', 5))
         policy = data.get('policy', {})
         self.policy = {
             'minValue': int(policy.get('minValue', 90)),
@@ -31,6 +33,7 @@ class PublisherConfig:
         source = os.getenv('STELLAR_SOURCE') or os.getenv('PUBLISHER_STELLAR_SOURCE')
         if source:
             self.stellar['source'] = source
+        self.stellar_config_dir = Path(os.getenv('STELLAR_CONFIG_DIR') or self.stellar.get('configDir') or KEYS_DIR)
 
     def patient_for(self, device_id):
         return self.patients.get(device_id) or self.patients.get('default')
@@ -38,10 +41,14 @@ class PublisherConfig:
     def contract_for(self, verifier_id):
         return self.contracts.get(verifier_id)
 
+    def serves(self, verifier_id):
+        """Verifiers cuyos lotes procesa: los de `contracts` y los asignados a un dispositivo."""
+        return verifier_id in self.contracts or any(device.get('verifierId') == verifier_id for device in self.devices.values())
+
     def route_for(self, verifier_id, device_id):
-        """Contrato y política de un lote: manda la entrada del dispositivo; si no, la de su Verifier."""
+        """Contrato y política de un lote: manda la entrada del dispositivo si es de este Verifier; si no, la del Verifier."""
         device = self.devices.get(device_id)
-        if not device:
+        if not device or device.get('verifierId', verifier_id) != verifier_id or not self.serves(verifier_id):
             return self.contract_for(verifier_id), dict(self.policy)
         override = device.get('policy', {})
         return device.get('contractId'), {key: int(override.get(key, value)) for key, value in self.policy.items()}

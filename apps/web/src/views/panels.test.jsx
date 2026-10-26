@@ -92,7 +92,7 @@ describe('panel de rehabilitación', () => {
     await waitFor(() => expect(container.querySelectorAll('tbody tr')).toHaveLength(1));
   });
 
-  it('dibuja el aro de la sesión con las 32 lecturas', () => {
+  it('dibuja el aro de la sesión con las lecturas del lote', () => {
     mockFetch();
     const { container } = renderPanel(<PatientView />);
     expect(container.querySelectorAll('.ring line')).toHaveLength(CONFIG.policy.batch);
