@@ -1,13 +1,14 @@
 # Web de Phonendo
 
-React 19 + Vite. Cuatro páginas independientes, sin enlaces entre los paneles:
+React 19 + Vite. Cinco páginas independientes. Solo la consola del operador enlaza con el panel de empresa:
 
 | Página | Entrada | Contenido |
 | --- | --- | --- |
 | `index.html` | `src/pages/home.jsx` | Portada: consola y casos de uso |
 | `operator.html` | `src/pages/operator.jsx` | Consola del operador: lienzo, logs, Docker y contratos |
-| `patient.html` | `src/pages/patient.jsx` | Pagos recibidos por una cuenta Stellar |
-| `insurer.html` | `src/pages/insurer.jsx` | Pagos realizados por el contrato |
+| `patient.html` | `src/pages/patient.jsx` | Rehabilitación cardíaca: pagos recibidos por una cuenta Stellar |
+| `coldchain.html` | `src/pages/coldchain.jsx` | Cadena de frío: pagos por envío, termómetro y hielo |
+| `company.html` | `src/pages/company.jsx` | Empresa que paga: total, desglose por caso de uso y pagos verificados |
 
 ## Uso
 
@@ -20,7 +21,7 @@ npm test           # lógica del lienzo (node --test) y componentes (Vitest + js
 npm run dev        # desarrollo con recarga; /api/local va a tools/web.sh (WEB_PORT, 8080)
 ```
 
-`./tools/web.sh` compila la web y sirve `dist/` junto a la API local del operador.
+`./tools/web.sh` (Bash; en Windows, con WSL) compila la web y sirve `dist/` junto a la API local del operador.
 El inspector usa formularios React Visual/JSON sincronizados. Reader aplica en
 directo; los otros contenedores gestionados reinician al guardar. Los borradores
 permanecen en memoria al cambiar de nodo; servicios externos solo generan archivos.

@@ -72,7 +72,8 @@ sesión, el resultado y el pago. Nunca lecturas ni datos personales.
 
 ## Despliegues en testnet
 
-Política: de 90 a 130 pulsaciones, al menos 28 lecturas de 32, pago de 5 unidades.
+Política de rehabilitación: de 90 a 130 pulsaciones, al menos 28 lecturas de 32. Los primeros
+cobros pagaron 5 unidades; ahora cada sesión paga 0,1 USDC para poder repetir la demo.
 
 | Qué | Dato |
 | --- | --- |
@@ -86,6 +87,8 @@ Política: de 90 a 130 pulsaciones, al menos 28 lecturas de 32, pago de 5 unidad
 | Cobro de extremo a extremo: Reader simulado de pulso → Manager → Verifier → Publisher → `claim()`, 5 USDC | [`2a345e9f…06ef47`](https://stellar.expert/explorer/testnet/tx/2a345e9fdf594fc385107a2e1a2e973d3cb16f5274fc14e763bbe9dc0406ef47) |
 | Contrato `adherence` de cadena de frío (2–8 °C, paga USDC) | [`CDNPBN6HZP4PZKRFOOA2PYC772KF4THXTJNKHBS5Y33HCAVDWCVO5SRE`](https://stellar.expert/explorer/testnet/contract/CDNPBN6HZP4PZKRFOOA2PYC772KF4THXTJNKHBS5Y33HCAVDWCVO5SRE) |
 | Cobro de cadena de frío: Reader simulado de temperatura → Publisher → `claim()`, 5 USDC | [`639fcfdd…a9efb6`](https://stellar.expert/explorer/testnet/tx/639fcfddd74ddcd1344a26cd1638ac5f66e12a7bc2f69be04da8fb7815a9efb6) |
+| Demo secuencial en Docker, rehabilitación: pulso simulado → `claim()`, 0,1 USDC | [`084d4e82…bb1ed`](https://stellar.expert/explorer/testnet/tx/084d4e8223cb1a2db2d040920c59b19aa10968352815839e4134836f70fbb1ed) |
+| Demo secuencial en Docker, cadena de frío: temperatura simulada → `claim()`, 0,1 USDC | [`a9466f1e…a986`](https://stellar.expert/explorer/testnet/tx/a9466f1ea47b3f0662322988721a5da954487cb31be31bb9d64fae266e90a986) |
 | Emisor de USDC en testnet | `GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5` |
 
 ## Servicios
@@ -168,6 +171,22 @@ política que `apps/publisher/config.json`. El Reader simulado de Docker emite p
 95 a 120 y luego temperatura de 2 a 8 °C (`"simulation": "demo"` en `deploy/docker/reader.json`), cada caso con su contrato y su política. Con un sensor real
 se sustituye por el Reader del sensor.
 
+## Variables de entorno
+
+| Variable | Dónde | Uso |
+| --- | --- | --- |
+| `STELLAR_SECRET_KEY` | `deploy/docker/.env` (no se versiona) | Clave secreta (`S…`) de la cuenta que firma el `claim()` y paga sus comisiones. Sin ella el Publisher prepara los lotes pero no cobra. |
+| `STELLAR_SOURCE` | `deploy/docker/.env` o entorno | Alias de esa cuenta dentro del contenedor; por defecto el de `compose.yml`. |
+| `API_TOKEN_MANAGER`, `API_TOKEN_VERIFIER`, `API_TOKEN_STORAGE` | `compose.yml`, `deploy/env/dev.env` | Tokens entre servicios. Los de la demo son de demostración: cámbialos en otro despliegue. |
+| `READER_PORT`, `MANAGER_PORT`, `VERIFIER_PORT`, `STORAGE_PORT`, `PUBLISHER_PORT` | entorno | Puertos publicados por Docker (7101 a 7105 por defecto). |
+| `WEB_PORT`, `PUBLISHER_CONFIG_PATH` | entorno | Puerto del panel local (8080) y JSON del Publisher que usa. |
+
+El archivo `.env` se crea así (más detalles en [Docker](deploy/docker/README.md)):
+
+```sh
+echo "STELLAR_SECRET_KEY=$(stellar keys show <alias>)" > deploy/docker/.env
+```
+
 ## Seguridad y límites
 
 - Se confía en el Verifier de Phonendo y en el sensor: la firma del Verifier dice que
@@ -177,6 +196,8 @@ se sustituye por el Reader del sensor.
   participante y solo vale para desarrollo. En producción sería multiparte.
 - El circuito usa Poseidon con las constantes de BN254 sobre el campo de BLS12-381.
   Funciona y está probado contra el circuito, pero no son los parámetros estándar.
+- El circuito comprueba el valor de cada lectura y cuántas caen en el rango, pero no el
+  tiempo entre lecturas: 32 lecturas tomadas en pocos segundos cuentan como una sesión.
 - El Publisher guarda los lotes en memoria: si se detiene, pierde el lote en curso y
   no reintenta los cobros.
 - El contrato está en testnet y no está auditado.
@@ -203,7 +224,8 @@ código de Stellar, pruebas ZK ni pagos.
 2. Varios Verifiers y ceremonia de claves multiparte.
 3. Anclar en la cadena la huella de todos los datos verificados, con el dato cifrado
    en Storage.
-4. Registro de consentimiento: el paciente concede o retira el acceso a su dato y el
+4. Comprobar en el circuito el tiempo entre lecturas, para que una sesión dure lo debido.
+5. Registro de consentimiento: el paciente concede o retira el acceso a su dato y el
    contrato lo comprueba antes de que Storage lo entregue.
 
 ## Laboratorio con interfaz
@@ -230,21 +252,31 @@ tiene un servidor HTTP concreto para estas consultas.
 
 [`apps/web`](apps/web/README.md) es una web React compilada con Vite (Node.js 20 o
 superior). `npm run build` genera en `apps/web/dist` páginas estáticas que se publican
-tal cual en cualquier hosting estático (GitHub Pages, Netlify, Vercel). `index.html`
-solo explica el flujo y lleva a tres paneles, cada uno en su propia página y sin
-enlaces entre ellos (pensados para desplegarse por separado):
+tal cual en cualquier hosting estático (GitHub Pages, Netlify, Vercel).
+
+`index.html` es la portada y lleva a las demás páginas, cada una independiente (pensadas
+para desplegarse por separado):
 
 - [`operator.html`](apps/web/operator.html): consola del operador. Mapa de Readers,
   Managers, Verifiers, Storages y Publishers por organización, comprobación de si
   responden y descarga de su configuración JSON (mismo formato que `deploy/docker/*.json`).
-- [`patient.html`](apps/web/patient.html): pagos recibidos por una cuenta Stellar.
-- [`insurer.html`](apps/web/insurer.html): pagos realizados por el contrato.
+  Su barra superior tiene el botón «Empresas».
+- [`patient.html`](apps/web/patient.html): rehabilitación cardíaca. Pagos recibidos por
+  una cuenta Stellar, con un electrocardiograma de fondo que reacciona a cada clic.
+- [`coldchain.html`](apps/web/coldchain.html): transporte en cadena de frío. Pagos por
+  envío, termómetro y hielo en las esquinas que se congelan al pulsar.
+- [`company.html`](apps/web/company.html): panel de la empresa que paga, el mismo para
+  todos los casos de uso. Total pagado, desglose por caso de uso con su regla de pago
+  y los pagos verificados con su transacción. Se abre desde el botón «Empresas».
 
 Arranque local sin Docker:
 
 ```sh
 ./tools/web.sh
 ```
+
+`tools/web.sh` es un script de Bash: en Windows ejecútalo con WSL. Los paneles de pagos
+no lo necesitan y funcionan también con `npm run dev` o `npm run build` en `apps/web`.
 
 El operador ofrece un canvas libre con drag & drop, zoom/pan, Auto layout y
 Fit view. La arquitectura de la web (providers y consumers de React) está en
@@ -272,12 +304,6 @@ de control escucha solo en loopback y exige el mismo origen para las acciones.
 Servicios externos: logs consultados cada 3 segundos; la edición requiere una API
 propia y no está habilitada. SSE exige configurar la suscripción en el Manager.
 El recorrido visual confirma únicamente pasos observados, sin simular pagos.
-
-## Panel de observación
-
-El [frontend del panel de observación](apps/control/frontend/README.md) permite
-explorar un mapa de servicios con ejemplos simulados, sin arrancar el pipeline.
-Está construido con Leptos y su conexión con la API del panel está pendiente.
 
 ## Pruebas
 
