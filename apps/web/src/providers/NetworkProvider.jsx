@@ -1,26 +1,14 @@
-import { createContext, useContext, useEffect, useMemo, useState } from 'react';
-import { DEMO_NETWORK, KINDS, STORE_KEY } from '../config.js';
-import { storageGet, storageSet } from '../lib/storage.js';
+import { createContext, useContext, useMemo, useState } from 'react';
 import { useStateRef } from '../lib/useStateRef.js';
 
 const NetworkContext = createContext(null);
 
-function loadNetwork() {
-  try {
-    const saved = JSON.parse(storageGet(STORE_KEY));
-    if (Array.isArray(saved) && saved.every((n) => KINDS.includes(n.kind))) return saved;
-  } catch { /* red guardada no válida */ }
-  return structuredClone(DEMO_NETWORK);
-}
-
-/** Servicios del despliegue, su estado de acceso y lo seleccionado (un nodo o una conexión). La red se guarda en el navegador. */
+/** Solo los contenedores Docker observados; la disposición del lienzo se guarda aparte. */
 export function NetworkProvider({ children }) {
-  const [network, setNetwork, networkRef] = useStateRef(loadNetwork);
+  const [network, setNetwork, networkRef] = useStateRef([]);
   const [status, setStatusMap, statusRef] = useStateRef({});
   const [selected, setSelected] = useState(null);
   const [selectedEdge, setSelectedEdge] = useState(null);
-
-  useEffect(() => { storageSet(STORE_KEY, JSON.stringify(network)); }, [network]);
 
   const actions = useMemo(() => ({
     setNetwork,

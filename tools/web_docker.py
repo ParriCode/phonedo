@@ -1,10 +1,12 @@
 """Contenedores del operador: imágenes configurables y recursos etiquetados."""
 import asyncio
 import copy
+import hashlib
 import json
 import os
 import re
 import secrets
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -87,6 +89,152 @@ class DockerController:
             raise ValueError('Contenedor no gestionado por este panel')
         return self.records[identifier]
 
+    async def compose_snapshot(self, identifier):
+        if not identifier.startswith('compose-') or identifier[8:] not in PORTS:
+            raise ValueError('Contenedor no gestionado por este panel')
+        kind = identifier[8:]
+        names = await self.run('ps', '-a', '--filter', 'label=com.docker.compose.project=phonendo',
+                               '--filter', 'label=com.docker.compose.service=' + kind, '--format', '{{.ID}}')
+        if not names:
+            raise ValueError('Contenedor Compose no encontrado')
+        info = json.loads(await self.run('inspect', names.splitlines()[0]))[0]
+        labels = info.get('Config', {}).get('Labels', {}) or {}
+        if labels.get('com.docker.compose.project') != 'phonendo' or labels.get('com.docker.compose.service') != kind:
+            raise ValueError('El contenedor no pertenece al proyecto Phonendo')
+        ports = info.get('NetworkSettings', {}).get('Ports') or {}
+        binding = next((item[0] for item in ports.values() if item), None)
+        url = 'http://127.0.0.1:' + binding['HostPort'] if binding else ''
+        config = {}
+        config_root = (ROOT / 'deploy/docker').resolve()
+        for mount in info.get('Mounts', []):
+            source = Path(mount.get('Source', '')).resolve()
+            if (mount.get('Destination') == f'/app/{kind}/config.json'
+                    and source.is_file() and source.is_relative_to(config_root)):
+                config = redact(json.loads(source.read_text()))
+                break
+        return {'id': identifier, 'kind': kind, 'name': info['Name'].lstrip('/'),
+                'container': info['Id'], 'image': info['Config']['Image'], 'url': url,
+                'dockerUrl': f'http://{kind}:{PORTS[kind]}', 'state': info['State']['Status'],
+                'serviceConfig': config, 'environment': {}, 'devices': [], 'events': [], 'compose': True}
+
+    async def compose_snapshots(self):
+        await self.run('info', '--format', '{{.ServerVersion}}')
+        result = []
+        for kind in PORTS:
+            try:
+                result.append(await self.compose_snapshot('compose-' + kind))
+            except ValueError:
+                continue
+        return result
+
+    async def connection_action(self, body, progress=lambda _: None):
+        source_id, target_id = body.get('sourceId'), body.get('targetId')
+        transport = body.get('transport')
+        if transport not in ('http', 'sse', None):
+            raise ValueError('Transporte desconocido')
+        async with self.lock:
+            source = await self.snapshot(source_id)
+            target = await self.snapshot(target_id)
+            pair = (source['kind'], target['kind'])
+            if pair not in (('reader', 'manager'), ('manager', 'verifier'), ('manager', 'storage'), ('manager', 'publisher')):
+                raise ValueError('Estos servicios no admiten una conexión directa')
+            if pair == ('manager', 'publisher') and transport == 'http':
+                raise ValueError('Publisher solo admite Stream desde Manager')
+
+            def config_path(snapshot):
+                if snapshot.get('compose'):
+                    path = ROOT / 'deploy/docker' / (snapshot['kind'] + '.json')
+                    # El archivo ha de ser exactamente el volumen montado en este contenedor.
+                    return path.resolve()
+                return self.directory / snapshot['id'] / 'config/config.json'
+
+            changed = {}
+            for snapshot in (source, target):
+                path = config_path(snapshot)
+                if snapshot.get('compose'):
+                    info = json.loads(await self.run('inspect', snapshot['container']))[0]
+                    mounted = any(Path(item.get('Source', '')).resolve() == path and
+                                  item.get('Destination') == f"/app/{snapshot['kind']}/config.json"
+                                  for item in info.get('Mounts', []))
+                    if not mounted or not path.is_relative_to((ROOT / 'deploy/docker').resolve()):
+                        raise ValueError('No se puede editar la configuración de este contenedor Compose')
+                changed[snapshot['id']] = (snapshot, path, json.loads(path.read_text()))
+
+            source_config = changed[source_id][2]
+            target_config = changed[target_id][2]
+            def replace_target(config, section, key, url, item=None):
+                values = config.setdefault(section, {}).setdefault(key, [])
+                values[:] = [value for value in values if (value.get('url') if isinstance(value, dict) else value) != url]
+                if item is not None:
+                    values.append(item)
+
+            if pair == ('reader', 'manager'):
+                reader, manager = source_config, target_config
+                reader_url, manager_url = source['dockerUrl'], target['dockerUrl']
+                manager_info = json.loads(await self.run('inspect', target['container']))[0]
+                manager_token = next((value.split('=', 1)[1] for value in manager_info['Config'].get('Env', [])
+                                      if value.startswith('API_TOKEN_MANAGER=')), '')
+                replace_target(reader, 'services', 'managers', manager_url,
+                               {'url': manager_url, 'token': manager_token} if transport == 'http' else None)
+                reader_token = reader.get('webSettings', {}).get('token') or reader.get('server', {}).get('token', '')
+                replace_target(manager, 'subscriptions', 'readers', reader_url,
+                               {'url': reader_url, 'token': reader_token} if transport == 'sse' and reader_token else reader_url if transport == 'sse' else None)
+                if transport == 'sse':
+                    reader.setdefault('stream', {})['enabled'] = True
+            elif pair[1] in ('verifier', 'storage'):
+                manager, peer = source_config, target_config
+                key = 'verifiers' if pair[1] == 'verifier' else 'storages'
+                replace_target(manager, 'services', key, target['dockerUrl'], target['dockerUrl'] if transport == 'http' else None)
+                replace_target(manager, 'subscriptions', key, target['dockerUrl'], target['dockerUrl'] if transport == 'sse' else None)
+                replace_target(peer, 'subscriptions', 'managers', source['dockerUrl'], source['dockerUrl'] if transport == 'sse' else None)
+                if transport == 'sse':
+                    peer.setdefault('server', {})['publicUrl'] = target['dockerUrl']
+                    manager.setdefault('outputStreams', {})[key] = True
+            else:
+                replace_target(target_config, 'subscriptions', 'managers', source['dockerUrl'],
+                               source['dockerUrl'] if transport == 'sse' else None)
+
+            old = {identifier: path.read_bytes() for identifier, (_, path, _) in changed.items()}
+            modes = {identifier: path.stat().st_mode & 0o777 for identifier, (_, path, _) in changed.items()}
+            try:
+                for identifier, (snapshot, path, config) in changed.items():
+                    if snapshot.get('compose'):
+                        # Compose monta el archivo, así que se conserva su inode.
+                        path.write_text(json.dumps(config, indent=2))
+                    else:
+                        save_json(path, config)
+                    path.chmod(modes[identifier])
+                for snapshot, _, _ in changed.values():
+                    progress('Reiniciando ' + snapshot['name'])
+                    await self.run('restart', snapshot['container'], timeout=90)
+            except Exception:
+                for identifier, (_, path, _) in changed.items():
+                    path.write_bytes(old[identifier])
+                    path.chmod(modes[identifier])
+                for snapshot, _, _ in changed.values():
+                    try:
+                        await self.run('restart', snapshot['container'], timeout=90)
+                    except ValueError:
+                        pass
+                raise
+            return {'sourceId': source_id, 'targetId': target_id, 'transport': transport}
+
+    async def image_snapshots(self):
+        await self.run('info', '--format', '{{.ServerVersion}}')
+        output = await self.run('image', 'ls', '--format', '{{.Repository}}:{{.Tag}}')
+        images = []
+        for image in output.splitlines():
+            match = re.fullmatch(r'phonendo-(web-)?(reader|manager|verifier|storage|publisher):([a-zA-Z0-9._-]+)', image)
+            if not match:
+                continue
+            source = 'panel' if match[1] else 'compose'
+            if source == 'panel' and image != f'phonendo-web-{match[2]}:local':
+                continue
+            images.append({'id': 'image-' + hashlib.sha256(image.encode()).hexdigest()[:12],
+                           'kind': match[2], 'name': image, 'image': image,
+                           'imageSource': source, 'imageOnly': True, 'state': 'image'})
+        return images
+
     async def inspect(self, record):
         info = json.loads(await self.run('inspect', record['container']))[0]
         labels = info.get('Config', {}).get('Labels', {}) or {}
@@ -103,6 +251,53 @@ class DockerController:
             info = json.loads(await self.run('network', 'inspect', NETWORK))[0]
             if (info.get('Labels') or {}).get('phonendo.web.managed') != 'true':
                 raise ValueError('Ya existe una red phonendo-web ajena al panel')
+
+    async def image_action(self, kind, action, progress=lambda _: None, source='panel', reference=None):
+        if kind not in PORTS:
+            raise ValueError('Tipo de servicio desconocido')
+        if source == 'compose':
+            async with self.lock:
+                if action == 'build':
+                    progress('Construyendo imagen Docker Compose')
+                    await self.run('compose', '-f', ROOT / 'deploy/docker/compose.yml', 'build', kind, timeout=900)
+                    return {'image': f'phonendo-{kind}', 'built': True}
+                if action == 'remove':
+                    if not isinstance(reference, str) or not re.fullmatch(r'phonendo-' + kind + r':[a-zA-Z0-9._-]+', reference):
+                        raise ValueError('Imagen Compose no permitida')
+                    await self.run('image', 'inspect', reference)
+                    await self.run('image', 'rm', reference)
+                    return {'image': reference, 'removed': True}
+                raise ValueError('Acción de imagen desconocida')
+        image = f'phonendo-web-{kind}:local'
+        async with self.lock:
+            if action == 'build':
+                await self.run('info', '--format', '{{.ServerVersion}}')
+                try:
+                    existing = json.loads(await self.run('image', 'inspect', image))[0]
+                except ValueError:
+                    existing = None
+                if existing:
+                    labels = existing.get('Config', {}).get('Labels', {}) or {}
+                    owned = labels.get('phonendo.web.managed') == 'true' and labels.get('phonendo.web.kind') == kind
+                    legacy = any(record['kind'] == kind and record['image'] == image for record in self.records.values())
+                    if not owned and not legacy:
+                        raise ValueError('El tag de imagen ya existe y no pertenece a este panel')
+                progress('Construyendo imagen Docker')
+                args = ['build', '--label', 'phonendo.web.managed=true', '--label', 'phonendo.web.kind=' + kind, '-t', image]
+                if kind == 'publisher':
+                    args.extend(['-f', ROOT / 'apps/publisher/Dockerfile', ROOT])
+                else:
+                    args.append(ROOT / 'apps' / kind)
+                await self.run(*args, timeout=900)
+                return {'image': image, 'built': True}
+            if action == 'remove':
+                info = json.loads(await self.run('image', 'inspect', image))[0]
+                labels = info.get('Config', {}).get('Labels', {}) or {}
+                if labels.get('phonendo.web.managed') != 'true' or labels.get('phonendo.web.kind') != kind:
+                    raise ValueError('La imagen no fue construida por este panel')
+                await self.run('image', 'rm', image)
+                return {'image': image, 'removed': True}
+            raise ValueError('Acción de imagen desconocida')
 
     async def deploy(self, body, progress=lambda _: None):
         async with self.lock:
@@ -167,9 +362,9 @@ class DockerController:
             progress('Preparando imagen Docker')
             if body.get('build', False):
                 if kind == 'publisher':
-                    await self.run('build', '-t', image, '-f', ROOT / 'apps/publisher/Dockerfile', ROOT, timeout=900)
+                    await self.run('build', '--label', 'phonendo.web.managed=true', '--label', 'phonendo.web.kind=' + kind, '-t', image, '-f', ROOT / 'apps/publisher/Dockerfile', ROOT, timeout=900)
                 else:
-                    await self.run('build', '-t', image, ROOT / 'apps' / kind, timeout=900)
+                    await self.run('build', '--label', 'phonendo.web.managed=true', '--label', 'phonendo.web.kind=' + kind, '-t', image, ROOT / 'apps' / kind, timeout=900)
             else:
                 try:
                     await self.run('image', 'inspect', image)
@@ -179,6 +374,20 @@ class DockerController:
             folder = self.directory / identifier
             folder.mkdir(mode=0o700)
             (folder / 'data').mkdir(mode=0o700)
+            if kind == 'verifier':
+                # Los contratos de testnet confían en la clave de desarrollo de circuits/build.
+                test_key = ROOT / 'circuits/build/verifier_dev_key.json'
+                target_key = folder / 'data/signing-key.json'
+                if not test_key.is_file():
+                    raise ValueError('Falta circuits/build/verifier_dev_key.json; prepara la clave de prueba antes de desplegar el Verifier')
+                if target_key.is_file():
+                    existing = json.loads(target_key.read_text())
+                    expected = json.loads(test_key.read_text())
+                    if existing.get('x') != expected.get('x'):
+                        raise ValueError('El Verifier tiene una clave distinta de la que usa el contrato de prueba')
+                else:
+                    shutil.copyfile(test_key, target_key)
+                    target_key.chmod(0o600)
             control = secrets.token_hex(32)
             record = {'id': identifier, 'kind': kind, 'name': alias, 'container': f'phonendo-web-{identifier}',
                       'image': image, 'containerPort': internal, 'config': config,
@@ -263,6 +472,8 @@ class DockerController:
             return await response.json()
 
     async def snapshot(self, identifier, require_ready=False):
+        if identifier.startswith('compose-'):
+            return await self.compose_snapshot(identifier)
         record = self.record(identifier)
         info = await self.inspect(record)
         result = {'id': identifier, 'kind': record['kind'], 'name': record['name'],
@@ -287,6 +498,9 @@ class DockerController:
         return result
 
     async def logs(self, identifier):
+        if identifier.startswith('compose-'):
+            snapshot = await self.compose_snapshot(identifier)
+            return (await self.run('logs', '--tail', '150', snapshot['container'])).splitlines()
         record = self.record(identifier)
         await self.inspect(record)
         output = await self.run('logs', '--tail', '150', record['container'])
@@ -309,6 +523,43 @@ class DockerController:
 
     async def action(self, identifier, body):
         async with self.lock:
+            if identifier.startswith('compose-'):
+                snapshot = await self.compose_snapshot(identifier)
+                action = body['action']
+                if action in ('start', 'stop', 'restart'):
+                    args = ['stop', '--time', '5'] if action == 'stop' else [action]
+                    await self.run(*args, snapshot['container'], timeout=60)
+                    return await self.compose_snapshot(identifier)
+                if action == 'remove':
+                    await self.run('rm', '-f', snapshot['container'])
+                    return {'removed': True, 'dataRetained': True}
+                if action == 'config':
+                    kind = snapshot['kind']
+                    path = (ROOT / 'deploy/docker' / f'{kind}.json').resolve()
+                    info = json.loads(await self.run('inspect', snapshot['container']))[0]
+                    mounted = any(Path(item.get('Source', '')).resolve() == path and
+                                  item.get('Destination') == f'/app/{kind}/config.json'
+                                  for item in info.get('Mounts', []))
+                    if not mounted or not path.is_file() or not path.is_relative_to((ROOT / 'deploy/docker').resolve()):
+                        raise ValueError('No se puede editar la configuración de este contenedor Compose')
+                    previous = json.loads(path.read_text())
+                    config = restore(body['config'], previous)
+                    if not isinstance(config, dict):
+                        raise ValueError('La configuración debe ser un objeto JSON')
+                    config.setdefault('server', {}).update(host='0.0.0.0', port=PORTS[kind])
+                    if kind == 'verifier':
+                        config['keyPath'] = '/data/signing-key.json'
+                    if kind == 'publisher':
+                        config['circuitsPath'] = '/circuits'
+                    # El volumen bind necesita conservar el mismo inodo.
+                    path.write_text(json.dumps(config, indent=2) + '\n')
+                    try:
+                        await self.run('restart', snapshot['container'], timeout=60)
+                    except Exception:
+                        path.write_text(json.dumps(previous, indent=2) + '\n')
+                        raise
+                    return await self.compose_snapshot(identifier)
+                raise ValueError('Acción Docker desconocida')
             record = self.record(identifier)
             await self.inspect(record)
             action = body['action']

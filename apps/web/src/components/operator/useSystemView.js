@@ -10,12 +10,12 @@ const PROBLEM_LEVELS = new Set(['warning', 'error', 'critical']);
 /** Une topología, sondeo, actividad y Stellar en un modelo listo para pintar. */
 export function useSystemView() {
   const { network, status } = useNetwork();
-  const { readers, logs, errors, active, checkedAt } = useOperator();
+  const { readers, connections, logs, errors, active, checkedAt } = useOperator();
   const payments = usePayments();
   return useMemo(() => {
     const now = Date.now();
     const chainStatus = payments.net === 'live' ? 'up' : payments.net === 'error' ? 'down' : 'checking';
-    const model = networkModel({ services: network, statuses: status, readers, contracts: CONFIG.contracts, rpc: CONFIG.rpc, chainStatus });
+    const model = networkModel({ services: network, statuses: status, readers, links: connections, contracts: [], rpc: CONFIG.rpc, chainStatus });
     const health = {};
     const activity = {};
     const problems = {};
@@ -31,7 +31,7 @@ export function useSystemView() {
       activity[node.id] = { perMinute: recent.length, receiving: now - (active[node.id] || 0) < 6_000, payments: payments.events.length };
       if (down) problems[node.id] = { level: 'error', log: { message: errors[node.id] || 'Servicio no disponible' } };
       else if (recentProblem) problems[node.id] = { level: recentProblem.level, log: recentProblem };
-      stream[node.id] = node.kind === 'reader' ? Boolean(readers[node.id]?.config?.streamEnabled) : node.kind === 'publisher';
+      stream[node.id] = !node.imageOnly && (node.kind === 'reader' ? Boolean(readers[node.id]?.config?.streamEnabled) : node.kind === 'publisher');
     }
     const edges = {};
     for (const edge of model.connections) {
@@ -42,5 +42,5 @@ export function useSystemView() {
     }
     const counts = model.nodes.reduce((result, node) => ({ ...result, [health[node.id]]: (result[health[node.id]] || 0) + 1 }), {});
     return { model, health, activity, problems, stream, edges, counts, now, payments };
-  }, [active, checkedAt, errors, logs, network, payments, readers, status]);
+  }, [active, checkedAt, connections, errors, logs, network, payments, readers, status]);
 }

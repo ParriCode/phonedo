@@ -53,7 +53,8 @@ def test_public_lists_and_private_business_routes(service):
         assert set(item) == {'peer', 'transport'}
         assert item['transport'] in ('http', 'sse')
     module.Logger.warning('connection_failed', error='private-token', payload={'secret':'private-password'})
-    assert client.get('/logs').json[-1] == 'connection_failed'
+    latest = client.get('/logs').json[-1]
+    assert (json.loads(latest)['message'] if kind != 'storage' else latest) == 'connection_failed'
     assert client.get('/logs').json == client.get('/logs').json
     private_route = {'manager':'/newEvent', 'verifier':'/verify', 'storage':'/events'}[kind]
     assert client.post(private_route, json={}).status_code == 401
@@ -65,8 +66,8 @@ def test_logs_are_bounded_messages(service):
         module.Logger.info('event_' + str(index))
     logs = module.app.test_client().get('/logs').json
     assert len(logs) == 200
-    assert logs[0] == 'event_5'
-    assert logs[-1] == 'event_204'
+    assert (json.loads(logs[0])['message'] if module.Logger.instance().service != 'storage' else logs[0]) == 'event_5'
+    assert (json.loads(logs[-1])['message'] if module.Logger.instance().service != 'storage' else logs[-1]) == 'event_204'
     assert all(isinstance(item, str) for item in logs)
 
 

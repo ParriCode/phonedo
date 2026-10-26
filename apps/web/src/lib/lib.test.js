@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { CONFIG } from '../config.js';
 import { paidEvent, PATIENT } from '../test/fakes.js';
-import { configFor, configName, dockerDefaultConfig, linkDockerNode } from './serviceConfig.js';
+import { configFor, configName, connectionsFromSnapshots, dockerDefaultConfig, linkDockerNode } from './serviceConfig.js';
 import { cursorLedger, fetchPayments, groupByUseCase, mergePayments, parseEvent, sortedTotals, stats } from './stellar.js';
 import { short } from './format.js';
 
@@ -61,6 +61,12 @@ describe('stellar', () => {
 });
 
 describe('configuración de servicios', () => {
+  it('dibuja solo transportes presentes en configuraciones Docker reales', () => {
+    const reader = { id: 'r', kind: 'reader', dockerUrl: 'http://reader:3002', serviceConfig: { services: { managers: [] } } };
+    const manager = { id: 'm', kind: 'manager', dockerUrl: 'http://manager:3003', serviceConfig: { subscriptions: { readers: ['http://reader:3002'] } } };
+    const verifier = { id: 'v', kind: 'verifier', dockerUrl: 'http://verifier:5000', serviceConfig: { subscriptions: { managers: [] } } };
+    expect(connectionsFromSnapshots([reader, manager, verifier])).toEqual([{ sourceId: 'r', targetId: 'm', transport: 'sse' }]);
+  });
   const network = [
     { id: 'r', kind: 'reader', name: 'Reader Uno', url: 'http://localhost:7101', template: 'pulse', managers: ['m'] },
     { id: 'm', kind: 'manager', name: 'manager', url: 'http://localhost:7102', managers: [] },

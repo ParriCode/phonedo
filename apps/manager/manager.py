@@ -4,6 +4,7 @@ import os
 import sys
 import math
 import atexit
+import logging
 from dotenv import load_dotenv
 from flask import Flask
 from waitress import serve
@@ -54,6 +55,15 @@ manager_server = ManagerServer(app, manager_config)
 core = ManagerCore(manager_client, manager_server, manager_config.queue_size, manager_config.retry_interval)
 register_routes(app, core)
 atexit.register(core.close)
+
+
+def hide_werkzeug_dev_warning(record):
+    if 'This is a development server' in record.getMessage():
+        record.msg = record.getMessage().partition('\n')[2]
+        record.args = ()
+        return bool(record.msg)
+    return True
+
 
 if __name__ == "__main__":
     stop_subscriptions = manager_client.start_subscriptions(core)

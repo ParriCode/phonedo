@@ -68,7 +68,7 @@ El servicio carga `config.env` sin sustituir las variables ya definidas en el en
 | `VERIFIER_CONFIG_PATH` | Ruta del JSON; por defecto `config.json` junto al servicio. |
 | `MAX_EVENT_AGE_MS` | Antigüedad máxima del evento; por defecto `300000` ms. |
 | `MAX_FUTURE_DRIFT_MS` | Desfase futuro permitido; por defecto `30000` ms. |
-| `signing_key.json` | Clave ed25519 (JWK) que firma cada evento y cada lote, junto a `verifier.py`. No se versiona: `tools/generate_configs.sh` copia la de `circuits/build/verifier_dev_key.json`, que es la que conoce el contrato. Si falta, se usa una clave temporal. |
+| `signing_key.json` | Clave ed25519 (JWK) que firma cada evento y cada lote, junto a `verifier.py`. No se versiona: `tools/generate_configs.sh` copia la de `circuits/build/verifier_dev_key.json`, que es la que conoce el contrato. Si falta, el Verifier no arranca y registra el motivo. |
 
 La configuración actual comparte clave y token entre Managers; no define
 credenciales independientes por Manager. El cálculo del hash está en

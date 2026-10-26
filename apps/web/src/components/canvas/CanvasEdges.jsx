@@ -4,9 +4,9 @@ import { TRANSPORTS, edgeGeometry } from '../../../service_network/edge.js';
  * Conexiones en coordenadas del mundo. El trazo comunica el estado:
  * HTTP línea fija · Stream con puntos que fluyen cuando hay datos · error en rojo con ✕.
  */
-export function CanvasEdges({ connections, positions, states, selectedEdgeId, label }) {
+export function CanvasEdges({ connections, positions, states, selectedEdgeId, label, draft, onToggle, text }) {
   return (
-    <svg className="canvas__edges" aria-hidden="true">
+    <svg className="canvas__edges" role="group" aria-label={text('Conexiones del sistema', 'System connections')}>
       <defs>{[...TRANSPORTS, 'error'].map((kind) => (
         <marker key={kind} id={`network-arrow-${kind}`} viewBox="0 0 8 8" refX="8" refY="4" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto-start-reverse"><path className={`edge__arrow edge__arrow--${kind}`} d="M 0 0 L 8 4 L 0 8 Z" /></marker>
       ))}</defs>
@@ -23,10 +23,20 @@ export function CanvasEdges({ connections, positions, states, selectedEdgeId, la
             {transport === 'sse' && state === 'active' ? <path className="edge__flow" d={geometry.path} /> : null}
             {state === 'error'
               ? <g className="edge__break" transform={`translate(${geometry.x} ${geometry.y + 9})`}><circle r="11" /><path d="M -4 -4 L 4 4 M 4 -4 L -4 4" /></g>
-              : <text className="edge__label" x={geometry.x} y={geometry.y} textAnchor="middle">{transport === 'sse' ? 'STREAM' : transport === 'stellar' ? 'Stellar' : 'HTTP'}</text>}
+              : null}
+            <foreignObject className="edge__control" x={geometry.x - 38} y={geometry.y - 16} width="76" height="32">
+              <button type="button" className={`edge__switch edge__switch--${transport}`} data-edge-action="toggle" data-edge-toggle={edge.id}
+                aria-label={text(`Cambiar transporte de ${label(edge, state)}`, `Change transport for ${label(edge, state)}`)}
+                title={text('Pulsa para alternar HTTP y Stream', 'Click to switch between HTTP and Stream')}
+                disabled={edge.targetKind === 'publisher'}
+                onClick={() => onToggle(edge.sourceId, edge.targetId, transport === 'sse' ? 'http' : 'sse')}>
+                <span className="edge__switch-dot" />{transport === 'sse' ? 'STREAM' : 'HTTP'}
+              </button>
+            </foreignObject>
           </g>
         );
       })}
+      {draft ? <g className="edge edge--draft"><path className="edge__draft" d={`M ${draft.start.x} ${draft.start.y} C ${draft.start.x + 90} ${draft.start.y}, ${draft.end.x - 90} ${draft.end.y}, ${draft.end.x} ${draft.end.y}`} /><circle className="edge__draft-end" cx={draft.end.x} cy={draft.end.y} r="8" /></g> : null}
     </svg>
   );
 }

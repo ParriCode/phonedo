@@ -4,6 +4,7 @@ import json
 import time
 import hmac
 import hashlib
+import logging
 from pathlib import Path
 from uuid import UUID
 
@@ -104,9 +105,8 @@ KEY_PATH = BASE_DIR / verifier_config.get('keyPath', 'signing_key.json')
 # Una sola clave ed25519 firma cada evento y cada lote; su clave pública es la que confía el contrato
 signing_key = load_signing_key(KEY_PATH)
 if signing_key is None:
-    # Sin signing_key.json (no se versiona) se usa una clave temporal que dura lo que el proceso
-    Logger.warning("verifier_key_missing", path=str(KEY_PATH))
-    signing_key = Ed25519PrivateKey.generate()
+    Logger.error('verifier_key_missing', path=str(KEY_PATH), error='No se puede verificar contra el contrato sin la clave configurada')
+    raise RuntimeError(f'Falta la clave ed25519 del Verifier: {KEY_PATH}')
 batch_signer = BatchSigner(signing_key)
 verifier_id = batch_signer.verifier_id
 
@@ -250,8 +250,10 @@ def sign_batch():
 
     session_id = data.get("sessionId")
     if data.get('verifierId') != verifier_id:
+        Logger.warning('sign_batch_rejected', sessionId=session_id, error='verifierId no corresponde a este Verifier')
         return {'error': 'verifierId no corresponde a este Verifier'}, 422
     if any(not isinstance(data.get(field), str) or not data[field] for field in ('managerId', 'readerId')):
+        Logger.warning('sign_batch_rejected', sessionId=session_id, error='managerId y readerId son obligatorios')
         return {'error': 'managerId y readerId son obligatorios'}, 422
     try:
         commitment, signature = batch_signer.sign(session_id, data.get("salt"), data.get("patient"), data.get("eventKeys"), data.get('managerId'), data.get('readerId'))
@@ -393,6 +395,14 @@ manager_subscriptions = StreamClient(
 )
 manager_subscriptions.start()
 atexit.register(manager_subscriptions.close)
+
+
+def hide_werkzeug_dev_warning(record):
+    if 'This is a development server' in record.getMessage():
+        record.msg = record.getMessage().partition('\n')[2]
+        record.args = ()
+        return bool(record.msg)
+    return True
 
 
 if __name__ == "__main__":

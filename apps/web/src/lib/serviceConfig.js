@@ -62,11 +62,37 @@ export function dockerDefaultConfig(kind, name, network) {
   const managers = managed('manager');
   if (kind === 'reader') return { server: { ...server, enabled: true }, readerId: name, services: { managers: managers.slice(0, 1).map((url) => ({ url, token: '' })) }, stream: { enabled: false } };
   if (kind === 'manager') return { server, managerId: name, services: { verifiers: managed('verifier'), storages: managed('storage') }, stream: { enabled: true }, subscriptions: { readers: [], verifiers: [], storages: [] }, outputStreams: { verifiers: true, storages: true } };
-  if (kind === 'publisher') return { server, subscriptions: { managers: managers.slice(0, 1) }, contracts: {}, batchSize: 32, policy: { minValue: 90, maxValue: 130, minCount: 28 }, patients: { default: CONFIG.demoPatient }, circuitsPath: '/circuits', stellar: { source: 'phonendo', network: 'testnet' } };
+  if (kind === 'publisher') return { server, subscriptions: { managers: managers.slice(0, 1) }, contracts: { d407a24e37fa4588a32063fa097dcee83ce2f4ce954c857a62deec5d521a8e45: CONFIG.contracts[0].id }, batchSize: 32, policy: { minValue: 90, maxValue: 130, minCount: 28 }, patients: { default: CONFIG.demoPatient }, circuitsPath: '/circuits', stellar: { source: 'phonendo', network: 'testnet' } };
   return { server, services: {}, subscriptions: { managers: [] }, stream: { enabled: true } };
 }
 
 const targetUrl = (target) => (typeof target === 'string' ? target : target.url);
+
+/** Conexiones presentes en los archivos de configuración montados por Docker. */
+export function connectionsFromSnapshots(snapshots) {
+  const links = [];
+  const find = (kind, url) => snapshots.find((item) => item.kind === kind && item.dockerUrl === targetUrl(url));
+  const add = (source, target, transport) => {
+    if (source && target && !links.some((link) => link.sourceId === source.id && link.targetId === target.id && link.transport === transport)) {
+      links.push({ sourceId: source.id, targetId: target.id, transport });
+    }
+  };
+  for (const item of snapshots) {
+    const config = item.serviceConfig || {};
+    if (item.kind === 'reader') for (const url of config.services?.managers || []) add(item, find('manager', url), 'http');
+    if (item.kind === 'manager') {
+      for (const url of config.subscriptions?.readers || []) add(find('reader', url), item, 'sse');
+      for (const [key, kind] of [['verifiers', 'verifier'], ['storages', 'storage']]) {
+        for (const url of config.services?.[key] || []) add(item, find(kind, url), 'http');
+      }
+    }
+    if (item.kind === 'verifier' || item.kind === 'storage') {
+      for (const url of config.subscriptions?.managers || []) add(find('manager', url), item, 'sse');
+    }
+    if (item.kind === 'publisher') for (const url of config.subscriptions?.managers || []) add(find('manager', url), item, 'sse');
+  }
+  return links;
+}
 
 /** Enlaza un nodo Docker con los Managers que aparecen en su configuración. Devuelve una red nueva. */
 export function linkDockerNode(network, id, config) {

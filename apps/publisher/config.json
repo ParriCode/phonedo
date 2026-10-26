@@ -1,5 +1,7 @@
 {
-  "contracts": {},
+  "contracts": {
+    "d407a24e37fa4588a32063fa097dcee83ce2f4ce954c857a62deec5d521a8e45": "CD3ZLDTB7QKJLMAIBSCL75TRHE6IUZ27RW5FLWNB4F3GUQENZZZSM45H"
+  },
   "server": {
     "host": "0.0.0.0",
     "port": 3005
@@ -16,11 +18,11 @@
     "minCount": 28
   },
   "patients": {
-    "default": "GBBO4ZD2YNV3ZBUIBIQAH3VK73Y2RHTSMURUR5LYEK5JMXACK24YN3BC"
+    "default": "GBZCQXYSSUK5ELUXKWQBBNCSIAOBHPGG36THG35QJLSBLF3BBVGKEMGJ"
   },
   "circuitsPath": "../../circuits",
   "stellar": {
-    "source": "alex",
+    "source": "phonendo",
     "network": "testnet"
   }
 }

@@ -1,4 +1,5 @@
 import os
+import logging
 import sys
 import time
 from pathlib import Path
@@ -169,6 +170,14 @@ manager_subscriptions = StreamClient(manager_targets, storage_config.token, cons
                                      service_url=storage_config.public_url)
 manager_subscriptions.start()
 atexit.register(manager_subscriptions.close)
+
+def hide_werkzeug_dev_warning(record):
+    if 'This is a development server' in record.getMessage():
+        record.msg = record.getMessage().partition('\n')[2]
+        record.args = ()
+        return bool(record.msg)
+    return True
+
 
 def start():
     Logger.info("service_starting", port=os.getenv("PORT_STORAGE", 5000))

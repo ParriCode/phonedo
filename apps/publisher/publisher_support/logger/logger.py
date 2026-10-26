@@ -1,11 +1,25 @@
 from __future__ import annotations
 
 import json
+import os
 from collections import deque
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
+
+
+def public_fields(value):
+    if isinstance(value, dict):
+        return {key: '[oculto]' if any(word in key.lower() for word in ('token', 'password', 'secret', 'seed', 'private'))
+                else public_fields(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [public_fields(item) for item in value]
+    if isinstance(value, str):
+        for key, secret in os.environ.items():
+            if len(secret) >= 4 and any(word in key.lower() for word in ('token', 'password', 'secret', 'seed')):
+                value = value.replace(secret, '[oculto]')
+    return value
 
 
 class Logger:
@@ -110,8 +124,6 @@ class Logger:
         if dev and not self.dev:
             return
 
-        self.messages.append(message)
-
         record = {
             "ts": datetime.now(timezone.utc).isoformat(),
             "level": level,
@@ -121,6 +133,7 @@ class Logger:
         }
 
         line = json.dumps(record, ensure_ascii=False, default=str)
+        self.messages.append(json.dumps(public_fields(record), ensure_ascii=False, default=str))
         
         # Mostrar en consola solo si verbose es true
         if self.verbose:
