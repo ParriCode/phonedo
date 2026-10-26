@@ -1,4 +1,6 @@
 """Each service must load from its own directory outside the repository."""
+import base64
+import json
 import os
 from pathlib import Path
 import shutil
@@ -16,7 +18,14 @@ ROOT = Path(__file__).resolve().parents[2]
 def test_service_loads_without_repository(service, entry, tmp_path):
     isolated = tmp_path / service
     shutil.copytree(ROOT / 'apps' / service, isolated,
-                    ignore=shutil.ignore_patterns('.venv', '__pycache__', '*.log'))
+                    ignore=shutil.ignore_patterns('.venv', '__pycache__', '*.log', 'signing_key.json'))
+    if service == 'verifier':
+        # Fuera del repo no hay keys/: la clave llega por configuración, como en Docker.
+        from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+        key = isolated / 'verifier-key.json'
+        key.write_text(json.dumps({'d': base64.urlsafe_b64encode(Ed25519PrivateKey.generate().private_bytes_raw()).decode().rstrip('=')}))
+        config = json.loads((isolated / 'config.json').read_text())
+        (isolated / 'config.json').write_text(json.dumps({**config, 'keyPath': str(key)}))
     env = {**os.environ, 'MANAGER_PASSWORD': 'isolation-only',
            'MANAGER_CONFIG_PATH': str(isolated / 'config.json'),
            'VERIFIER_CONFIG_PATH': str(isolated / 'config.json'), 'PHONENDO_DB_PATH': str(tmp_path / 'db'),

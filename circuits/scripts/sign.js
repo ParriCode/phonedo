@@ -6,7 +6,8 @@ const fs = require("fs");
 const path = require("path");
 
 const BUILD = path.resolve(__dirname, "..", "build");
-const KEY_FILE = path.join(BUILD, "verifier_dev_key.json");
+// Clave del Verifier en keys/verifiers (./tools/keys.sh); VERIFIER_KEY elige otra.
+const KEY_FILE = path.resolve(__dirname, "../../keys/verifiers", `${process.env.VERIFIER_KEY || "dev"}.json`);
 const BASE32 = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
 
 // Clave pública de 32 bytes de una dirección G (strkey en base32).
@@ -19,10 +20,7 @@ function accountKey(address) {
 }
 
 function loadKey() {
-    if (!fs.existsSync(KEY_FILE)) {
-        const { privateKey } = crypto.generateKeyPairSync("ed25519");
-        fs.writeFileSync(KEY_FILE, JSON.stringify(privateKey.export({ format: "jwk" })));
-    }
+    if (!fs.existsSync(KEY_FILE)) throw new Error(`Falta ${KEY_FILE}: créala con ./tools/keys.sh init`);
     const jwk = JSON.parse(fs.readFileSync(KEY_FILE, "utf8"));
     return {
         privateKey: crypto.createPrivateKey({ key: jwk, format: "jwk" }),

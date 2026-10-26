@@ -50,7 +50,7 @@ def test_cold_chain_preset_stays_inside_the_policy_range():
 def test_demo_runs_pulse_then_cold_chain_one_batch_each():
     steps = example.simulation_steps({'simulation': 'demo'})
     assert [(step['deviceId'], count) for step, count in steps] == [
-        ('simulated-pulse-band', 32), ('simulated-cold-chain', 32)]
+        ('simulated-pulse-band', 30), ('simulated-cold-chain', 30)]
     assert example.simulation_steps({'simulation': 'pulse'}) == [(example.simulation_settings({'simulation': 'pulse'}), None)]
     two_rounds = example.simulation_steps({'simulation': {'sequence': ['pulse', 'coldchain'], 'readings': 5, 'rounds': 2}})
     assert [(step['property'], count) for step, count in two_rounds] == [

@@ -27,7 +27,7 @@ export function CountUp({ value, digits = 0, duration = 900 }) {
 
 const TICK_MS = 140;
 
-/** Una sesión son 32 lecturas: se encienden una a una y hacen falta las de la política. */
+/** Una sesión son 5 lecturas: se encienden una a una y hacen falta las de la política. */
 export function SessionRing({ policy = CONFIG.policy, labels = { count: 'pol.count', reward: 'pol.reward' } }) {
   const { t } = useI18n();
   const { minCount, batch, payout } = policy;

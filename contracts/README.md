@@ -61,7 +61,7 @@ La paciente necesita trustline de USDC para recibir el pago.
 ### Cadena de frío
 
 El mismo contrato y el mismo circuito sirven para el transporte refrigerado: solo cambia
-la política. Despliega otra instancia con `policy_cold_chain.json` (2 a 8 °C, las 32
+la política. Despliega otra instancia con `policy_cold_chain.json` (2 a 8 °C, las 5
 lecturas) y la misma clave del Verifier, y añádela a `devices` del Publisher con su
 política (ver el README del Publisher). El pago va a la cuenta que cobra por el
 dispositivo, en este caso el transportista.

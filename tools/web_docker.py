@@ -6,11 +6,17 @@ import json
 import os
 import re
 import secrets
-import shutil
 import subprocess
+import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import keys
+
 ROOT = Path(__file__).resolve().parents[1]
+# Dentro del contenedor solo se monta la clave o las carteras de keys/ que necesita.
+VERIFIER_KEY = '/keys/verifier.json'
+STELLAR_DIR = '/keys/stellar'
 PORTS = {'reader': 3002, 'manager': 3003, 'verifier': 5000, 'storage': 5000, 'publisher': 3005}
 MASK = '••••••'
 NETWORK = 'phonendo-web'
@@ -336,9 +342,16 @@ class DockerController:
             if kind == 'manager':
                 config.setdefault('managerId', alias)
             if kind == 'verifier':
-                config['keyPath'] = '/data/signing-key.json'
+                key_name = body.get('verifierKey') or keys.DEFAULT_VERIFIER
+                if not keys.verifier_path(key_name).is_file():
+                    raise ValueError(f'No existe keys/verifiers/{key_name}.json; créala con ./tools/keys.sh verifier new {key_name}')
+                config['keyPath'] = VERIFIER_KEY
             if kind == 'publisher':
                 config['circuitsPath'] = '/circuits'
+                wallet = body.get('wallet') or config.get('stellar', {}).get('source') or keys.DEFAULT_WALLET
+                if not keys.wallet_path(wallet).is_file():
+                    raise ValueError(f'No existe la cartera {wallet} en keys/stellar; créala con ./tools/keys.sh wallet new {wallet}')
+                config.setdefault('stellar', {}).update(source=wallet, configDir=STELLAR_DIR)
             required = {'reader': ('API_TOKEN_MANAGER',),
                         'manager': tuple(self.credentials),
                         'verifier': ('API_TOKEN_VERIFIER', 'MANAGER_PASSWORD'),
@@ -374,24 +387,10 @@ class DockerController:
             folder = self.directory / identifier
             folder.mkdir(mode=0o700)
             (folder / 'data').mkdir(mode=0o700)
-            if kind == 'verifier':
-                # Los contratos de testnet confían en la clave de desarrollo de circuits/build.
-                test_key = ROOT / 'circuits/build/verifier_dev_key.json'
-                target_key = folder / 'data/signing-key.json'
-                if not test_key.is_file():
-                    raise ValueError('Falta circuits/build/verifier_dev_key.json; prepara la clave de prueba antes de desplegar el Verifier')
-                if target_key.is_file():
-                    existing = json.loads(target_key.read_text())
-                    expected = json.loads(test_key.read_text())
-                    if existing.get('x') != expected.get('x'):
-                        raise ValueError('El Verifier tiene una clave distinta de la que usa el contrato de prueba')
-                else:
-                    shutil.copyfile(test_key, target_key)
-                    target_key.chmod(0o600)
             control = secrets.token_hex(32)
             record = {'id': identifier, 'kind': kind, 'name': alias, 'container': f'phonendo-web-{identifier}',
                       'image': image, 'containerPort': internal, 'config': config,
-                      'environment': environment, 'control': control, 'stellarIdentity': bool(body.get('stellarIdentity'))}
+                      'environment': environment, 'control': control}
             save_json(folder / 'config/config.json', config)
             args = ['run', '-d', '--name', record['container'], '--network', NETWORK, '--network-alias', alias,
                     '--label', 'phonendo.web.managed=true', '--label', 'phonendo.web.id=' + identifier,
@@ -408,26 +407,16 @@ class DockerController:
                 args.extend(['--mount', f'type=bind,src={ROOT / "tools/web_runtime.py"},dst=/opt/phonendo/tools/web_runtime.py,readonly',
                              '-e', 'PHONENDO_READER_ROOT=/app/reader', '-e', 'PHONENDO_WEB_READER_MODE=1',
                              '-e', 'PHONENDO_WEB_READER_ID=' + identifier, '-e', 'WEB_CONTROL_TOKEN=' + control])
+            if kind == 'verifier':
+                args.extend(['--mount', f'type=bind,src={keys.verifier_path(key_name)},dst={VERIFIER_KEY},readonly'])
             if kind == 'publisher':
                 (ROOT / 'circuits/build').mkdir(exist_ok=True)
                 args.extend(['--mount', f'type=bind,src={ROOT / "circuits/scripts"},dst=/circuits/scripts,readonly',
-                             '--mount', f'type=bind,src={ROOT / "circuits/build"},dst=/circuits/build'])
-                if record['stellarIdentity']:
-                    identity = Path(os.getenv('XDG_CONFIG_HOME', str(Path.home() / '.config'))) / 'stellar'
-                    if not identity.is_dir():
-                        raise ValueError('No existe la configuración local de Stellar')
-                    args.extend(['--mount', f'type=bind,src={identity},dst=/root/.config/stellar,readonly'])
+                             '--mount', f'type=bind,src={ROOT / "circuits/build"},dst=/circuits/build',
+                             '--mount', f'type=bind,src={keys.WALLETS},dst={STELLAR_DIR}/identity,readonly'])
             args.append(image)
             if kind == 'reader':
                 args.extend(['python', '/opt/phonendo/tools/web_runtime.py'])
-            if kind == 'verifier':
-                # Clave persistente dentro del volumen de esta instancia, nunca en la imagen.
-                code = ("import base64,json,runpy; from pathlib import Path; "
-                        "from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey; "
-                        "p=Path('/data/signing-key.json'); "
-                        "p.exists() or p.write_text(json.dumps({'d':base64.urlsafe_b64encode(Ed25519PrivateKey.generate().private_bytes_raw()).decode().rstrip('=')})); "
-                        "p.chmod(0o600); runpy.run_path('/app/verifier/verifier.py',run_name='__main__')")
-                args.extend(['python', '-c', code])
             progress('Arrancando contenedor')
             try:
                 await self.run(*args)
@@ -548,7 +537,7 @@ class DockerController:
                         raise ValueError('La configuración debe ser un objeto JSON')
                     config.setdefault('server', {}).update(host='0.0.0.0', port=PORTS[kind])
                     if kind == 'verifier':
-                        config['keyPath'] = '/data/signing-key.json'
+                        config['keyPath'] = VERIFIER_KEY
                     if kind == 'publisher':
                         config['circuitsPath'] = '/circuits'
                     # El volumen bind necesita conservar el mismo inodo.
@@ -577,9 +566,10 @@ class DockerController:
                 if record['kind'] == 'reader':
                     raise ValueError('Usa los controles en directo del Reader')
                 if record['kind'] == 'verifier':
-                    config['keyPath'] = '/data/signing-key.json'
+                    config['keyPath'] = VERIFIER_KEY
                 if record['kind'] == 'publisher':
                     config['circuitsPath'] = '/circuits'
+                    config.setdefault('stellar', {})['configDir'] = STELLAR_DIR
                 record['config'] = config
                 save_json(self.directory / identifier / 'config/config.json', config)
                 self.persist()

@@ -1,6 +1,34 @@
 #!/usr/bin/env bash
 set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+REGENERATE_KEYS=false
+REBUILD=false
+
+usage() {
+    cat <<EOF
+Uso: $0 [opciones]
+
+Sirve la consola del operador en http://127.0.0.1:${WEB_PORT:-8080}/operator.html.
+Antes deja listas las claves de keys/ (crea solo las que falten).
+
+Opciones:
+  --regenerate-keys  Sustituye las carteras de keys/stellar por otras nuevas y fondeadas
+                     (guarda copia de las anteriores). Por defecto no.
+  --rebuild          Reconstruye y relanza la pila Docker de Phonendo
+                     (deploy/docker/compose.yml). Por defecto no.
+  --help             Muestra esta ayuda
+EOF
+}
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --regenerate-keys) REGENERATE_KEYS=true ;;
+        --rebuild) REBUILD=true ;;
+        --help) usage; exit 0 ;;
+        *) echo "Argumento desconocido: $1" >&2; usage >&2; exit 1 ;;
+    esac
+    shift
+done
 
 install_packages() {
     local elevate=()
@@ -23,8 +51,17 @@ if [[ ! -x "$WEB_PYTHON" ]]; then
         python3 -m venv "$ROOT_DIR/.venv"
     fi
 fi
-if ! "$WEB_PYTHON" -c 'import aiohttp' >/dev/null 2>&1; then
-    "$WEB_PYTHON" -m pip install 'aiohttp>=3.9,<4'
+if ! "$WEB_PYTHON" -c 'import aiohttp, cryptography' >/dev/null 2>&1; then
+    "$WEB_PYTHON" -m pip install 'aiohttp>=3.9,<4' cryptography
+fi
+# Claves de Verifier y carteras en keys/: un tercero solo tiene que poner aquí las suyas.
+if [[ "$REGENERATE_KEYS" == true ]]; then
+    "$WEB_PYTHON" "$ROOT_DIR/tools/keys.py" init --regenerate-wallets
+else
+    "$WEB_PYTHON" "$ROOT_DIR/tools/keys.py" init
+fi
+if [[ "$REBUILD" == true ]]; then
+    docker compose -f "$ROOT_DIR/deploy/docker/compose.yml" up --build -d --wait
 fi
 # La web es React + Vite: se compila en apps/web/dist antes de servirla.
 if command -v npm >/dev/null 2>&1; then

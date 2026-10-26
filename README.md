@@ -19,7 +19,7 @@ A Soroban contract checks the zero-knowledge proof and pays in USDC, automatical
 
 **HackMeridian 2026 · Lisbon** — Genesis track · Stellar Unlocked & Stellar Composed
 
-[Problem](#-the-problem) · [How it works](#-how-it-works) · [On-chain proof](#-testnet-deployments) · [Quick start](#-quick-start) · [Web panels](#-web-panels) · [Security](#-security-and-limits) · [Roadmap](#-roadmap)
+[Problem](#-the-problem) · [How it works](#-how-it-works) · [On-chain proof](#-testnet-deployments) · [Quick start](#-quick-start) · [Keys](#-keys) · [Web panels](#-web-panels) · [Security](#-security-and-limits) · [Roadmap](#-roadmap)
 
 </div>
 
@@ -31,7 +31,7 @@ A Soroban contract checks the zero-knowledge proof and pays in USDC, automatical
 | :---: | :---: | :---: |
 | Readings never leave the system; only a Poseidon commitment goes on-chain. | A Groth16 proof and an ed25519 Verifier signature are checked inside `claim()`. | The contract pays the patient in USDC and emits `SessionPaid`. |
 
-| 32 | ≥ 28 | 0.1 USDC | 2 |
+| 5 | ≥ 4 | 0.1 USDC | 2 |
 | :---: | :---: | :---: | :---: |
 | readings per session | in range to get paid (rehab) | paid per session on testnet | use cases, one circuit |
 
@@ -53,7 +53,7 @@ buyer pays when a shipment stayed inside its temperature range.
 | --- | --- | --- |
 | Who pays | Insurer | Buyer |
 | Who gets paid | Patient | Carrier |
-| Policy | 90-130 bpm in at least 28 of 32 readings | 2-8 °C |
+| Policy | 90-130 bpm in at least 4 of 5 readings | 2-8 °C in 5 of 5 readings |
 | What goes on-chain | Commitment, policy, session id, result, payment | Same |
 | What stays private | Every heart-rate reading | Every temperature reading |
 
@@ -72,7 +72,7 @@ sequenceDiagram
     M->>V: verify event
     V-->>M: Verified + ed25519 signature
     M-->>P: stream of Verified events
-    Note over P: collects 32 readings, picks sessionId and salt
+    Note over P: collects 5 readings, derives sessionId, picks salt
     Note over P: generates the Groth16 proof (circuits/)
     P->>M: signBatch (event ids only)
     M->>V: signBatch
@@ -84,9 +84,11 @@ sequenceDiagram
 1. **Verify.** The Reader hands each reading to the Manager, which passes it to the
    Verifier. The Verifier checks the event and signs it, and the Manager stores it in
    Storage.
-2. **Batch.** The Publisher listens to the Manager's stream and collects 32 Verified
-   readings from one device.
-3. **Prove.** Using `circuits/`, it generates a Groth16 proof that at least 28 of the 32
+2. **Batch.** The Publisher listens to the Manager's stream and collects 5 Verified
+   readings from one device. The `sessionId` is derived from the event ids, so the same
+   readings are always the same session and are never paid twice, whatever the number of
+   Publishers.
+3. **Prove.** Using `circuits/`, it generates a Groth16 proof that at least 4 of the 5
    readings are in range, without revealing them. The proof carries a *commitment*
    (a Poseidon fingerprint of the readings plus a random salt).
 4. **Sign the batch.** The Publisher asks the Verifier, through the Manager, to sign the
@@ -117,7 +119,7 @@ sequenceDiagram
 
 ## 🔗 Testnet deployments
 
-Rehabilitation policy: 90-130 bpm, at least 28 of 32 readings. The first claims paid 5
+Rehabilitation policy: 90-130 bpm, at least 4 of 5 readings (5-reading batches). The first claims paid 5
 units; each session now pays **0.1 USDC** so the demo can be repeated.
 
 **Latest end-to-end demo (Docker, sequential run):**
@@ -131,8 +133,10 @@ units; each session now pays **0.1 USDC** so the demo can be repeated.
 
 | Contract | Address |
 | --- | --- |
-| `adherence`, rehabilitation (pays 0.1 USDC per session) | [`CD3ZLDTB7QKJLMAIBSCL75TRHE6IUZ27RW5FLWNB4F3GUQENZZZSM45H`](https://stellar.expert/explorer/testnet/contract/CD3ZLDTB7QKJLMAIBSCL75TRHE6IUZ27RW5FLWNB4F3GUQENZZZSM45H) |
-| `adherence`, cold chain (2-8 °C, pays USDC) | [`CDNPBN6HZP4PZKRFOOA2PYC772KF4THXTJNKHBS5Y33HCAVDWCVO5SRE`](https://stellar.expert/explorer/testnet/contract/CDNPBN6HZP4PZKRFOOA2PYC772KF4THXTJNKHBS5Y33HCAVDWCVO5SRE) |
+| `adherence`, rehabilitation (5-reading batches, 4 of 5, pays 0.1 USDC per session) | [`CCLQFKRWBLRSPLVAFWBLG22LPRGP3GEV47CGXA6C3VAGPQ2QITE3DNYL`](https://stellar.expert/explorer/testnet/contract/CCLQFKRWBLRSPLVAFWBLG22LPRGP3GEV47CGXA6C3VAGPQ2QITE3DNYL) |
+| `adherence`, cold chain (2-8 °C, 5 of 5, pays 0.1 USDC) | [`CACUZG5V45NPFFB5JSLHMTF6NHEP5GMGZ5QJKJPET4ZIRTWOW6VS2VQS`](https://stellar.expert/explorer/testnet/contract/CACUZG5V45NPFFB5JSLHMTF6NHEP5GMGZ5QJKJPET4ZIRTWOW6VS2VQS) |
+| `adherence`, rehabilitation, 32-reading batches (retired) | [`CD3ZLDTB7QKJLMAIBSCL75TRHE6IUZ27RW5FLWNB4F3GUQENZZZSM45H`](https://stellar.expert/explorer/testnet/contract/CD3ZLDTB7QKJLMAIBSCL75TRHE6IUZ27RW5FLWNB4F3GUQENZZZSM45H) |
+| `adherence`, cold chain, 32-reading batches (retired) | [`CDNPBN6HZP4PZKRFOOA2PYC772KF4THXTJNKHBS5Y33HCAVDWCVO5SRE`](https://stellar.expert/explorer/testnet/contract/CDNPBN6HZP4PZKRFOOA2PYC772KF4THXTJNKHBS5Y33HCAVDWCVO5SRE) |
 | `adherence` (pays XLM) | [`CAPZ2O7LPTRGJ2Q7TTHMCHOKRZ4T7KU5I4E74M2U3YUTC3XONIQDOP2D`](https://stellar.expert/explorer/testnet/contract/CAPZ2O7LPTRGJ2Q7TTHMCHOKRZ4T7KU5I4E74M2U3YUTC3XONIQDOP2D) |
 | `adherence`, previous version (old signature format, retired) | [`CBF2MBQ6W4S6LD3JSIM3NNZET5KBUKOADRZSKIYZRZBAXRM6OJZCNSFI`](https://stellar.expert/explorer/testnet/contract/CBF2MBQ6W4S6LD3JSIM3NNZET5KBUKOADRZSKIYZRZBAXRM6OJZCNSFI) |
 | Testnet USDC issuer | `GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5` |
@@ -224,9 +228,8 @@ This builds and starts the five services, including the Publisher. The simulated
 emits heart rate first and cold-chain temperature afterwards, each with its own contract
 and policy. See [Docker configuration, ports and tests](deploy/docker/README.md).
 
-To claim on testnet, the Publisher needs a funded account key in `deploy/docker/.env`
-(see [Environment variables](#-environment-variables)). Without it, the Publisher
-prepares batches but does not claim.
+To claim on testnet, prepare the keys first with `./tools/keys.sh init` (see
+[Keys](#-keys)). Without a wallet, the Publisher prepares batches but does not claim.
 
 ### Running without Docker
 
@@ -248,7 +251,7 @@ The generator writes each service's `config.env` and the Verifier key.
 ./tools/web.sh
 ```
 
-Builds the web, opens the operator console at `http://127.0.0.1:8080/operator.html`
+Creates any missing keys, builds the web, opens the operator console at `http://127.0.0.1:8080/operator.html`
 and lets you deploy, connect and watch every service as a Docker container from the
 browser. Requires Docker. See [Web panels](#-web-panels).
 
@@ -256,21 +259,45 @@ browser. Requires Docker. See [Web panels](#-web-panels).
 
 ---
 
+## 🔐 Keys
+
+Everything secret lives in [`keys/`](keys/README.md), outside git, managed by one script:
+
+| Key | Used by | Where |
+| --- | --- | --- |
+| ed25519 signing key | Verifier: signs every event and every batch. It has no wallet. Its public key is the `verifierId` the contract stores. | `keys/verifiers/<name>.json` |
+| Stellar wallet | Publisher: sends `claim()` and pays the fees. It signs no data. | `keys/stellar/identity/<alias>.toml` (Stellar CLI format) |
+
+```sh
+./tools/keys.sh init                     # creates what is missing: Verifier "dev" and wallet "phonendo"
+./tools/keys.sh ls                       # keys and wallets, public parts only
+./tools/keys.sh verifier new verifier-b  # another Verifier; prints how to deploy its contract
+./tools/keys.sh wallet new publisher-b   # another wallet, funded on testnet
+./tools/keys.sh verifier check <contract>  # which of your keys a contract trusts
+```
+
+Each contract trusts one Verifier, and a Publisher serves the Verifiers listed in
+`contracts` (`{"<verifierId>": "<contract>"}`). For a second Verifier and Publisher pair:
+create its key, deploy its contract with that `verifierId` and point the Publisher to its
+wallet (`"stellar": {"source": "publisher-b"}`). Docker mounts only the key or wallets
+each container needs, read-only.
+
+---
+
 ## 💳 Claiming a session
 
-Requires Node.js, `circom` 2.2, Rust, Stellar CLI and a testnet account configured in the
-CLI. Contract steps are in [contracts](contracts/README.md) and circuit steps in
-[circuits](circuits/README.md).
+Requires Node.js, `circom` 2.2, Rust and Stellar CLI. Contract steps are in
+[contracts](contracts/README.md) and circuit steps in [circuits](circuits/README.md).
 
 ```sh
 cd circuits && npm install && npm run setup     # once, takes a few minutes
-node scripts/sign.js <patient G account>        # creates the Verifier development key
-cd .. && ./tools/generate_configs.sh            # copies it to apps/verifier/signing_key.json
+cd .. && ./tools/keys.sh init                   # Verifier key and Publisher wallet
 docker compose -f deploy/docker/compose.yml up --build -d --wait
 ```
 
-The contract must be deployed with the public key printed by `sign.js` and with the same
-policy as `apps/publisher/config.json`. The Docker simulated Reader emits heart rate
+The contract must be deployed with the `verifierId` shown by `./tools/keys.sh ls` and with
+the same policy as `apps/publisher/config.json`. Check a deployed contract with
+`./tools/keys.sh verifier check <contract>`. The Docker simulated Reader emits heart rate
 from 95 to 120 bpm and then temperature from 2 to 8 °C (`"simulation": "demo"` in
 `deploy/docker/reader.json`). With a real sensor, replace it with the sensor's Reader.
 
@@ -280,17 +307,11 @@ from 95 to 120 bpm and then temperature from 2 to 8 °C (`"simulation": "demo"` 
 
 | Variable | Where | Purpose |
 | --- | --- | --- |
-| `STELLAR_SECRET_KEY` | `deploy/docker/.env` (not versioned) | Secret key (`S…`) of the account that signs `claim()` and pays its fees. Without it the Publisher prepares batches but does not claim. |
-| `STELLAR_SOURCE` | `deploy/docker/.env` or environment | Alias of that account inside the container; defaults to the one in `compose.yml`. |
+| `STELLAR_SOURCE` | environment | Wallet in `keys/stellar` the Docker Publisher pays with (`phonendo` by default). |
+| `VERIFIER_KEY` | environment | Key in `keys/verifiers` the Docker Verifier signs with (`dev` by default). |
 | `API_TOKEN_MANAGER`, `API_TOKEN_VERIFIER`, `API_TOKEN_STORAGE` | `compose.yml`, `deploy/env/dev.env` | Tokens between services. The demo values are for demonstration only: change them in any other deployment. |
 | `READER_PORT`, `MANAGER_PORT`, `VERIFIER_PORT`, `STORAGE_PORT`, `PUBLISHER_PORT` | environment | Ports published by Docker (7101 to 7105 by default). |
 | `WEB_PORT`, `PUBLISHER_CONFIG_PATH` | environment | Local dashboard port (8080) and the Publisher JSON it uses. |
-
-Create the `.env` file like this (more in [Docker](deploy/docker/README.md)):
-
-```sh
-echo "STELLAR_SECRET_KEY=$(stellar keys show <alias>)" > deploy/docker/.env
-```
 
 ---
 
@@ -317,8 +338,15 @@ transactions. A network edited in the console is saved only in that browser.
 ### Local start without Docker
 
 ```sh
-./tools/web.sh
+./tools/web.sh                     # creates missing keys and serves the operator
+./tools/web.sh --regenerate-keys   # also replaces the wallets with new ones (keeps a backup)
+./tools/web.sh --rebuild           # also rebuilds and restarts the Phonendo Docker stack
 ```
+
+Both options are off by default. Whoever clones the repo only needs to put their keys in
+`keys/` (or let `web.sh` create them) and deploy a contract with their `verifierId`. When
+deploying a Verifier or a Publisher from the operator, you pick its key or wallet from
+`keys/`.
 
 `tools/web.sh` is a Bash script: on Windows, run it with WSL. The payment panels do not
 need it and also work with `npm run dev` or `npm run build` in `apps/web`.
@@ -335,8 +363,8 @@ Change the port with `WEB_PORT=8081 ./tools/web.sh` and pick another JSON with
 
 The operator served by `tools/web.sh` deploys and manages the services as **Docker
 containers**: it builds the images, creates Readers, Managers, Verifiers, Storages and
-Publishers, connects them, shows their logs and lets a Reader emit single pulses or 32
-readings. It also detects the containers already started with `compose.yml` (project
+Publishers, connects them, shows their logs and lets a Reader emit single pulses or
+batches of readings. It also detects the containers already started with `compose.yml` (project
 `phonendo`). Services keep running after the web is closed. Secrets are masked in the
 browser, the control API listens only on loopback and requires the same origin for
 actions, and the visual walkthrough only confirms observed steps, never simulating
@@ -374,10 +402,11 @@ the services down when it finishes.
 | Trust | The Phonendo Verifier and the sensor are trusted: the Verifier's signature says the readings are the ones it checked. Next step: the sensor signs each reading itself. |
 | Trusted setup | The proving-key ceremony (`npm run setup`) has a single participant and is for development only. Production would use a multi-party ceremony. |
 | Hash parameters | The circuit uses Poseidon with BN254 constants over the BLS12-381 field. It works and is tested against the circuit, but these are not the standard parameters. |
-| Timing | The circuit checks each reading's value and how many are in range, but **not the time between readings**: 32 readings taken within a few seconds count as a session. |
+| Timing | The circuit checks each reading's value and how many are in range, but **not the time between readings**: 5 readings taken within a few seconds count as a session. |
 | Availability | The Publisher keeps batches in memory: if it stops, it loses the current batch and does not retry claims. |
 | Audit | The contract runs on testnet and is not audited. |
-| Secrets | Keys, `config.env` files and local data are not versioned; they are generated with `tools/generate_configs.sh`. An old Verifier RSA key remains in the git history and must not be reused. |
+| Secrets | Keys, `config.env` files and local data are not versioned; they are generated with `tools/keys.sh` and `tools/generate_configs.sh`. An old Verifier RSA key and a secret of the `phonendo` wallet remain in the git history and must not be reused. |
+| Double claims | The `sessionId` is derived from the batch's events and checked by the Verifier, which also never signs one event in two sessions: the contract never pays the same readings twice, even with several Publishers. |
 
 ---
 

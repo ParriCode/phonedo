@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { KINDS, KIND_ICON } from '../../config.js';
 import { dockerDefaultConfig } from '../../lib/serviceConfig.js';
+import { requestLocal } from '../../../service_network/api.js';
 import { useI18n } from '../../providers/I18nProvider.jsx';
 import { useNetwork } from '../../providers/NetworkProvider.jsx';
 import { useOperator } from '../../providers/OperatorProvider.jsx';
@@ -9,6 +10,31 @@ import { Field } from './Field.jsx';
 
 const DeployDialogContext = createContext(null);
 const draftFor = (kind, image = null) => ({ kind, image, name: `${kind}-${Date.now().toString(36)}` });
+
+/** Clave de firma (Verifier) o cartera (Publisher) de keys/; el panel solo ve la parte pública. */
+function KeyChoice({ kind }) {
+  const { opText } = useI18n();
+  const [keys, setKeys] = useState(null);
+  useEffect(() => {
+    if (kind !== 'verifier' && kind !== 'publisher') return;
+    requestLocal('keys', undefined, 'GET').then(setKeys).catch(() => setKeys({}));
+  }, [kind]);
+  if (kind !== 'verifier' && kind !== 'publisher') return null;
+  const verifier = kind === 'verifier';
+  const items = (verifier ? keys?.verifiers : keys?.wallets) || [];
+  const label = verifier ? opText('Clave de firma (keys/verifiers)', 'Signing key (keys/verifiers)') : opText('Cartera que paga el claim (keys/stellar)', 'Wallet paying the claim (keys/stellar)');
+  if (keys && !items.length) {
+    return <p className="notice">{verifier ? opText('No hay claves de Verifier. Ejecuta ./tools/keys.sh init', 'No Verifier keys. Run ./tools/keys.sh init') : opText('No hay carteras. Ejecuta ./tools/keys.sh init', 'No wallets. Run ./tools/keys.sh init')}</p>;
+  }
+  return (
+    <label className="op-field"><span>{label}</span>
+      <select name={verifier ? 'verifierKey' : 'wallet'} required disabled={!keys}>
+        {items.map((item) => verifier
+          ? <option key={item.name} value={item.name}>{item.name} · {item.verifierId.slice(0, 12)}…</option>
+          : <option key={item.alias} value={item.alias}>{item.alias}{item.address ? ` · ${item.address.slice(0, 8)}…` : ''}</option>)}
+      </select></label>
+  );
+}
 
 function DeployForm({ draft, onKind, onClose }) {
   const { t, opText } = useI18n();
@@ -42,7 +68,7 @@ function DeployForm({ draft, onKind, onClose }) {
       <label className="op-field"><span>config.json</span><textarea name="config" rows="13" spellCheck={false} required defaultValue={JSON.stringify(config, null, 2)} /></label>
       <p className="op-caption">{opText('Dentro de Docker usa la dirección Docker de cada servicio. Para servicios del equipo: host.docker.internal. Los tokens comunes del panel se inyectan automáticamente.', 'Inside Docker use each service Docker address. For host services use host.docker.internal. Shared panel tokens are injected automatically.')}</p>
       <details><summary>{opText('Variables de entorno y tokens', 'Environment variables & tokens')}</summary><label className="op-field"><span>JSON · API_TOKEN_MANAGER / API_TOKEN_VERIFIER / MANAGER_PASSWORD…</span><textarea name="environment" rows="5" spellCheck={false} defaultValue="{}" /></label></details>
-      {kind === 'publisher' ? <label className="check-line"><input type="checkbox" name="stellarIdentity" />{opText('Montar mi configuración local de Stellar (solo lectura)', 'Mount my local Stellar configuration (read-only)')}</label> : null}
+      <KeyChoice kind={kind} />
       <p className="op-caption" id="op-deploy-progress" role="status">{progress}</p><p className="form-error" id="op-dialog-error" role="alert">{error}</p></div><div className="dialog-foot"><button className="btn btn-line" type="button" data-op="close-dialog" onClick={onClose}>{t('dlg.cancel')}</button><button className="btn btn-gold" type="submit">{opText('Desplegar Docker', 'Deploy Docker')}</button></div></form>
   );
 }

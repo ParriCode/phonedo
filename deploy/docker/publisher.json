@@ -1,14 +1,14 @@
 {
   "contracts": {
-    "d407a24e37fa4588a32063fa097dcee83ce2f4ce954c857a62deec5d521a8e45": "CD3ZLDTB7QKJLMAIBSCL75TRHE6IUZ27RW5FLWNB4F3GUQENZZZSM45H"
+    "d407a24e37fa4588a32063fa097dcee83ce2f4ce954c857a62deec5d521a8e45": "CCLQFKRWBLRSPLVAFWBLG22LPRGP3GEV47CGXA6C3VAGPQ2QITE3DNYL"
   },
   "devices": {
     "simulated-cold-chain": {
-      "contractId": "CDNPBN6HZP4PZKRFOOA2PYC772KF4THXTJNKHBS5Y33HCAVDWCVO5SRE",
+      "contractId": "CACUZG5V45NPFFB5JSLHMTF6NHEP5GMGZ5QJKJPET4ZIRTWOW6VS2VQS",
       "policy": {
         "minValue": 2,
         "maxValue": 8,
-        "minCount": 32
+        "minCount": 5
       }
     }
   },
@@ -21,11 +21,11 @@
       "http://manager:3003"
     ]
   },
-  "batchSize": 32,
+  "batchSize": 5,
   "policy": {
     "minValue": 90,
     "maxValue": 130,
-    "minCount": 28
+    "minCount": 4
   },
   "patients": {
     "default": "GBBO4ZD2YNV3ZBUIBIQAH3VK73Y2RHTSMURUR5LYEK5JMXACK24YN3BC"

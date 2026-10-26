@@ -3,13 +3,15 @@ export const CONFIG = {
   rpc: 'https://soroban-testnet.stellar.org',
   explorer: 'https://stellar.expert/explorer/testnet',
   contracts: [
+    { id: 'CCLQFKRWBLRSPLVAFWBLG22LPRGP3GEV47CGXA6C3VAGPQ2QITE3DNYL', asset: 'USDC', useCase: 'rehab' },
+    { id: 'CACUZG5V45NPFFB5JSLHMTF6NHEP5GMGZ5QJKJPET4ZIRTWOW6VS2VQS', asset: 'USDC', useCase: 'cold-chain' },
     { id: 'CD3ZLDTB7QKJLMAIBSCL75TRHE6IUZ27RW5FLWNB4F3GUQENZZZSM45H', asset: 'USDC', useCase: 'rehab' },
     { id: 'CDNPBN6HZP4PZKRFOOA2PYC772KF4THXTJNKHBS5Y33HCAVDWCVO5SRE', asset: 'USDC', useCase: 'cold-chain' },
     { id: 'CBF2MBQ6W4S6LD3JSIM3NNZET5KBUKOADRZSKIYZRZBAXRM6OJZCNSFI', asset: 'USDC', useCase: 'rehab' },
     { id: 'CAPZ2O7LPTRGJ2Q7TTHMCHOKRZ4T7KU5I4E74M2U3YUTC3XONIQDOP2D', asset: 'XLM', useCase: 'rehab' },
   ],
-  policy: { min: 90, max: 130, minCount: 28, batch: 32, payout: 0.1 },
-  coldPolicy: { min: 2, max: 8, minCount: 32, batch: 32, payout: 0.1 },
+  policy: { min: 90, max: 130, minCount: 4, batch: 5, payout: 0.1 },
+  coldPolicy: { min: 2, max: 8, minCount: 5, batch: 5, payout: 0.1 },
   demoPatient: 'GBBO4ZD2YNV3ZBUIBIQAH3VK73Y2RHTSMURUR5LYEK5JMXACK24YN3BC',
   // Cada panel es una página independiente; mañana cada dirección puede ser un servicio aparte.
   panels: { operator: 'operator.html', patient: 'patient.html', company: 'company.html' },

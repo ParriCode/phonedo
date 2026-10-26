@@ -177,3 +177,51 @@ def test_compose_configuration_edits_mounted_file_and_restores_masked_tokens(tmp
     assert path.stat().st_ino == inode
     assert docker.json.loads(path.read_text())['services']['verifiers'][0]['token'] == 'secret'
     assert ('restart', 'container-id') in calls
+
+
+def deploy_with_keys(tmp_path, monkeypatch, body):
+    """Despliega con Docker simulado y devuelve los argumentos de `docker run`."""
+    monkeypatch.setattr(docker.keys, 'VERIFIERS', tmp_path / 'keys/verifiers')
+    monkeypatch.setattr(docker.keys, 'WALLETS', tmp_path / 'keys/stellar/identity')
+    controller = object.__new__(docker.DockerController)
+    controller.lock = asyncio.Lock()
+    controller.records = {}
+    controller.directory = tmp_path / 'run'
+    controller.directory.mkdir(exist_ok=True)
+    controller.credentials = {key: 'x' for key in ('API_TOKEN_MANAGER', 'API_TOKEN_VERIFIER', 'API_TOKEN_STORAGE', 'MANAGER_PASSWORD')}
+    controller.persist = lambda: None
+    calls = []
+    async def run(*args, **_):
+        calls.append(args)
+        return ''
+    async def nothing(*_):
+        return None
+    async def inspect(record):
+        return {'NetworkSettings': {'Ports': {f"{record['containerPort']}/tcp": [{'HostPort': '1234'}]}}}
+    async def snapshot(identifier, require_ready=False):
+        return {'id': identifier}
+    controller.run, controller.network, controller.inspect, controller.snapshot = run, nothing, inspect, snapshot
+    asyncio.run(controller.deploy({'id': body['kind'] + '-1', 'name': body['kind'] + '-a', 'config': {}, **body}))
+    return next(call for call in calls if call[0] == 'run'), controller.records[body['kind'] + '-1']
+
+
+def test_each_verifier_mounts_only_its_own_key_and_publisher_only_the_wallets(tmp_path, monkeypatch):
+    (tmp_path / 'keys/verifiers').mkdir(parents=True)
+    (tmp_path / 'keys/verifiers/verifier-b.json').write_text('{}')
+    (tmp_path / 'keys/stellar/identity').mkdir(parents=True)
+    (tmp_path / 'keys/stellar/identity/phonendo.toml').write_text('secret_key = "S"\n')
+    args, record = deploy_with_keys(tmp_path, monkeypatch, {'kind': 'verifier', 'verifierKey': 'verifier-b'})
+    assert f"type=bind,src={tmp_path / 'keys/verifiers/verifier-b.json'},dst=/keys/verifier.json,readonly" in args
+    assert record['config']['keyPath'] == '/keys/verifier.json'
+    assert not any('keys/stellar' in str(item) for item in args)
+    args, record = deploy_with_keys(tmp_path, monkeypatch, {'kind': 'publisher', 'wallet': 'phonendo'})
+    assert f"type=bind,src={tmp_path / 'keys/stellar/identity'},dst=/keys/stellar/identity,readonly" in args
+    assert record['config']['stellar'] == {'source': 'phonendo', 'configDir': '/keys/stellar'}
+    assert not any('keys/verifiers' in str(item) for item in args)
+
+
+def test_deploy_refuses_a_key_or_wallet_that_does_not_exist(tmp_path, monkeypatch):
+    with pytest.raises(ValueError, match='keys.sh verifier new verifier-z'):
+        deploy_with_keys(tmp_path, monkeypatch, {'kind': 'verifier', 'verifierKey': 'verifier-z'})
+    with pytest.raises(ValueError, match='keys.sh wallet new otra'):
+        deploy_with_keys(tmp_path, monkeypatch, {'kind': 'publisher', 'wallet': 'otra'})

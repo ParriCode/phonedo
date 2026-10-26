@@ -47,7 +47,7 @@ export function configurationSchema(kind, { liveReader = false, managed = false,
   if (kind === 'verifier' || kind === 'storage') sections = [
     section('connections', 'Conexiones', 'Connections', [toggle('stream.enabled', 'Publicar resultados por SSE', 'Publish results over SSE', true), field('server.publicUrl', 'URL pública del servicio', 'Public service URL', 'url'), destinations('subscriptions.managers', 'Suscribirse a Managers por SSE', 'Subscribe to Managers over SSE')], true),
     section('data', kind === 'verifier' ? 'Firma' : 'Almacenamiento', kind === 'verifier' ? 'Signing' : 'Storage', [kind === 'verifier'
-      ? field('keyPath', 'Archivo de clave del Verifier', 'Verifier key file', 'text', { fallback: '/data/signing-key.json', readonly: managed })
+      ? field('keyPath', 'Archivo de clave del Verifier', 'Verifier key file', 'text', { fallback: '/keys/verifier.json', readonly: managed })
       : field('databasePath', 'Ruta de la base de datos', 'Database path', 'text', { fallback: '/data/phonendo', readonly: managed })]), server,
   ];
   if (kind === 'publisher') sections = [

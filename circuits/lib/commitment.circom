@@ -4,10 +4,12 @@ include "../node_modules/circomlib/circuits/bitify.circom";
 include "../node_modules/circomlib/circuits/poseidon.circom";
 
 // Compromiso Poseidon de un lote de N lecturas de 8 bits.
-// Empaqueta 30 lecturas por elemento de campo y añade sesión y sal.
+// Empaqueta 30 lecturas por elemento de campo y añade sesión y sal. Siempre son
+// 2 palabras (la segunda a 0 si sobra), para usar el mismo Poseidon de 4 entradas.
 template BatchCommitment(N) {
     var PER_WORD = 30;
     var WORDS = (N + PER_WORD - 1) \ PER_WORD;
+    if (WORDS < 2) WORDS = 2;
 
     signal input readings[N];
     signal input salt;

@@ -1,11 +1,14 @@
-"""Clave ed25519 del Verifier y firma de lotes de 32 lecturas para el contrato `adherence`.
+"""Clave ed25519 del Verifier y firma de lotes de BATCH_SIZE lecturas para el contrato `adherence`.
 
 El Verifier recuerda las lecturas de los eventos que ha verificado. Al firmar un
 lote solo usa esas lecturas, nunca las que envía quien pide la firma.
 Mensaje firmado: commitment (32 B) || sessionId (32 B big-endian) || clave de
 la cuenta G de la paciente (32 B) || verifierId (32 B), igual que sign.js.
+El sessionId se deriva de los eventos: las mismas lecturas son siempre la misma
+sesión y el contrato rechaza cobrarla dos veces, haya uno o varios Publishers.
 """
 import base64
+import hashlib
 import json
 import threading
 from collections import OrderedDict
@@ -38,6 +41,12 @@ def account_key(address):
     return raw[1:33]
 
 
+def session_id_for(event_keys):
+    """sessionId de 63 bits derivado de los eventos del lote, sin importar su orden."""
+    digest = hashlib.sha256('\n'.join(sorted(map(str, event_keys))).encode()).digest()
+    return int.from_bytes(digest[:8], 'big') & (2 ** 63 - 1) or 1
+
+
 def reading_from_payload(payload):
     """Lectura entera de 0 a 255 (`simple_result` redondeado), o None."""
     result = payload.get('simple_result') if isinstance(payload, dict) else None
@@ -62,6 +71,8 @@ class BatchSigner:
         self.verifier_id = private_key.public_key().public_bytes(Encoding.Raw, PublicFormat.Raw).hex()
         self.remembered = remembered
         self.readings = OrderedDict()
+        # Evento -> sesión en la que se firmó: un evento no puede contar en dos sesiones.
+        self.signed = OrderedDict()
         self.lock = threading.Lock()
 
     def remember(self, message):
@@ -88,8 +99,13 @@ class BatchSigner:
         patient_key = account_key(patient)
         if not isinstance(event_keys, list) or len(event_keys) != BATCH_SIZE or len(set(map(str, event_keys))) != BATCH_SIZE:
             raise ValueError(f'eventKeys must list {BATCH_SIZE} different events')
+        if session_id != session_id_for(event_keys):
+            raise ValueError('sessionId debe derivarse de eventKeys')
         with self.lock:
             known = [self.readings.get(key) for key in event_keys]
+            reused = any(self.signed.get(key, session_id) != session_id for key in event_keys)
+        if reused:
+            raise ValueError('eventKeys contiene eventos ya firmados en otra sesión')
         if None in known:
             raise ValueError('eventKeys contains events not verified by this Verifier')
         if len({item[:3] for item in known}) != 1:
@@ -98,4 +114,9 @@ class BatchSigner:
             raise ValueError('El origen del lote no coincide con los eventos verificados')
         commitment = batch_commitment([item[3] for item in known], salt, session_id).to_bytes(32, 'big')
         message = commitment + session_id.to_bytes(32, 'big') + patient_key + bytes.fromhex(self.verifier_id)
+        with self.lock:
+            for key in event_keys:
+                self.signed[key] = session_id
+            while len(self.signed) > self.remembered:
+                self.signed.popitem(last=False)
         return commitment.hex(), self.private_key.sign(message).hex()
