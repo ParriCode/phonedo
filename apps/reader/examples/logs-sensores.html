@@ -1,0 +1,409 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Phonendo · Lecturas unificadas</title>
+<!--
+  Panel único para varios Readers de Phonendo (ESP32, Wear OS, Python…).
+  Todos sirven el mismo contrato (/metadata y /stream por SSE), así que la
+  página se suscribe a cada uno y mezcla las observaciones en una sola vista.
+
+  Invariantes:
+  - Toda la configuración (IPs, tokens, colores, límites) vive en localStorage;
+    el archivo no lleva datos incrustados.
+  - Se usa fetch + ReadableStream en vez de EventSource porque EventSource no
+    puede enviar la cabecera «Authorization: Bearer».
+  - El navegador exige CORS: cada Reader debe responder con
+    «Access-Control-Allow-Origin: *» (y atender OPTIONS si usa token).
+-->
+<style>
+  :root {
+    --bg: #0f1217; --panel: #181d25; --text: #e6e9ee; --muted: #8b95a5; --accent: #4cc9f0;
+    --line: color-mix(in srgb, var(--text) 14%, transparent);
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.4 system-ui, sans-serif; }
+  header { display: flex; flex-wrap: wrap; gap: .75rem; align-items: center; padding: .8rem 1rem; border-bottom: 1px solid var(--line); }
+  h1 { font-size: 1.1rem; margin: 0 auto 0 0; color: var(--accent); }
+  button, input, select { font: inherit; color: inherit; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: .35rem .6rem; }
+  button { cursor: pointer; }
+  button:hover { border-color: var(--accent); }
+  input[type=color] { padding: 0; width: 2.2rem; height: 2rem; }
+  input[type=checkbox] { accent-color: var(--accent); }
+  main { padding: 1rem; display: grid; gap: 1rem; }
+  .chips { display: flex; flex-wrap: wrap; gap: .5rem; }
+  .chip { display: inline-flex; align-items: center; gap: .4rem; padding: .2rem .65rem; border-radius: 99px; background: var(--panel); border: 1px solid var(--line); font-size: .85rem; }
+  .dot { width: .7rem; height: .7rem; border-radius: 50%; background: var(--c, var(--muted)); }
+  .chip[data-st=live] .dot { box-shadow: 0 0 6px var(--c); }
+  .chip[data-st=error] { border-color: #e5484d; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: .8rem; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-top: 3px solid var(--c); border-radius: 8px; padding: .7rem .8rem; transition: opacity .3s; }
+  .card.stale { opacity: .45; }
+  .card .src { font-size: .75rem; color: var(--c); text-transform: uppercase; letter-spacing: .05em; }
+  .card .prop { color: var(--muted); font-size: .85rem; }
+  .card .val { font-size: 1.9rem; font-weight: 600; margin: .15rem 0; font-variant-numeric: tabular-nums; word-break: break-word; }
+  .card .val small { font-size: .9rem; color: var(--muted); font-weight: 400; }
+  .card .val.obj { font-size: 1rem; font-weight: 500; }
+  .card .age { font-size: .75rem; color: var(--muted); }
+  svg.spark { width: 100%; height: 34px; display: block; margin-top: .3rem; }
+  div.spark { height: 34px; margin-top: .3rem; }
+  .card .age { min-height: 1.1em; }
+  svg.spark polyline { fill: none; stroke: var(--c); stroke-width: 1.6; vector-effect: non-scaling-stroke; }
+  h2 { font-size: .95rem; margin: 0 0 .5rem; color: var(--muted); font-weight: 600; }
+  .logwrap { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; max-height: 340px; overflow: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: .85rem; font-variant-numeric: tabular-nums; }
+  th, td { text-align: left; padding: .3rem .6rem; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  th { position: sticky; top: 0; background: var(--panel); color: var(--muted); }
+  td.s { color: var(--c); font-weight: 600; }
+  td.k { color: var(--k); font-weight: 600; }
+  .empty { color: var(--muted); padding: 1rem; }
+  dialog { background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 10px; width: min(760px, 95vw); padding: 1rem; }
+  dialog::backdrop { background: #0008; }
+  fieldset { border: 1px solid var(--line); border-radius: 8px; margin: 0 0 .8rem; padding: .6rem .8rem; }
+  legend { color: var(--muted); padding: 0 .4rem; }
+  .row { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; margin: .3rem 0; }
+  .row label { display: inline-flex; gap: .35rem; align-items: center; }
+  .src-row input[type=text] { flex: 1 1 140px; min-width: 0; }
+  .hint { color: var(--muted); font-size: .8rem; margin: .2rem 0 0; }
+  .end { display: flex; gap: .5rem; justify-content: flex-end; margin-top: .6rem; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Phonendo · lecturas unificadas</h1>
+  <label class="row" style="margin:0"><span class="hint">Fuente</span>
+    <select id="filtro"></select>
+  </label>
+  <button id="btnDemo" title="Datos simulados, sin dispositivos">Demo</button>
+  <button id="btnCfg">⚙ Configuración</button>
+</header>
+
+<main>
+  <div class="chips" id="estado"></div>
+  <section><h2>Último valor por sensor</h2><div class="grid" id="cards"></div></section>
+  <section><h2>Eventos recientes</h2>
+    <div class="logwrap"><table>
+      <thead><tr><th>Hora</th><th>Fuente</th><th>Sensor</th><th>Propiedad</th><th>Valor</th></tr></thead>
+      <tbody id="log"></tbody>
+    </table></div>
+  </section>
+</main>
+
+<dialog id="dlg">
+  <form method="dialog" id="frm">
+    <fieldset><legend>Dispositivos</legend>
+      <div id="srcs"></div>
+      <button type="button" id="addSrc">+ Añadir dispositivo</button>
+      <p class="hint">URL del Reader, p. ej. <code>http://phonendo-reader.local</code> o <code>192.168.1.50:8080</code>.
+        Deja el token vacío si el Reader no lo pide.</p>
+    </fieldset>
+    <fieldset><legend>Colores de la interfaz</legend>
+      <div class="row" id="tema"></div>
+    </fieldset>
+    <fieldset><legend>Comportamiento</legend>
+      <div class="row">
+        <label>Puntos de gráfica <input type="number" id="hist" min="5" max="1000" style="width:5rem"></label>
+        <label>Filas de eventos <input type="number" id="logMax" min="10" max="2000" style="width:5rem"></label>
+        <label>Reconectar tras (s) <input type="number" id="recon" min="1" max="120" style="width:4.5rem"></label>
+        <label>Marcar «sin datos» tras (s) <input type="number" id="stale" min="2" max="3600" style="width:5rem"></label>
+      </div>
+    </fieldset>
+    <div class="end">
+      <button type="button" id="reset">Restaurar valores</button>
+      <button type="submit" value="ok">Guardar y reconectar</button>
+    </div>
+  </form>
+</dialog>
+
+<script>
+"use strict";
+const CLAVE = "phonendo-unificado.v1";
+const TEMA = { bg: "Fondo", panel: "Paneles", text: "Texto", muted: "Texto apagado", accent: "Acento" };
+const POR_DEFECTO = () => ({
+  tema: { bg: "#0f1217", panel: "#181d25", text: "#e6e9ee", muted: "#8b95a5", accent: "#4cc9f0" },
+  hist: 60, logMax: 200, recon: 3, stale: 30,
+  fuentes: [
+    { id: "esp32", nombre: "ESP32", url: "http://10.71.224.25", token: "", color: "#f4a261", on: true },
+    { id: "wearos", nombre: "Wear OS", url: "http://192.168.1.50:8080", token: "", color: "#2a9d8f", on: true },
+  ],
+});
+
+let cfg = cargar();
+const sensores = new Map();   // «fuente|sensor» -> última lectura + histórico
+const estados = new Map();    // id de fuente -> {st, msg, reader}
+const conexiones = new Map(); // id de fuente -> AbortController
+const log = [];
+let demoTimer = null, pintar = false;
+const $ = (id) => document.getElementById(id);
+
+function cargar() {
+  const base = POR_DEFECTO();
+  try {
+    const g = JSON.parse(localStorage.getItem(CLAVE));
+    if (g) return { ...base, ...g, tema: { ...base.tema, ...g.tema } };
+  } catch {}
+  return base;
+}
+function guardar() { try { localStorage.setItem(CLAVE, JSON.stringify(cfg)); } catch {} }
+
+function aplicarTema() {
+  for (const k in cfg.tema) document.documentElement.style.setProperty("--" + k, cfg.tema[k]);
+}
+const fuente = (id) => cfg.fuentes.find((f) => f.id === id);
+const baseUrl = (u) => (/^https?:\/\//i.test(u) ? u : "http://" + u).replace(/\/+$/, "");
+
+// ---------- conexión ----------
+function estado(id, st, msg = "") {
+  estados.set(id, { ...estados.get(id), st, msg });
+  pintarEstado();
+}
+
+async function conectar(f) {
+  const ctl = new AbortController();
+  conexiones.set(f.id, ctl);
+  const cab = f.token ? { Authorization: "Bearer " + f.token } : {};
+  const url = baseUrl(f.url);
+  while (!ctl.signal.aborted) {
+    try {
+      estado(f.id, "conn", "conectando…");
+      const m = await fetch(url + "/metadata", { headers: cab, signal: ctl.signal });
+      if (!m.ok) throw new Error("HTTP " + m.status + (m.status === 401 ? " (token)" : ""));
+      estados.set(f.id, { ...estados.get(f.id), reader: (await m.json()).readerId });
+      const r = await fetch(url + "/stream", { headers: cab, signal: ctl.signal });
+      if (!r.ok) throw new Error("HTTP " + r.status + (r.status === 503 ? " (sin hueco SSE)" : ""));
+      estado(f.id, "live", "en vivo");
+      await leerSse(r.body, f);
+      throw new Error("stream cerrado");
+    } catch (e) {
+      if (ctl.signal.aborted) return;
+      const msg = e instanceof TypeError ? "sin respuesta (¿IP, red o CORS?)" : e.message;
+      estado(f.id, "error", msg);
+    }
+    await new Promise((ok) => setTimeout(ok, cfg.recon * 1000));
+  }
+}
+
+async function leerSse(cuerpo, f) {
+  const lector = cuerpo.pipeThrough(new TextDecoderStream()).getReader();
+  let buf = "";
+  for (;;) {
+    const { value, done } = await lector.read();
+    if (done) return;
+    buf += value.replace(/\r\n/g, "\n");
+    let i;
+    while ((i = buf.indexOf("\n\n")) >= 0) {
+      const bloque = buf.slice(0, i); buf = buf.slice(i + 2);
+      let ev = "message", datos = [];
+      for (const l of bloque.split("\n")) {
+        if (l.startsWith("event:")) ev = l.slice(6).trim();
+        else if (l.startsWith("data:")) datos.push(l.slice(5).trim());
+      }
+      if (ev === "stream_closed") return;
+      if (ev !== "observation" || !datos.length) continue;
+      try { recibir(f.id, JSON.parse(datos.join("\n"))); } catch {}
+    }
+  }
+}
+
+function conectarTodo() {
+  for (const c of conexiones.values()) c.abort();
+  conexiones.clear(); estados.clear();
+  for (const f of cfg.fuentes) {
+    if (f.on) conectar(f); else estados.set(f.id, { st: "off", msg: "desactivado" });
+  }
+  pintarEstado();
+}
+
+// ---------- datos ----------
+function recibir(idFuente, ev) {
+  const p = ev.payload || ev;
+  const clave = idFuente + "|" + (p.sensor_id || p.device_id);
+  let s = sensores.get(clave);
+  if (!s) sensores.set(clave, (s = { clave, fuente: idFuente, sensor: p.sensor_id || "?", hist: [] }));
+  Object.assign(s, {
+    prop: p.observable_property || "", unit: p.unit, valor: p.simple_result,
+    hora: p.phenomenon_time, recibido: Date.now(), proc: p.procedure, dev: p.device_id,
+  });
+  if (typeof p.simple_result === "number") {
+    s.hist.push(p.simple_result);
+    if (s.hist.length > cfg.hist) s.hist.splice(0, s.hist.length - cfg.hist);
+  }
+  log.unshift({ fuente: idFuente, sensor: s.sensor, prop: s.prop, unit: p.unit, valor: p.simple_result, t: Date.now() });
+  if (log.length > cfg.logMax) log.length = cfg.logMax;
+  if (!pintar) { pintar = true; setTimeout(() => { pintar = false; render(); }, 250); }
+}
+
+function fmt(v, unit) {
+  if (v === null || v === undefined) return "—";
+  if (typeof v === "number") return (Number.isInteger(v) ? v : +v.toFixed(2)) + (unit ? " " + unit : "");
+  if (typeof v === "object") return Object.entries(v).map(([k, x]) => k + ": " + x).join(" · ");
+  return String(v);
+}
+const hora = (t) => new Date(t).toLocaleTimeString();
+const hace = (ms) => (ms < 1500 ? "ahora" : ms < 90000 ? Math.round(ms / 1000) + " s" : Math.round(ms / 60000) + " min");
+
+// Cada sensor toma el color del dispositivo girando el tono: misma familia, distinto matiz.
+function hsl(hex) {
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
+  const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn, l = (mx + mn) / 2;
+  let h = 0;
+  if (d) h = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  return [(h * 60 + 360) % 360, d ? d / (1 - Math.abs(2 * l - 1)) : 0, l];
+}
+const ordenSensor = new Map(); // «fuente|sensor» -> posición estable (por número o por llegada)
+function colorSensor(idFuente, sensor) {
+  const f = fuente(idFuente);
+  if (!f || !/^#[0-9a-f]{6}$/i.test(f.color)) return "var(--muted)";
+  const k = idFuente + "|" + sensor;
+  if (!ordenSensor.has(k)) {
+    const n = /(\d+)$/.exec(sensor);
+    ordenSensor.set(k, n ? +n[1] - 1 : [...ordenSensor.keys()].filter((x) => x.startsWith(idFuente + "|")).length);
+  }
+  const i = ordenSensor.get(k), [h, sat, l] = hsl(f.color);
+  const li = Math.min(.72, Math.max(.42, l + (i % 2 ? .08 : -.05)));
+  return `hsl(${Math.round(h + i * 32) % 360} ${Math.round(Math.max(.45, sat) * 100)}% ${Math.round(li * 100)}%)`;
+}
+
+// ---------- render ----------
+function el(tag, props = {}, ...hijos) {
+  const e = Object.assign(document.createElement(tag), props);
+  e.append(...hijos);
+  return e;
+}
+
+function pintarEstado() {
+  $("estado").replaceChildren(...cfg.fuentes.map((f) => {
+    const e = estados.get(f.id) || { st: "off", msg: "" };
+    const c = el("span", { className: "chip" }, el("span", { className: "dot" }),
+      `${f.nombre}${e.reader ? " (" + e.reader + ")" : ""} · ${e.msg || e.st}`);
+    c.style.setProperty("--c", f.color); c.dataset.st = e.st;
+    return c;
+  }));
+  const sel = $("filtro"), cur = sel.value || "todas";
+  sel.replaceChildren(el("option", { value: "todas", textContent: "Todas" }),
+    ...cfg.fuentes.map((f) => el("option", { value: f.id, textContent: f.nombre })));
+  sel.value = fuente(cur) ? cur : "todas";
+}
+
+function spark(h) {
+  if (h.length < 2) return null;
+  const mn = Math.min(...h), mx = Math.max(...h), r = mx - mn || 1;
+  const pts = h.map((v, i) => `${(i / (h.length - 1)) * 100},${30 - ((v - mn) / r) * 28 - 1}`).join(" ");
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("class", "spark"); svg.setAttribute("viewBox", "0 0 100 30"); svg.setAttribute("preserveAspectRatio", "none");
+  const pl = document.createElementNS(svg.namespaceURI, "polyline");
+  pl.setAttribute("points", pts); svg.append(pl);
+  return svg;
+}
+
+function render() {
+  const filtro = $("filtro").value;
+  const visibles = [...sensores.values()].filter((s) => filtro === "todas" || s.fuente === filtro)
+    .sort((a, b) => a.fuente.localeCompare(b.fuente) || a.sensor.localeCompare(b.sensor, undefined, { numeric: true }));
+  $("cards").replaceChildren(...(visibles.length ? visibles.map(tarjeta)
+    : [el("div", { className: "empty", textContent: "Esperando datos… revisa la configuración." })]));
+
+  const filas = log.filter((l) => filtro === "todas" || l.fuente === filtro).slice(0, cfg.logMax);
+  $("log").replaceChildren(...filas.map((l) => {
+    const f = fuente(l.fuente) || { nombre: l.fuente, color: "var(--muted)" };
+    const tr = el("tr", {}, el("td", { textContent: hora(l.t) }), el("td", { className: "s", textContent: f.nombre }),
+      el("td", { className: "k", textContent: l.sensor }), el("td", { textContent: l.prop }), el("td", { textContent: fmt(l.valor, l.unit) }));
+    tr.style.setProperty("--c", f.color); tr.style.setProperty("--k", colorSensor(l.fuente, l.sensor));
+    return tr;
+  }));
+}
+
+function tarjeta(s) {
+  const f = fuente(s.fuente) || { nombre: s.fuente, color: "var(--muted)" };
+  const obj = s.valor !== null && typeof s.valor === "object";
+  const val = el("div", { className: "val" + (obj ? " obj" : "") });
+  val.append(fmt(s.valor));
+  if (typeof s.valor === "number" && s.unit) val.append(" ", el("small", { textContent: s.unit }));
+  const age = el("div", { className: "age" });
+  age.dataset.t = s.recibido;
+  age.textContent = "hace " + hace(Date.now() - s.recibido);
+  const c = el("div", { className: "card" }, el("div", { className: "src", textContent: `${f.nombre} · ${s.sensor}` }),
+    el("div", { className: "prop", textContent: s.prop }), val, age);
+  c.style.setProperty("--c", colorSensor(s.fuente, s.sensor));
+  c.classList.toggle("stale", Date.now() - s.recibido > cfg.stale * 1000);
+  c.append(spark(s.hist) || el("div", { className: "spark" })); // reserva la altura de la gráfica
+  return c;
+}
+
+// «hace X» y atenuado de tarjetas sin datos, sin repintar todo
+setInterval(() => {
+  document.querySelectorAll(".card").forEach((c) => {
+    const ms = Date.now() - +c.querySelector(".age").dataset.t;
+    c.querySelector(".age").textContent = "hace " + hace(ms);
+    c.classList.toggle("stale", ms > cfg.stale * 1000);
+  });
+}, 1000);
+
+// ---------- demo ----------
+function alternarDemo() {
+  if (demoTimer) { clearInterval(demoTimer); demoTimer = null; $("btnDemo").textContent = "Demo"; return; }
+  $("btnDemo").textContent = "Parar demo";
+  const [a, b] = cfg.fuentes;
+  let n = 0, d = 50;
+  demoTimer = setInterval(() => {
+    n++;
+    const obs = (sensor, prop, v, unit) => ({ payload: { sensor_id: sensor, observable_property: prop, simple_result: v, unit, phenomenon_time: new Date().toISOString() } });
+    if (a) { recibir(a.id, obs("sensor-1", "random-value", Math.floor(Math.random() * 101), null));
+      d = Math.max(2, d + (Math.random() - .5) * 8); recibir(a.id, obs("sensor-3", "distance", +d.toFixed(1), "cm"));
+      if (n % 7 === 0) recibir(a.id, obs("sensor-4", "rotary-encoder", { position: n % 20 - 10, pressed: n % 14 === 0 }, null)); }
+    if (b) { recibir(b.id, obs("sensor-1", "heart-rate", Math.round(70 + 10 * Math.sin(n / 5)), "bpm"));
+      if (n % 5 === 0) recibir(b.id, obs("sensor-2", "steps", n * 3, null)); }
+  }, 1000);
+}
+
+// ---------- configuración ----------
+function fila(f) {
+  const r = el("div", { className: "row src-row" });
+  const ctl = (k, props) => Object.assign(el("input"), props, { oninput(e) { f[k] = e.target.type === "checkbox" ? e.target.checked : e.target.value; } });
+  r.append(
+    ctl("on", { type: "checkbox", checked: f.on, title: "Activo" }),
+    ctl("color", { type: "color", value: f.color }),
+    ctl("nombre", { type: "text", value: f.nombre, placeholder: "Nombre" }),
+    ctl("url", { type: "text", value: f.url, placeholder: "http://ip:puerto" }),
+    ctl("token", { type: "text", value: f.token, placeholder: "token (opcional)" }),
+    el("button", { type: "button", textContent: "✕", title: "Quitar", onclick() { editado.fuentes = editado.fuentes.filter((x) => x !== f); r.remove(); } }),
+  );
+  return r;
+}
+
+let editado;
+function abrirCfg() {
+  editado = JSON.parse(JSON.stringify(cfg));
+  pintarForm();
+  $("dlg").showModal();
+}
+
+function pintarForm() {
+  $("srcs").replaceChildren(...editado.fuentes.map(fila));
+  $("tema").replaceChildren(...Object.entries(TEMA).map(([k, nombre]) => el("label", {}, nombre,
+    Object.assign(el("input"), { type: "color", value: editado.tema[k], oninput(e) { editado.tema[k] = e.target.value; } }))));
+  $("hist").value = editado.hist; $("logMax").value = editado.logMax; $("recon").value = editado.recon; $("stale").value = editado.stale;
+}
+
+$("btnCfg").onclick = abrirCfg;
+$("btnDemo").onclick = alternarDemo;
+$("filtro").onchange = render;
+$("addSrc").onclick = () => {
+  const f = { id: "d" + Date.now().toString(36), nombre: "Nuevo", url: "", token: "", color: "#" + Math.floor(Math.random() * 0xffffff).toString(16).padStart(6, "0"), on: true };
+  editado.fuentes.push(f); $("srcs").append(fila(f));
+};
+$("reset").onclick = () => { editado = POR_DEFECTO(); pintarForm(); };
+$("frm").onsubmit = () => {
+  const num = (id, min, max, def) => Math.min(max, Math.max(min, +$(id).value || def));
+  editado.hist = num("hist", 5, 1000, 60); editado.logMax = num("logMax", 10, 2000, 200);
+  editado.recon = num("recon", 1, 120, 3); editado.stale = num("stale", 2, 3600, 30);
+  const vivos = new Set(editado.fuentes.map((f) => f.id));
+  for (const k of sensores.keys()) if (!vivos.has(k.split("|")[0])) sensores.delete(k);
+  cfg = editado; guardar(); aplicarTema(); conectarTodo(); render();
+};
+
+aplicarTema(); conectarTodo(); render();
+</script>
+</body>
+</html>
