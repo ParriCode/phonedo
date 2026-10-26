@@ -166,8 +166,10 @@ async function conectar(f) {
   const url = baseUrl(f.url);
   while (!ctl.signal.aborted) {
     try {
-      estado(f.id, "conn", "conectando…");
-      const m = await fetch(url + "/metadata", { headers: cab, signal: ctl.signal });
+      const previo = estados.get(f.id);
+      // Tras un fallo se conserva el motivo en pantalla en vez de alternar con «conectando…».
+      if (previo?.st !== "error") estado(f.id, "conn", "conectando…");
+      const m = await fetch(url + "/metadata", { headers: cab, signal: AbortSignal.any([ctl.signal, AbortSignal.timeout(6000)]) });
       if (!m.ok) throw new Error("HTTP " + m.status + (m.status === 401 ? " (token)" : ""));
       estados.set(f.id, { ...estados.get(f.id), reader: (await m.json()).readerId });
       const r = await fetch(url + "/stream", { headers: cab, signal: ctl.signal });
@@ -177,7 +179,8 @@ async function conectar(f) {
       throw new Error("stream cerrado");
     } catch (e) {
       if (ctl.signal.aborted) return;
-      const msg = e instanceof TypeError ? "sin respuesta (¿IP, red o CORS?)" : e.message;
+      const msg = e.name === "TimeoutError" ? "sin respuesta en 6 s (¿IP o red?)"
+        : e instanceof TypeError ? "bloqueado o inalcanzable (¿CORS? ¿IP?)" : e.message;
       estado(f.id, "error", msg);
     }
     await new Promise((ok) => setTimeout(ok, cfg.recon * 1000));
