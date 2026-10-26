@@ -1,9 +1,11 @@
 import os
+import logging
 import sys
 import time
 from pathlib import Path
 
 from flask import Flask, g, jsonify, request
+from waitress import serve
 from dotenv import load_dotenv
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
@@ -169,9 +171,17 @@ manager_subscriptions = StreamClient(manager_targets, storage_config.token, cons
 manager_subscriptions.start()
 atexit.register(manager_subscriptions.close)
 
+def hide_werkzeug_dev_warning(record):
+    if 'This is a development server' in record.getMessage():
+        record.msg = record.getMessage().partition('\n')[2]
+        record.args = ()
+        return bool(record.msg)
+    return True
+
+
 def start():
     Logger.info("service_starting", port=os.getenv("PORT_STORAGE", 5000))
-    app.run(host=storage_config.host, port=storage_config.port)
+    serve(app, host=storage_config.host, port=storage_config.port, threads=64, send_bytes=1)
 
 
 if __name__ == "__main__":

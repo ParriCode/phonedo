@@ -1,0 +1,3 @@
+/home/cesar/Projects/phonedo/apps/reader/examples/wearos/app/.cxx/Debug/165x6g2u/x86_64/CMakeFiles/phonendo_reader.dir
+/home/cesar/Projects/phonedo/apps/reader/examples/wearos/app/.cxx/Debug/165x6g2u/x86_64/CMakeFiles/edit_cache.dir
+/home/cesar/Projects/phonedo/apps/reader/examples/wearos/app/.cxx/Debug/165x6g2u/x86_64/CMakeFiles/rebuild_cache.dir

@@ -1,0 +1,18 @@
+                        -H/home/cesar/Projects/phonedo/apps/reader/examples/wearos/app/src/main/cpp
+-DCMAKE_SYSTEM_NAME=Android
+-DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+-DCMAKE_SYSTEM_VERSION=30
+-DANDROID_PLATFORM=android-30
+-DANDROID_ABI=x86_64
+-DCMAKE_ANDROID_ARCH_ABI=x86_64
+-DANDROID_NDK=/nix/store/s8h9vm6i1k3vd2nwd88i543s2sg9gwrv-androidsdk/libexec/android-sdk/ndk-bundle
+-DCMAKE_ANDROID_NDK=/nix/store/s8h9vm6i1k3vd2nwd88i543s2sg9gwrv-androidsdk/libexec/android-sdk/ndk-bundle
+-DCMAKE_TOOLCHAIN_FILE=/nix/store/s8h9vm6i1k3vd2nwd88i543s2sg9gwrv-androidsdk/libexec/android-sdk/ndk-bundle/build/cmake/android.toolchain.cmake
+-DCMAKE_MAKE_PROGRAM=/nix/store/s8h9vm6i1k3vd2nwd88i543s2sg9gwrv-androidsdk/libexec/android-sdk/cmake/3.22.1/bin/ninja
+-DCMAKE_LIBRARY_OUTPUT_DIRECTORY=/home/cesar/Projects/phonedo/apps/reader/examples/wearos/app/build/intermediates/cxx/Debug/165x6g2u/obj/x86_64
+-DCMAKE_RUNTIME_OUTPUT_DIRECTORY=/home/cesar/Projects/phonedo/apps/reader/examples/wearos/app/build/intermediates/cxx/Debug/165x6g2u/obj/x86_64
+-DCMAKE_BUILD_TYPE=Debug
+-B/home/cesar/Projects/phonedo/apps/reader/examples/wearos/app/.cxx/Debug/165x6g2u/x86_64
+-GNinja
+                        Build command args: []
+                        Version: 2

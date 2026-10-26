@@ -1,5 +1,4 @@
-// Partes del inspector de un servicio: dispositivos del Reader (acciones de uso diario)
-// y la configuración avanzada, plegada por defecto.
+// Partes del inspector de un servicio: configuración visual, dispositivos y datos técnicos.
 import { configFor } from '../../lib/serviceConfig.js';
 import { useI18n } from '../../providers/I18nProvider.jsx';
 import { useNetwork } from '../../providers/NetworkProvider.jsx';
@@ -72,28 +71,35 @@ function ServiceToken({ service }) {
   );
 }
 
-/** Nivel 3: dirección completa, Docker, token, configuración Visual/JSON y eliminar. */
-export function AdvancedSettings({ service }) {
+/** Configuración real del servicio, visible en el panel derecho. */
+export function ServiceEditor({ service }) {
   const { opText } = useI18n();
   const { network } = useNetwork();
-  const { readers, containers, dockerAction, removeFromView } = useOperator();
+  const { readers, containers } = useOperator();
   const runtime = readers[service.id];
   const snapshot = containers[service.id];
   let editor = null;
   if (runtime) editor = <ServiceConfiguration key={service.id} node={service} config={runtime.config} liveReader />;
-  else if (snapshot && service.kind !== 'reader') editor = <ServiceConfiguration key={service.id} node={service} config={snapshot.serviceConfig} environment={snapshot.environment} />;
+  else if (snapshot) editor = <ServiceConfiguration key={service.id} node={service} config={snapshot.serviceConfig} environment={snapshot.environment} />;
   else if (!service.managed) editor = <ServiceConfiguration key={service.id} node={service} config={configFor(service, network)} draftOnly />;
+  return editor ? <section className="inspector__section inspector__section--configuration"><div className="inspector__section-head"><h3>{opText('Configuración', 'Configuration')}</h3><Icon name="layers" /></div>{editor}</section> : null;
+}
+
+/** Dirección, imagen y controles menos habituales. */
+export function AdvancedSettings({ service }) {
+  const { opText } = useI18n();
+  const { containers, dockerAction, removeFromView } = useOperator();
+  const snapshot = containers[service.id];
   return (
     <details className="advanced">
-      <summary>{opText('Configuración avanzada', 'Advanced settings')}</summary>
+      <summary>{opText('Detalles técnicos', 'Technical details')}</summary>
       <dl className="facts facts--compact">
         <dt>URL</dt><dd className="mono">{service.url}</dd>
         {snapshot ? <><dt>{opText('Imagen', 'Image')}</dt><dd className="mono">{snapshot.image}</dd><dt>{opText('Red Docker', 'Docker network')}</dt><dd className="mono">{snapshot.dockerUrl}</dd></> : null}
       </dl>
       {service.managed ? null : <ServiceToken service={service} />}
-      {editor}
       {service.managed
-        ? <><button type="button" className="btn btn-danger btn-sm" data-op="docker-remove" data-id={service.id} onClick={() => dockerAction(service, 'remove')}>{opText('Eliminar contenedor', 'Remove container')}</button><p className="op-caption">{opText('Los datos se conservan en .run/web-docker. Cerrar la web no para los contenedores.', 'Data is kept in .run/web-docker. Closing the web does not stop containers.')}</p></>
+        ? <><button type="button" className="btn btn-danger btn-sm" data-op="docker-remove" data-id={service.id} onClick={() => dockerAction(service, 'remove')}>{opText('Eliminar contenedor', 'Remove container')}</button><p className="op-caption">{snapshot?.compose ? opText('Contenedor de Docker Compose. El archivo Compose puede volver a crearlo.', 'Docker Compose container. The Compose file can recreate it.') : opText('Los datos se conservan en .run/web-docker. Cerrar la web no para los contenedores.', 'Data is kept in .run/web-docker. Closing the web does not stop containers.')}</p></>
         : <button type="button" className="btn btn-danger btn-sm" data-action="remove" data-id={service.id} onClick={() => removeFromView(service)}>{opText('Quitar de la vista', 'Remove from view')}</button>}
     </details>
   );

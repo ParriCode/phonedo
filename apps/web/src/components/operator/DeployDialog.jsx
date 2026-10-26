@@ -8,7 +8,7 @@ import { Icon } from '../Icon.jsx';
 import { Field } from './Field.jsx';
 
 const DeployDialogContext = createContext(null);
-const draftFor = (kind) => ({ kind, name: `${kind}-${Date.now().toString(36)}` });
+const draftFor = (kind, image = null) => ({ kind, image, name: `${kind}-${Date.now().toString(36)}` });
 
 function DeployForm({ draft, onKind, onClose }) {
   const { t, opText } = useI18n();
@@ -35,8 +35,8 @@ function DeployForm({ draft, onKind, onClose }) {
         <button key={item} type="button" className="choice" data-deploy-kind={item} aria-pressed={item === kind} onClick={() => onKind(item)}><Icon name={KIND_ICON[item]} /><b>{t(`kind.${item}`)}</b></button>
       ))}</div>
       <Field label={opText('Nombre Docker', 'Docker name')} name="name" defaultValue={name} required pattern="[a-z][a-z0-9-]{0,62}" />
-      <Field label={opText('Imagen / tag', 'Image / tag')} name="image" defaultValue={`phonendo-web-${kind}:local`} required />
-      <label className="check-line"><input type="checkbox" name="build" defaultChecked />{opText('Construir desde el Dockerfile del repositorio con este tag', 'Build from the repository Dockerfile with this tag')}</label>
+      <Field label={opText('Imagen / tag', 'Image / tag')} name="image" defaultValue={draft.image || `phonendo-web-${kind}:local`} required />
+      <label className="check-line"><input type="checkbox" name="build" defaultChecked={!draft.image} />{opText('Construir desde el Dockerfile del repositorio con este tag', 'Build from the repository Dockerfile with this tag')}</label>
       <p className="op-caption">{opText('Desmarca para usar una imagen existente o descargarla. Debe ser compatible con el servicio Phonendo seleccionado.', 'Uncheck to use an existing image or pull it. The image must support the selected Phonendo service.')}</p>
       <div className="field-row"><Field label={opText('Puerto local (0 = libre)', 'Host port (0 = automatic)')} name="port" defaultValue={0} type="number" min="0" max="65535" required /><Field label={opText('Puerto del contenedor', 'Container port')} name="containerPort" defaultValue={config.server.port} type="number" min="1" max="65535" required /></div>
       <label className="op-field"><span>config.json</span><textarea name="config" rows="13" spellCheck={false} required defaultValue={JSON.stringify(config, null, 2)} /></label>
@@ -54,7 +54,7 @@ export function DeployDialogProvider({ children }) {
   const [draft, setDraft] = useState(null);
   const [open, setOpen] = useState(false);
 
-  const openDialog = useCallback((kind) => { setDraft(draftFor(kind)); setOpen(true); }, []);
+  const openDialog = useCallback((kind, image) => { setDraft(draftFor(kind, image)); setOpen(true); }, []);
   // Mientras hay una operación en curso el diálogo no se cierra ni cambia de tipo.
   const close = useCallback(() => { if (!isBusy()) setOpen(false); }, [isBusy]);
   const changeKind = useCallback((kind) => { if (!isBusy()) setDraft(draftFor(kind)); }, [isBusy]);

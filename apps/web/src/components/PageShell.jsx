@@ -29,7 +29,7 @@ export function PageShell({ children, nav = [] }) {
   return (
     <>
       <header className="topbar">
-        <span className="brand"><span className="brand-mark"><svg className="icon"><use href="#i-pulse" /></svg></span><span>Phon<b>endo</b></span></span>
+        <a className="brand" href="index.html" aria-label="Phonendo"><span className="brand-mark"><svg className="icon"><use href="#i-pulse" /></svg></span><span>Phon<b>endo</b></span></a>
         <div className="topbar-end">
           {nav.map((item) => <a key={item.href} className="topbar-link" href={item.href}><Icon name={item.icon} />{t(item.label)}</a>)}
           <NetPill />

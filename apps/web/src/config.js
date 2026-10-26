@@ -30,13 +30,3 @@ export const KINDS = ['reader', 'manager', 'verifier', 'storage', 'publisher'];
 export const KIND_ICON = { reader: 'cpu', manager: 'hub', verifier: 'shield', storage: 'db', publisher: 'send' };
 export const TEMPLATES = { pulse: 'pulse', temperature: 'thermo' };
 export const ORGS = ['hospital', 'insurer', 'lab'];
-export const STORE_KEY = 'phonendo.network.v2';
-
-// Despliegue local de deploy/docker/compose.yml.
-export const DEMO_NETWORK = [
-  { id: 'reader-1', kind: 'reader', name: 'reader-docker', org: 'hospital', url: 'http://localhost:7101', template: 'pulse', managers: ['manager-1'] },
-  { id: 'manager-1', kind: 'manager', name: 'manager', org: 'hospital', url: 'http://localhost:7102', managers: [] },
-  { id: 'verifier-1', kind: 'verifier', name: 'verifier', org: 'hospital', url: 'http://localhost:7103', managers: ['manager-1'] },
-  { id: 'storage-1', kind: 'storage', name: 'storage', org: 'hospital', url: 'http://localhost:7104', managers: ['manager-1'] },
-  { id: 'publisher-1', kind: 'publisher', name: 'publisher', org: 'hospital', url: 'http://localhost:7105', managers: ['manager-1'] },
-];

@@ -47,7 +47,7 @@ export function groupRepeats(logs) {
   return rows;
 }
 
-export function OperatorLogs({ view }) {
+export function OperatorLogs({ view, onShowMap = () => {} }) {
   const { t, opText } = useI18n();
   const { selected, select } = useNetwork();
   const { logs, logFilter, setLogFilter, clearLogs } = useOperator();
@@ -92,7 +92,7 @@ export function OperatorLogs({ view }) {
           {visible.slice(0, MAX_ROWS).map((log) => (
             <li key={log.id} className={`log-row log-row--${log.level}${log.node === selected ? ' is-related' : ''}`}>
               <LevelBadge level={log.level} />
-              <button type="button" className="log-row__service" onClick={() => select(log.node)} title={opText('Ver en el mapa', 'Show on the map')}>{log.name}<small>{t(`kind.${log.kind}`)}</small></button>
+              <button type="button" className="log-row__service" onClick={() => { select(log.node); onShowMap(); }} title={opText('Ver en el mapa', 'Show on the map')}>{log.name}<small>{t(`kind.${log.kind}`)}</small></button>
               <code className="log-row__message">{log.message}{log.count > 1 ? <span className="log-row__count">×{log.count}</span> : null}</code>
               <small className="log-row__time">{log.historical ? opText('anterior', 'earlier') : sinceLabel(log.at, view.now, opText)}</small>
               {log.detail && detailEntries(log.detail).length ? (

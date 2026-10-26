@@ -4,6 +4,7 @@ import subprocess
 
 TX_HASH = re.compile(r'/tx/([0-9a-f]{64})')
 ALREADY_CLAIMED = 'Error(Contract, #1)'
+INVALID_PROOF = 'Error(Contract, #2)'
 
 
 class ClaimFailed(Exception):
@@ -32,7 +33,13 @@ class StellarClaimer:
         if result.returncode != 0:
             if ALREADY_CLAIMED in output:
                 raise ClaimFailed('Sesión ya cobrada')
-            lines = [line for line in output.splitlines() if 'error' in line.lower()]
-            raise ClaimFailed(lines[0].strip() if lines else 'claim falló')
+            if INVALID_PROOF in output:
+                raise ClaimFailed('La prueba no coincide con la política o la clave de verificación del contrato')
+            if re.search(r'insufficient|underfunded|low balance|saldo insuficiente', output, re.I):
+                raise ClaimFailed('Saldo insuficiente en la cuenta emisora o en el contrato para pagar la sesión')
+            if re.search(r'ed25519|invalid signature|signature verification', output, re.I):
+                raise ClaimFailed('Firma del Verifier rechazada por el contrato: comprueba su clave pública')
+            lines = [line.strip() for line in output.splitlines() if line.strip()]
+            raise ClaimFailed(' | '.join(lines[-8:])[:1000] if lines else 'claim falló sin detalle en la CLI')
         match = TX_HASH.search(output)
         return match.group(1) if match else None

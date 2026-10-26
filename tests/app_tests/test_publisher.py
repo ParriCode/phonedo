@@ -41,6 +41,16 @@ def verified(device_id, result, created=1000, key=None):
         'creationDatetime': created, 'payload': {'simple_result': result}}}
 
 
+def test_stellar_source_environment_overrides_json_for_docker(tmp_path, monkeypatch):
+    from publisher_support.config import PublisherConfig
+
+    config = tmp_path / 'publisher.json'
+    config.write_text(json.dumps({'stellar': {'source': 'json-alias', 'network': 'testnet'}}))
+    monkeypatch.setenv('STELLAR_SOURCE', 'docker-alias')
+    monkeypatch.setenv('PUBLISHER_STELLAR_SOURCE', 'legacy-alias')
+    assert PublisherConfig(config).stellar['source'] == 'docker-alias'
+
+
 def wait_until(condition):
     for _ in range(100):
         if condition():
@@ -69,7 +79,17 @@ def test_public_info_and_logs(publisher):
     publisher.manager_subscriptions.connected.add('http://manager:3003/stream')
     assert client.get('/info').json == [{'peer': 'http://manager:3003', 'transport': 'sse'}]
     publisher.Logger.info('publisher_connected')
-    assert client.get('/logs').json[-1] == 'publisher_connected'
+    assert json.loads(client.get('/logs').json[-1])['message'] == 'publisher_connected'
+
+
+def test_failed_batch_exposes_the_reason_in_public_logs(publisher):
+    publisher.prover.prove = MagicMock(side_effect=ValueError('La firma del Verifier no coincide'))
+    batch = {'sessionId': 7, 'deviceId': 'sensor', 'verifierId': 'verifier-a', 'patient': ZERO_ACCOUNT}
+    assert publisher.process_batch(batch) is None
+    last = json.loads(publisher.app.test_client().get('/logs').json[-1])
+    assert last['message'] == 'publisher_session_failed'
+    assert last['level'] == 'ERROR'
+    assert 'firma del Verifier' in last['error']
 
 
 @pytest.mark.parametrize('field', ['managerId', 'verifierId', 'readerId', 'deviceId'])
@@ -139,6 +159,12 @@ def test_claim_command_and_already_claimed_error():
     failed = MagicMock(returncode=1, stdout='', stderr='error: HostError: Error(Contract, #1)')
     with patch('subprocess.run', return_value=failed), pytest.raises(ClaimFailed, match='ya cobrada'):
         claimer.claim({'sessionId': 9}, ZERO_ACCOUNT, 'ab', 'cd', 'p.json')
+    for output, reason in [('error: insufficient balance', 'Saldo insuficiente'),
+                           ('error: ed25519 signature verification failed', 'Firma del Verifier'),
+                           ('error: Error(Contract, #2)', 'prueba no coincide')]:
+        failed.stderr = output
+        with patch('subprocess.run', return_value=failed), pytest.raises(ClaimFailed, match=reason):
+            claimer.claim({'sessionId': 9}, ZERO_ACCOUNT, 'ab', 'cd', 'p.json')
 
 
 def test_claim_reads_utf8_output_of_the_cli(monkeypatch):

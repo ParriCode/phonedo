@@ -25,6 +25,7 @@ export function useCanvasInteractions(viewportRef, state, callbacks) {
 
     viewport.addEventListener('pointerdown', (event) => {
       if (gesture || ![0, 1].includes(event.button)) return;
+      if (event.target.closest('[data-node-action],[data-edge-action]')) return;
       const element = event.target.closest('[data-service-id]');
       const id = element?.dataset.serviceId;
       // Pulsar una conexión la selecciona; arrastrar sobre ella mueve el lienzo.
@@ -48,7 +49,8 @@ export function useCanvasInteractions(viewportRef, state, callbacks) {
       const dx = current.x - gesture.origin.x;
       const dy = current.y - gesture.origin.y;
       if (Math.hypot(dx, dy) > 3) gesture.moved = true;
-      if (!gesture.moved) return;
+      // El nodo sigue al puntero desde el primer píxel; el umbral solo distingue un clic de un arrastre.
+      if (!gesture.moved && !gesture.id) return;
       if (gesture.id) state.move(gesture.id, {
         x: gesture.position.x + dx / gesture.viewport.zoom,
         y: gesture.position.y + dy / gesture.viewport.zoom,
@@ -77,6 +79,7 @@ export function useCanvasInteractions(viewportRef, state, callbacks) {
 
     viewport.addEventListener('click', (event) => {
       // El click sintetizado al terminar un drag nunca debe seleccionar otro nodo.
+      if (event.target.closest('[data-node-action],[data-edge-action]')) return;
       event.stopPropagation();
       if (suppressClick) { suppressClick = false; return; }
       if (event.detail === 0) {
@@ -95,10 +98,13 @@ export function useCanvasInteractions(viewportRef, state, callbacks) {
     }, { passive: false, signal: abort.signal });
 
     viewport.addEventListener('keydown', (event) => {
-      if (editable(event.target)) return;
+      if (editable(event.target) || event.target.closest('[data-node-action],[data-edge-action]')) return;
       if (event.code === 'Space') { event.preventDefault(); setSpace(true); }
       if (event.key === 'Escape') call('select', null);
       const node = event.target.closest('[data-service-id]');
+      if (node && event.target === node && (event.key === 'Enter' || event.code === 'Space')) {
+        event.preventDefault(); call('select', node.dataset.serviceId); return;
+      }
       const offset = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[event.key];
       if (node && offset && Object.hasOwn(state.positions, node.dataset.serviceId)) {
         event.preventDefault();

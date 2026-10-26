@@ -431,8 +431,10 @@ td a:hover { text-decoration: underline; }
 
 /* ---------- Adaptación a pantallas pequeñas ---------- */
 .operator-body { background: #e9eee8; border-top: 1px solid #d7e0d6; }
-body[data-panel="operator"] .page-body { margin-top: 0; padding-top: 24px; }
-body[data-panel="operator"] .wrap-wide { max-width: 1720px; }
+body[data-panel="operator"] { overflow: hidden; }
+body[data-panel="operator"] .page-body { height: calc(100dvh - 55px); margin-top: 0; padding: 0; }
+body[data-panel="operator"] .wrap-wide { position: relative; width: 100%; height: 100%; max-width: none; gap: 0; }
+body[data-panel="operator"] .footer { display: none; }
 .op-section-title { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .op-section-title h2 { font-size: 22px; letter-spacing: -.6px; }
 .op-section-title h3 { margin: 0; }

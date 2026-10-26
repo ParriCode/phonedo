@@ -1,4 +1,5 @@
 import atexit
+import logging
 import os
 import queue
 import secrets
@@ -8,6 +9,7 @@ import time
 from pathlib import Path
 
 from flask import Flask, jsonify
+from waitress import serve
 from dotenv import load_dotenv
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
@@ -42,6 +44,13 @@ Logger.init(
 
 app = Flask(__name__)
 publisher_config = PublisherConfig()
+if not publisher_config.contracts and not publisher_config.devices:
+    Logger.error('publisher_contracts_missing', error='No hay contratos configurados para ningún Verifier ni dispositivo')
+source_alias = publisher_config.stellar.get('source', '')
+identity_dir = Path(os.getenv('XDG_CONFIG_HOME', str(Path.home() / '.config'))) / 'stellar/identity'
+if source_alias and not os.getenv('STELLAR_SECRET_KEY') and not (identity_dir / f'{source_alias}.toml').is_file():
+    Logger.warning('publisher_stellar_identity_missing', source=source_alias,
+                   error='No existe la cuenta Stellar configurada; se necesita una identidad para enviar el claim')
 batcher = SessionBatcher(publisher_config.batch_size)
 prover = Prover(publisher_config.circuits_path, publisher_config.policy)
 claimer = StellarClaimer('',
@@ -137,9 +146,17 @@ manager_subscriptions.start()
 atexit.register(manager_subscriptions.close)
 
 
+def hide_werkzeug_dev_warning(record):
+    if 'This is a development server' in record.getMessage():
+        record.msg = record.getMessage().partition('\n')[2]
+        record.args = ()
+        return bool(record.msg)
+    return True
+
+
 def start():
     Logger.info("service_starting", port=publisher_config.port)
-    app.run(host=publisher_config.host, port=publisher_config.port)
+    serve(app, host=publisher_config.host, port=publisher_config.port, threads=64, send_bytes=1)
 
 
 if __name__ == "__main__":

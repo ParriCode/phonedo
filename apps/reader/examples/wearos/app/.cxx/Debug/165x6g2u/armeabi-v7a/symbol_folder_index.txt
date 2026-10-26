@@ -1,0 +1,1 @@
+/home/cesar/Projects/phonedo/apps/reader/examples/wearos/app/build/intermediates/cxx/Debug/165x6g2u/obj/armeabi-v7a

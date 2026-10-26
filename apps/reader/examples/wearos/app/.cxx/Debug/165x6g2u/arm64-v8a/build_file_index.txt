@@ -1,0 +1,1 @@
+/home/cesar/Projects/phonedo/apps/reader/examples/wearos/app/src/main/cpp/CMakeLists.txt

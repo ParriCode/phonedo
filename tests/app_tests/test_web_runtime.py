@@ -64,3 +64,62 @@ def test_control_rejects_other_origins_and_public_proxies(monkeypatch):
             assert response.status == 200
             assert response.headers['Cache-Control'] == 'no-store'
     asyncio.run(check())
+
+
+def test_container_inventory_returns_only_observed_snapshots(monkeypatch):
+    import web_docker
+    monkeypatch.setenv('PHONENDO_WEB_NO_BROWSER', '1')
+    async def compose(self):
+        return [{'id': 'compose-publisher', 'kind': 'publisher', 'name': 'phonendo-publisher-1',
+                 'image': 'phonendo-publisher:latest', 'state': 'running', 'url': 'http://127.0.0.1:7105'}]
+    monkeypatch.setattr(web_docker.DockerController, 'compose_snapshots', compose)
+    async def check():
+        async with TestClient(TestServer(runtime.create_app())) as client:
+            response = await client.get('/api/local/containers')
+            assert response.status == 200
+            rows = await response.json()
+            assert [row['id'] for row in rows] == ['compose-publisher']
+            assert rows[0]['image'] == 'phonendo-publisher:latest'
+    asyncio.run(check())
+
+
+def test_image_inventory_and_actions_use_the_local_controller(monkeypatch):
+    import web_docker
+    monkeypatch.setenv('PHONENDO_WEB_NO_BROWSER', '1')
+    async def images(self):
+        return [{'id': 'image-reader', 'kind': 'reader', 'image': 'phonendo-reader:latest', 'imageOnly': True}]
+    async def action(self, kind, operation, progress, source, reference):
+        assert (kind, operation, source, reference) == ('reader', 'remove', 'compose', 'phonendo-reader:latest')
+        return {'removed': True}
+    monkeypatch.setattr(web_docker.DockerController, 'image_snapshots', images)
+    monkeypatch.setattr(web_docker.DockerController, 'image_action', action)
+    async def check():
+        async with TestClient(TestServer(runtime.create_app())) as client:
+            response = await client.get('/api/local/images')
+            assert (await response.json())[0]['image'] == 'phonendo-reader:latest'
+            response = await client.delete('/api/local/images/compose-reader', headers=HEADERS,
+                                           json={'image': 'phonendo-reader:latest'})
+            operation = await response.json()
+            await asyncio.sleep(0)
+            state = await (await client.get('/api/local/operations/' + operation['id'])).json()
+            assert state['result'] == {'removed': True}
+    asyncio.run(check())
+
+
+def test_connection_route_applies_a_real_controller_operation(monkeypatch):
+    import web_docker
+    monkeypatch.setenv('PHONENDO_WEB_NO_BROWSER', '1')
+    async def action(self, body, progress):
+        assert body == {'sourceId': 'compose-reader', 'targetId': 'compose-manager', 'transport': 'sse'}
+        return body
+    monkeypatch.setattr(web_docker.DockerController, 'connection_action', action)
+    async def check():
+        async with TestClient(TestServer(runtime.create_app())) as client:
+            response = await client.post('/api/local/connections', headers=HEADERS,
+                                         json={'sourceId': 'compose-reader', 'targetId': 'compose-manager', 'transport': 'sse'})
+            assert response.status == 202
+            operation = await response.json()
+            await asyncio.sleep(0)
+            result = await (await client.get('/api/local/operations/' + operation['id'])).json()
+            assert result['result']['transport'] == 'sse'
+    asyncio.run(check())

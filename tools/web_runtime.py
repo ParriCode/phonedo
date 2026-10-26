@@ -298,7 +298,7 @@ async def resources(app):
 
 
 async def docker_list(request):
-    result = []
+    result = await request.app['docker'].compose_snapshots()
     for identifier in tuple(request.app['docker'].records):
         try:
             result.append(await request.app['docker'].snapshot(identifier))
@@ -327,6 +327,28 @@ def enqueue(app, coroutine_factory):
 async def docker_create(request):
     body = await request.json()
     return enqueue(request.app, lambda progress: request.app['docker'].deploy(body, progress))
+
+
+async def docker_image(request):
+    action = {'POST': 'build', 'DELETE': 'remove'}.get(request.method)
+    if action is None:
+        raise web.HTTPMethodNotAllowed(request.method, ['POST', 'DELETE'])
+    identifier = request.match_info['kind']
+    source = 'compose' if identifier.startswith('compose-') else 'panel'
+    kind = identifier.removeprefix('compose-') if source == 'compose' else identifier
+    if kind not in ('reader', 'manager', 'verifier', 'storage', 'publisher'):
+        raise web.HTTPBadRequest(text='Tipo de servicio desconocido')
+    body = await request.json() if request.method == 'DELETE' else {}
+    return enqueue(request.app, lambda progress: request.app['docker'].image_action(kind, action, progress, source, body.get('image')))
+
+
+async def docker_images(request):
+    return web.json_response(await request.app['docker'].image_snapshots())
+
+
+async def docker_connection(request):
+    body = await request.json()
+    return enqueue(request.app, lambda progress: request.app['docker'].connection_action(body, progress))
 
 
 async def docker_operation(request):
@@ -394,6 +416,9 @@ def create_app():
     app.on_startup.append(launch)
     app.router.add_get('/api/local/containers', docker_list)
     app.router.add_post('/api/local/containers', docker_create)
+    app.router.add_get('/api/local/images', docker_images)
+    app.router.add_post('/api/local/connections', docker_connection)
+    app.router.add_route('*', '/api/local/images/{kind}', docker_image)
     app.router.add_route('*', '/api/local/containers/{identifier}', docker_item)
     app.router.add_get('/api/local/containers/{identifier}/logs', docker_logs)
     app.router.add_get('/api/local/operations/{identifier}', docker_operation)

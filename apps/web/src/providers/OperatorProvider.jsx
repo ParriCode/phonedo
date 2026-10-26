@@ -1,7 +1,7 @@
 /* Consola local. Las acciones confirmadas vienen de /api/local, nunca de una simulación visual. */
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { requestLocal } from '../../service_network/api.js';
-import { configFor, configName, dockerEndpoint, linkDockerNode } from '../lib/serviceConfig.js';
+import { configFor, configName, connectionsFromSnapshots, dockerEndpoint, linkDockerNode } from '../lib/serviceConfig.js';
 import { download } from '../lib/format.js';
 import { logLevel } from '../lib/health.js';
 import { useStateRef } from '../lib/useStateRef.js';
@@ -30,6 +30,8 @@ export function OperatorProvider({ children }) {
   const [checkedAt, setCheckedAt] = useState({});
   // Tras cada acción confirmada los formularios del inspector vuelven a sus valores reales.
   const [epoch, setEpoch] = useState(0);
+  const [inventoryError, setInventoryError] = useState('');
+  const [connections, setConnections] = useState([]);
 
   const seen = useRef({});
   const cursors = useRef({});
@@ -84,6 +86,7 @@ export function OperatorProvider({ children }) {
   }, []);
 
   const checkNode = useCallback(async (node) => {
+    if (node.imageOnly) return;
     try {
       let lines;
       if (node.managed) {
@@ -129,8 +132,27 @@ export function OperatorProvider({ children }) {
   const poll = useCallback(async () => {
     if (polling.current || busy.current || document.hidden) return;
     polling.current = true;
-    try { await Promise.all(networkRef.current.map(checkNode)); } finally { polling.current = false; }
-  }, [checkNode, networkRef]);
+    try {
+      const inventory = await requestLocal('containers', undefined, 'GET');
+      setInventoryError('');
+      setConnections(connectionsFromSnapshots(inventory));
+      const containers = inventory.map((snapshot) => ({ id: snapshot.id, kind: snapshot.kind, name: snapshot.name,
+        org: 'lab', url: snapshot.url, dockerUrl: snapshot.dockerUrl, image: snapshot.image,
+        managers: [], managed: true, template: 'pulse' }));
+      const nodes = containers;
+      let linked = nodes;
+      for (const snapshot of inventory) linked = linkDockerNode(linked, snapshot.id, snapshot.serviceConfig || {});
+      setNetwork(linked);
+      for (const snapshot of inventory) acceptContainer(containers.find((node) => node.id === snapshot.id), snapshot);
+      await Promise.all(containers.map(checkNode));
+    } catch (error) {
+      setNetwork([]);
+      setConnections([]);
+      setContainers({});
+      if (inventoryError !== error.message) toast(error.message);
+      setInventoryError(error.message);
+    } finally { polling.current = false; }
+  }, [acceptContainer, checkNode, inventoryError, setContainers, setNetwork, toast]);
 
   const pollRef = useRef(poll);
   pollRef.current = poll;
@@ -140,17 +162,7 @@ export function OperatorProvider({ children }) {
   useEffect(() => {
     if (started.current) return undefined;
     started.current = true;
-    (async () => {
-      try {
-        const list = await requestLocal('containers', undefined, 'GET');
-        for (const snapshot of list) {
-          if (!nodeById(snapshot.id)) addNode({ id: snapshot.id, kind: snapshot.kind, name: snapshot.name, org: 'lab', url: snapshot.url, managers: [], managed: true, template: 'pulse' });
-          acceptContainer(nodeById(snapshot.id), snapshot);
-          setNetwork((list) => linkDockerNode(list, snapshot.id, snapshot.serviceConfig || {}));
-        }
-      } catch (error) { toast(error.message); }
-      poll();
-    })();
+    poll();
     const timer = setInterval(() => pollRef.current(), 3000);
     return () => clearInterval(timer);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -232,6 +244,36 @@ export function OperatorProvider({ children }) {
     }
   }, [acceptContainer, dockerOperation, opText, removeNode, setContainers, setReaders, toast]);
 
+  const imageAction = useCallback(async (kind, action, source = 'panel', image) => {
+    if (busy.current) return;
+    busy.current = true;
+    toast(opText('Ejecutando operación de imagen Docker…', 'Running Docker image operation…'));
+    try {
+      await dockerOperation(await requestLocal('images/' + (source === 'compose' ? 'compose-' : '') + encode(kind),
+        action === 'remove' ? { image } : undefined, action === 'remove' ? 'DELETE' : 'POST'));
+      toast(action === 'remove' ? opText('Imagen Docker eliminada', 'Docker image removed') : opText('Imagen Docker construida', 'Docker image built'));
+    } catch (error) {
+      toast(error.message);
+    } finally {
+      busy.current = false;
+      pollRef.current();
+    }
+  }, [dockerOperation, opText, toast]);
+
+  const connectionAction = useCallback(async (sourceId, targetId, transport) => {
+    if (busy.current) return;
+    busy.current = true;
+    try {
+      await dockerOperation(await requestLocal('connections', { sourceId, targetId, transport }));
+      toast(opText('Conexión aplicada en Docker', 'Connection applied in Docker'));
+    } catch (error) {
+      toast(error.message);
+    } finally {
+      busy.current = false;
+      pollRef.current();
+    }
+  }, [dockerOperation, opText, toast]);
+
   const readerAction = useCallback(async (node, action, deviceId, sensorId) => {
     if (busy.current) return;
     busy.current = true;
@@ -242,6 +284,8 @@ export function OperatorProvider({ children }) {
     checkNode,
     submitForm,
     dockerAction,
+    imageAction,
+    connectionAction,
     readerAction,
     saveConfiguration,
     configurationDrafts,
@@ -250,16 +294,16 @@ export function OperatorProvider({ children }) {
     // Lleva la lista de actividad a los logs de un servicio.
     focusLogs: (nodeId, level = 'all') => {
       setLogFilter((value) => ({ ...value, node: nodeId, level, query: '' }));
-      document.getElementById('activity')?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
+      window.dispatchEvent(new CustomEvent('phonendo:show-logs'));
     },
     clearLogs: () => setLogs([]),
     setToken: (id, value) => tokens.current.set(id, value),
     downloadConfig: (node) => download(configName(node), JSON.stringify(configFor(node, networkRef.current), null, 2)),
     removeFromView: (node) => { removeNode(node.id); toast(t('toast.removed')); },
-  }), [checkNode, dockerAction, networkRef, readerAction, removeNode, saveConfiguration, setLogs, submitForm, t, toast]);
+  }), [checkNode, connectionAction, dockerAction, imageAction, networkRef, readerAction, removeNode, saveConfiguration, setLogs, submitForm, t, toast]);
 
-  const value = useMemo(() => ({ readers, containers, logs, errors, active, logFilter, checkedAt, epoch, ...actions }),
-    [readers, containers, logs, errors, active, logFilter, checkedAt, epoch, actions]);
+  const value = useMemo(() => ({ readers, containers, connections, logs, errors, active, logFilter, checkedAt, epoch, inventoryError, ...actions }),
+    [readers, containers, connections, logs, errors, active, logFilter, checkedAt, epoch, inventoryError, actions]);
 
   return <OperatorContext.Provider value={value}>{children}</OperatorContext.Provider>;
 }
