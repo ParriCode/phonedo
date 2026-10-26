@@ -42,6 +42,8 @@ Dejar las claves ordenadas y poder ir a producción sin secretos en git, sin cla
 
 - [x] **T8 Demo preconfigurada (opción A).** Al clonar y hacer `docker compose up` el sistema cobra solo en testnet. Cuenta de demo `phonendo` (publisher, admin y fuente de despliegue) y clave de verifier de demo, ambas versionadas y marcadas «solo testnet». Requiere: instalar circom 2.2, regenerar `circuits/build` (zkey y claves, versionadas), desplegar contratos de rehabilitación y cadena de frío (pagan XLM nativo), fondearlos y poner sus ids en `deploy/docker/publisher.json`. Autorizado por el usuario: Friendbot, desplegar contratos, fondearlos con XLM, instalar circom. Check: `docker compose up` desde un clon limpio produce un `SessionPaid` en testnet.
 
+- [ ] **T9 `./phonendo` + panel web como único modo (sustituye a Docker Compose).** Decisión del usuario: la web es el panel de configuración y ejecución de todos los contenedores; se elimina `deploy/docker/compose.yml` y el resto de caminos (lab, dev.sh, generate_configs, deploy/env). `./phonendo` prepara lo necesario, arranca el panel, crea al inicio contenedores de ejemplo (reader simulado, manager, verifier con la clave de demo, storage, publisher con la cuenta y los contratos de demo) y desde ahí los gestiona la web. T2–T7 quedan reevaluadas: solo se conserva lo que encaja (secretos como archivos de solo lectura, redacción ampliada en logs). No se reescribe el historial de git: se añaden commits.
+
 ## Pendiente de decidir
 1. Archivo de claves en claro con 0600 o cifrado con `age` (añade una contraseña a gestionar).
 2. Añadir `set_verifier_key` al contrato (T5) o aceptar redesplegar para rotar.
