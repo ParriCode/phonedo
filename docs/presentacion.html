@@ -1,16 +1,16 @@
 <!doctype html>
-<html lang="es">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Phonendo en Stellar</title>
-<meta name="description" content="Phonendo demuestra en Stellar que una sesión de rehabilitación cardíaca se cumplió y la paga en USDC, sin revelar el pulso.">
+<title>Phonendo on Stellar</title>
+<meta name="description" content="Phonendo proves on Stellar that a cardiac rehab session was completed and pays for it in USDC, without revealing the pulse.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=JetBrains+Mono:wght@400;600&display=swap">
 <style>
-/* Registro clínico: índice fijo a la izquierda, columna de lectura y figuras a ancho completo.
-   Rojo = dato privado (pulso, lecturas). Añil = público, en la cadena. */
+/* Clinical record: fixed contents on the left, a reading column and full-width figures.
+   Red = private data (pulse, readings). Indigo = public, on-chain. */
 :root {
   --paper: #fbf8f7;
   --surface: #ffffff;
@@ -81,7 +81,7 @@ code, pre { font-family: var(--font-mono); font-size: 0.86em; }
   padding-block: 40px 80px;
 }
 
-/* Índice */
+/* Contents */
 .toc { position: sticky; top: 24px; align-self: start; font-size: 0.92rem; }
 .toc-label { font: 600 0.72rem/1 var(--font-mono); letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin-bottom: 14px; }
 .toc ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; counter-reset: toc; }
@@ -99,7 +99,7 @@ section { display: grid; gap: 22px; min-width: 0; }
 .eyebrow { font: 600 0.75rem/1.3 var(--font-mono); letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
 .lede { font-size: var(--step-1); line-height: 1.5; max-width: 60ch; }
 
-/* Portada */
+/* Cover */
 .hero { gap: 28px; }
 .hero h1 { font-size: var(--step-4); font-weight: 800; letter-spacing: -0.035em; }
 .hero h1 span { color: var(--chain); }
@@ -111,7 +111,7 @@ section { display: grid; gap: 22px; min-width: 0; }
 .fact b { font: 800 var(--step-2)/1 var(--font-display); font-variant-numeric: tabular-nums; }
 .fact span { color: var(--muted); font-size: 0.92rem; line-height: 1.4; }
 
-/* Tira de ritmo (papel de ECG) */
+/* Rhythm strip (ECG paper) */
 figure { margin: 0; display: grid; gap: 12px; min-width: 0; }
 figcaption { color: var(--muted); font-size: 0.92rem; max-width: 72ch; }
 .strip { background: var(--surface); border: 1px solid var(--grid-strong); border-radius: 10px; padding: 16px 16px 12px; display: grid; gap: 12px; }
@@ -126,7 +126,7 @@ figcaption { color: var(--muted); font-size: 0.92rem; max-width: 72ch; }
 .pill.c { background: var(--chain-soft); color: var(--chain); }
 .arrow { color: var(--muted); font-family: var(--font-mono); }
 
-/* Tablas */
+/* Tables */
 .table-wrap { overflow-x: auto; min-width: 0; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
 table { border-collapse: collapse; width: 100%; font-size: 0.95rem; }
 th, td { text-align: left; vertical-align: top; padding: 11px 14px; border-bottom: 1px solid var(--line); }
@@ -135,7 +135,7 @@ th { font: 600 0.72rem/1.3 var(--font-mono); letter-spacing: 0.08em; text-transf
 td code { white-space: nowrap; }
 td.hash a { font-family: var(--font-mono); font-size: 0.85rem; white-space: nowrap; }
 
-/* Dos columnas privado / público */
+/* Two columns: private / public */
 .split { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
 .side { border-radius: 10px; padding: 20px; display: grid; gap: 12px; align-content: start; min-width: 0; }
 .side.p { background: var(--private-soft); }
@@ -145,14 +145,14 @@ td.hash a { font-family: var(--font-mono); font-size: 0.85rem; white-space: nowr
 .side.c h3 { color: var(--chain); }
 .side ul { margin: 0; padding-left: 1.1em; display: grid; gap: 6px; }
 
-/* Recorrido numerado (es una secuencia real) */
+/* Numbered walkthrough (a real sequence) */
 .steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; counter-reset: step; max-width: 76ch; }
 .steps li { counter-increment: step; display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 16px; padding: 16px 0; border-top: 1px solid var(--line); }
 .steps li::before { content: counter(step); font: 800 1.5rem/1 var(--font-display); color: var(--muted); padding-top: 2px; }
 .steps li > div { display: grid; gap: 6px; min-width: 0; }
 .steps strong { font-family: var(--font-display); font-size: 1.1rem; }
 
-/* Diagrama */
+/* Diagram */
 .diagram { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
 .diagram svg { display: block; width: 100%; min-width: 760px; height: auto; }
 .d-zone-p { fill: var(--private-soft); }
@@ -170,7 +170,7 @@ td.hash a { font-family: var(--font-mono); font-size: 0.85rem; white-space: nowr
 .d-head { fill: var(--ink); }
 .d-head-c { fill: var(--chain); }
 
-/* Código */
+/* Code */
 .module { display: grid; gap: 14px; padding-top: 22px; border-top: 1px solid var(--line); }
 .module-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px; }
 .path { font: 400 0.82rem/1.3 var(--font-mono); color: var(--muted); }
@@ -218,111 +218,111 @@ footer { border-top: 1px solid var(--line); padding-top: 24px; color: var(--mute
 <body>
 <div class="layout">
 
-<nav class="toc" aria-label="Índice">
-  <div class="toc-label">Índice</div>
+<nav class="toc" aria-label="Contents">
+  <div class="toc-label">Contents</div>
   <ol>
-    <li><a href="#problema">El problema</a></li>
-    <li><a href="#flujo">Cómo funciona</a></li>
-    <li><a href="#privacidad">Qué es público</a></li>
-    <li><a href="#stellar">Stellar nativo</a></li>
-    <li><a href="#codigo">El código</a></li>
-    <li><a href="#panel">Panel de control</a></li>
-    <li><a href="#demo">Funcionamiento final</a></li>
-    <li><a href="#pruebas">Pruebas</a></li>
-    <li><a href="#limites">Límites</a></li>
-    <li><a href="#evento">Antes y durante el evento</a></li>
-    <li><a href="#futuro">Mercado y siguientes pasos</a></li>
+    <li><a href="#problema">The problem</a></li>
+    <li><a href="#flujo">How it works</a></li>
+    <li><a href="#privacidad">What is public</a></li>
+    <li><a href="#stellar">Native Stellar</a></li>
+    <li><a href="#codigo">The code</a></li>
+    <li><a href="#panel">Control panel</a></li>
+    <li><a href="#demo">Final result</a></li>
+    <li><a href="#pruebas">Tests</a></li>
+    <li><a href="#limites">Limits</a></li>
+    <li><a href="#evento">Before and during the event</a></li>
+    <li><a href="#futuro">Market and next steps</a></li>
   </ol>
-  <div class="legend" aria-label="Leyenda de colores">
-    <div><span class="swatch" style="background: var(--private)"></span>Dato privado, fuera de la cadena</div>
-    <div><span class="swatch" style="background: var(--chain)"></span>Público, en Stellar</div>
+  <div class="legend" aria-label="Colour legend">
+    <div><span class="swatch" style="background: var(--private)"></span>Private data, off-chain</div>
+    <div><span class="swatch" style="background: var(--chain)"></span>Public, on Stellar</div>
   </div>
 </nav>
 
 <main>
 
-<!-- Portada -->
+<!-- Cover -->
 <section class="hero" id="inicio">
-  <div class="eyebrow">HackMeridian 2026 · Lisboa · ruta Genesis · Stellar Unlocked y Stellar Composed</div>
-  <h1>Phonendo <span>en Stellar</span></h1>
-  <p class="thesis">La aseguradora sabe que la sesión de rehabilitación se cumplió y la paga. <em>Nunca ve el pulso.</em></p>
-  <p class="lede">Phonendo recoge lecturas de sensores, comprueba que son auténticas y genera una prueba de conocimiento cero de que cumplen la pauta del médico. Un contrato Soroban verifica esa prueba con las funciones criptográficas nativas de Stellar y paga a la paciente en USDC en la misma transacción.</p>
+  <div class="eyebrow">HackMeridian 2026 · Lisbon · Genesis track · Stellar Unlocked and Stellar Composed</div>
+  <h1>Phonendo <span>on Stellar</span></h1>
+  <p class="thesis">The insurer knows the rehab session was completed and pays for it. <em>It never sees the pulse.</em></p>
+  <p class="lede">Phonendo collects sensor readings, checks that they are authentic and generates a zero-knowledge proof that they meet the doctor's plan. A Soroban contract verifies that proof with Stellar's native cryptographic functions and pays the patient in USDC in the same transaction.</p>
 
   <figure>
     <div class="strip">
       <div class="strip-head">
-        <span class="strip-title">Sesión de rehabilitación · 32 lecturas de pulso</span>
-        <span class="strip-meta">zona del médico 90–130 lpm · mínimo 28 de 32</span>
+        <span class="strip-title">Rehab session · 5 pulse readings</span>
+        <span class="strip-meta">doctor's zone 90–130 bpm · at least 4 of 5</span>
       </div>
-      <div class="scroll"><svg id="rhythm" viewBox="0 0 720 230" role="img" aria-labelledby="rhythm-title"><title id="rhythm-title">32 lecturas de pulso entre 86 y 134 latidos por minuto; 29 están dentro de la zona de 90 a 130.</title></svg></div>
+      <div class="scroll"><svg id="rhythm" viewBox="0 0 720 230" role="img" aria-labelledby="rhythm-title"><title id="rhythm-title">5 pulse readings between 98 and 134 beats per minute; 4 are inside the 90 to 130 zone.</title></svg></div>
       <div class="outcome">
-        <span class="pill p">29 de 32 en zona</span>
+        <span class="pill p">4 of 5 in zone</span>
         <span class="arrow">→</span>
-        <span class="pill c">Prueba Groth16 válida</span>
+        <span class="pill c">Valid Groth16 proof</span>
         <span class="arrow">→</span>
-        <span class="pill c">claim() paga 5 USDC</span>
+        <span class="pill c">claim() pays 0.1 USDC</span>
       </div>
     </div>
-    <figcaption>Ejemplo ilustrativo. Las 32 lecturas en rojo nunca salen de Phonendo. A la cadena solo llegan la prueba, una huella (commitment) del lote y la pauta pública: 90, 130 y 28.</figcaption>
+    <figcaption>Illustrative example. The 5 readings in red never leave Phonendo. Only the proof, a fingerprint (commitment) of the batch and the public policy reach the chain: 90, 130 and 4.</figcaption>
   </figure>
 
   <div class="facts">
-    <div class="fact"><b>0</b><span>lecturas de salud publicadas en la cadena</span></div>
-    <div class="fact"><b>1 llamada</b><span><code>claim()</code> comprueba firma y prueba, y paga</span></div>
-    <div class="fact"><b>3 cobros</b><span>reales en testnet, uno de extremo a extremo con el pipeline completo</span></div>
+    <div class="fact"><b>0</b><span>health readings published on-chain</span></div>
+    <div class="fact"><b>1 call</b><span><code>claim()</code> checks signature and proof, and pays</span></div>
+    <div class="fact"><b>6 claims</b><span>real on testnet, in both use cases and end to end through the full pipeline</span></div>
   </div>
 </section>
 
-<!-- Problema -->
+<!-- Problem -->
 <section id="problema">
-  <div class="eyebrow">01 · Problema y usuarios</div>
-  <h2>Pagar por adherencia sin pedir datos de salud</h2>
+  <div class="eyebrow">01 · Problem and users</div>
+  <h2>Paying for adherence without asking for health data</h2>
   <div class="prose">
-    <p>Tras un infarto, la rehabilitación cardíaca reduce los reingresos, pero muchos pacientes la abandonan. A una aseguradora le compensa pagar una pequeña recompensa por cada sesión completada: un reingreso cuesta mucho más.</p>
-    <p>El obstáculo es la privacidad. Comprobar que la sesión se hizo bien exige mirar el pulso, y los datos de salud son una <strong>categoría especial en el RGPD</strong>. La aseguradora no debería recibirlos y la paciente no debería tener que entregarlos.</p>
-    <p>Una sesión cuenta si el pulso se mantuvo en la zona que marca el médico, por ejemplo de 90 a 130 latidos por minuto, en al menos 28 de 32 lecturas. Phonendo demuestra exactamente eso y nada más.</p>
+    <p>After a heart attack, cardiac rehabilitation reduces readmissions, but many patients drop out. It pays off for an insurer to give a small reward for each completed session: a readmission costs far more.</p>
+    <p>The obstacle is privacy. Checking that the session was done properly means looking at the pulse, and health data is a <strong>special category under the GDPR</strong>. The insurer should not receive it and the patient should not have to hand it over.</p>
+    <p>A session counts if the pulse stayed in the zone set by the doctor, for example 90 to 130 beats per minute, in at least 4 of 5 readings. Phonendo proves exactly that and nothing more.</p>
   </div>
   <div class="grid-2">
-    <div class="card"><h3>Paga: la aseguradora</h3><p>Deposita USDC en el contrato y fija la pauta. Ve “sesión cumplida”, el importe y la transacción en stellar.expert.</p></div>
-    <div class="card"><h3>Cobra: la paciente</h3><p>Recibe el pago en su cuenta Stellar automáticamente. Sus lecturas se quedan en Phonendo y solo ella las ve en el panel.</p></div>
-    <div class="card"><h3>Gana: Phonendo</h3><p>Cobra una tarifa por cada prueba verificada. Un solo despliegue sirve a varias pautas porque mínimo, máximo y recuento son parámetros públicos.</p></div>
-    <div class="card"><h3>Mismo circuito, otro caso</h3><p>Cadena de frío: un comprador paga si el envío se mantuvo en rango de temperatura. Solo cambian los valores de la pauta.</p></div>
+    <div class="card"><h3>Pays: the insurer</h3><p>Deposits USDC in the contract and sets the policy. Its panel shows “session completed”, the amount and the transaction on stellar.expert.</p></div>
+    <div class="card"><h3>Gets paid: the patient</h3><p>Receives the payment in her Stellar account automatically. Her readings stay in Phonendo and only she sees them in the panel.</p></div>
+    <div class="card"><h3>Earns: Phonendo</h3><p>Charges a fee for each verified proof. One deployment serves several policies because minimum, maximum and count are public parameters.</p></div>
+    <div class="card"><h3>Same circuit, another case</h3><p>Cold chain: a buyer pays if the shipment stayed within the temperature range. Only the policy values change.</p></div>
   </div>
 </section>
 
-<!-- Flujo -->
+<!-- Flow -->
 <section id="flujo">
-  <div class="eyebrow">02 · Arquitectura</div>
-  <h2>De la pulsera al pago</h2>
+  <div class="eyebrow">02 · Architecture</div>
+  <h2>From the wristband to the payment</h2>
   <figure>
     <div class="diagram scroll">
       <svg viewBox="0 0 960 360" role="img" aria-labelledby="arch-title">
-        <title id="arch-title">Sensor, Reader, Manager, Verifier, Storage, Publisher y panel fuera de la cadena; contrato adherence y token USDC en Stellar testnet.</title>
+        <title id="arch-title">Sensor, Reader, Manager, Verifier, Storage, Publisher and panel off-chain; adherence contract and USDC token on Stellar testnet.</title>
         <defs>
           <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="d-head" d="M0,0 L10,5 L0,10 z"/></marker>
           <marker id="ahc" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="d-head-c" d="M0,0 L10,5 L0,10 z"/></marker>
         </defs>
         <rect class="d-zone-p" x="8" y="8" width="690" height="344" rx="12"/>
         <rect class="d-zone-c" x="716" y="8" width="236" height="344" rx="12"/>
-        <text class="d-zone-label private" x="24" y="30" fill="currentColor">Phonendo · fuera de la cadena · datos privados</text>
-        <text class="d-zone-label chain" x="732" y="30" fill="currentColor">Stellar testnet · público</text>
+        <text class="d-zone-label private" x="24" y="30" fill="currentColor">Phonendo · off-chain · private data</text>
+        <text class="d-zone-label chain" x="732" y="30" fill="currentColor">Stellar testnet · public</text>
 
-        <!-- cajas -->
+        <!-- boxes -->
         <rect class="d-box" x="24" y="150" width="120" height="60" rx="8"/>
         <text class="d-title" x="84" y="176" text-anchor="middle">Sensor</text>
-        <text class="d-sub" x="84" y="194" text-anchor="middle">pulsera / ESP32</text>
+        <text class="d-sub" x="84" y="194" text-anchor="middle">wristband / ESP32</text>
 
         <rect class="d-box" x="176" y="150" width="124" height="60" rx="8"/>
         <text class="d-title" x="238" y="176" text-anchor="middle">Reader</text>
-        <text class="d-sub" x="238" y="194" text-anchor="middle">observaciones</text>
+        <text class="d-sub" x="238" y="194" text-anchor="middle">observations</text>
 
         <rect class="d-box" x="345" y="150" width="130" height="60" rx="8"/>
         <text class="d-title" x="410" y="176" text-anchor="middle">Manager</text>
-        <text class="d-sub" x="410" y="194" text-anchor="middle">coordina, reintenta</text>
+        <text class="d-sub" x="410" y="194" text-anchor="middle">coordinates, retries</text>
 
         <rect class="d-box" x="345" y="46" width="130" height="60" rx="8"/>
         <text class="d-title" x="410" y="72" text-anchor="middle">Verifier</text>
-        <text class="d-sub" x="410" y="90" text-anchor="middle">firma ed25519</text>
+        <text class="d-sub" x="410" y="90" text-anchor="middle">ed25519 signature</text>
 
         <rect class="d-box" x="345" y="272" width="130" height="60" rx="8"/>
         <text class="d-title" x="410" y="298" text-anchor="middle">Storage</text>
@@ -330,35 +330,35 @@ footer { border-top: 1px solid var(--line); padding-top: 24px; color: var(--mute
 
         <rect class="d-box" x="540" y="150" width="130" height="60" rx="8"/>
         <text class="d-title" x="605" y="176" text-anchor="middle">Publisher</text>
-        <text class="d-sub" x="605" y="194" text-anchor="middle">lote, prueba ZK</text>
+        <text class="d-sub" x="605" y="194" text-anchor="middle">batch, ZK proof</text>
 
         <rect class="d-box" x="540" y="272" width="130" height="60" rx="8"/>
         <text class="d-title" x="605" y="298" text-anchor="middle">Panel</text>
         <text class="d-sub" x="605" y="316" text-anchor="middle">React + Vite</text>
 
         <rect class="d-box-c" x="760" y="150" width="170" height="60" rx="8"/>
-        <text class="d-title" x="845" y="176" text-anchor="middle">Contrato adherence</text>
+        <text class="d-title" x="845" y="176" text-anchor="middle">adherence contract</text>
         <text class="d-sub" x="845" y="194" text-anchor="middle">Groth16 · ed25519</text>
 
         <rect class="d-box-c" x="760" y="272" width="170" height="60" rx="8"/>
-        <text class="d-title" x="845" y="298" text-anchor="middle">Token USDC</text>
-        <text class="d-sub" x="845" y="316" text-anchor="middle">contrato del activo</text>
+        <text class="d-title" x="845" y="298" text-anchor="middle">USDC token</text>
+        <text class="d-sub" x="845" y="316" text-anchor="middle">asset contract</text>
 
-        <!-- aristas -->
+        <!-- edges -->
         <path class="d-edge" d="M144,180 H174" marker-end="url(#ah)"/>
         <path class="d-edge" d="M300,180 H343" marker-end="url(#ah)"/>
         <path class="d-edge" d="M398,150 V108" marker-end="url(#ah)"/>
         <path class="d-edge" d="M422,108 V150" marker-end="url(#ah)"/>
-        <text class="d-label" x="432" y="134">verificar · firma</text>
+        <text class="d-label" x="432" y="134">verify · sign</text>
         <path class="d-edge" d="M410,210 V270" marker-end="url(#ah)"/>
-        <text class="d-label" x="420" y="245">guardar</text>
+        <text class="d-label" x="420" y="245">store</text>
         <path class="d-edge" d="M475,180 H538" marker-end="url(#ah)"/>
         <text class="d-label" x="490" y="172">SSE</text>
         <path class="d-edge d-edge-dash" d="M605,150 V76 H477" marker-end="url(#ah)"/>
         <text class="d-label" x="540" y="62" text-anchor="middle">signBatch</text>
-        <text class="d-label" x="540" y="96" text-anchor="middle">vía Manager</text>
+        <text class="d-label" x="540" y="96" text-anchor="middle">via Manager</text>
         <path class="d-edge" d="M475,302 H538" marker-end="url(#ah)"/>
-        <text class="d-label" x="479" y="294">lecturas</text>
+        <text class="d-label" x="479" y="294">readings</text>
         <path class="d-edge-c" d="M670,180 H758" marker-end="url(#ahc)"/>
         <text class="d-label-c" x="714" y="172" text-anchor="middle">claim()</text>
         <path class="d-edge-c" d="M845,210 V270" marker-end="url(#ahc)"/>
@@ -367,83 +367,83 @@ footer { border-top: 1px solid var(--line); padding-top: 24px; color: var(--mute
         <text class="d-label-c" x="728" y="258">SessionPaid</text>
       </svg>
     </div>
-    <figcaption>Flechas negras: tráfico interno de Phonendo. Flechas añil: lo que llega a Stellar. El Publisher nunca habla directamente con el Verifier: pide la firma del lote a través del Manager.</figcaption>
+    <figcaption>Black arrows: Phonendo's internal traffic. Indigo arrows: what reaches Stellar. The Publisher never talks to the Verifier directly: it asks for the batch signature through the Manager.</figcaption>
   </figure>
 
   <ol class="steps">
-    <li><div><strong>El sensor mide y el Reader publica</strong><p>Cada lectura sale como observación con <code>readerId</code> y <code>deviceId</code>. El Reader tiene núcleos en Python y C++ y ejemplos para Linux y Arduino; en la demo simula pulso de 95 a 120 lpm.</p></div></li>
-    <li><div><strong>El Manager calcula un hash y pide verificación</strong><p>Añade un <code>managerHash</code> HMAC-SHA256 del contenido y lo envía al Verifier, por HTTP o SSE, con reintentos si hay timeout.</p></div></li>
-    <li><div><strong>El Verifier comprueba y firma</strong><p>Valida campos, fechas y hash, firma el evento con ed25519 y recuerda la lectura. Solo los eventos <code>Verified</code> llegan a Storage.</p></div></li>
-    <li><div><strong>El Publisher arma el lote y genera la prueba</strong><p>Escucha el stream del Manager, junta 32 lecturas de un dispositivo, elige <code>sessionId</code> y una sal aleatoria y ejecuta el circuito Groth16. Si el lote no cumple la pauta, no hay prueba ni cobro.</p></div></li>
-    <li><div><strong>El Verifier firma el lote, no el Publisher</strong><p>El Publisher solo envía los ids de los 32 eventos. El Verifier recalcula el commitment con las lecturas que él mismo verificó y firma <code>commitment ‖ sessionId ‖ cuenta de la paciente</code>. Así quien cobra no puede inventarse los datos.</p></div></li>
-    <li><div><strong><code class="chain">claim()</code> verifica y paga en una transacción</strong><p>El contrato rechaza sesiones repetidas, comprueba la firma ed25519 y la prueba con la pauta guardada en la cadena, marca la sesión, transfiere el pago a la paciente y emite <code>SessionPaid</code>.</p></div></li>
-    <li><div><strong>El panel muestra cada vista con su permiso</strong><p>La aseguradora ve sesiones cobradas y enlaces a stellar.expert. La paciente ve además sus lecturas. El backend aplica esos permisos, no la interfaz.</p></div></li>
+    <li><div><strong>The sensor measures and the Reader publishes</strong><p>Each reading goes out as an observation with <code>readerId</code> and <code>deviceId</code>. The Reader has Python and C++ cores and examples for Linux and Arduino; in the demo it simulates a pulse of 95 to 120 bpm.</p></div></li>
+    <li><div><strong>The Manager hashes the event and asks for verification</strong><p>It adds an HMAC-SHA256 <code>managerHash</code> of the content and sends it to the Verifier, over HTTP or SSE, retrying on timeout.</p></div></li>
+    <li><div><strong>The Verifier checks and signs</strong><p>It validates fields, dates and hash, signs the event with ed25519 and remembers the reading. Only <code>Verified</code> events reach Storage.</p></div></li>
+    <li><div><strong>The Publisher builds the batch and generates the proof</strong><p>It listens to the Manager's stream, collects 5 readings from one device, derives the <code>sessionId</code> from their event ids, picks a random salt and runs the Groth16 circuit. If the batch does not meet the policy, there is no proof and no payment.</p></div></li>
+    <li><div><strong>The Verifier signs the batch, not the Publisher</strong><p>The Publisher only sends the ids of the 5 events. The Verifier checks that the <code>sessionId</code> comes from those ids and that no event was already signed in another session, recomputes the commitment from the readings it verified itself and signs <code>commitment ‖ sessionId ‖ patient account ‖ verifierId</code>. So whoever gets paid cannot make up the data.</p></div></li>
+    <li><div><strong><code class="chain">claim()</code> verifies and pays in one transaction</strong><p>The contract rejects repeated sessions, checks the ed25519 signature and the proof against the policy stored on-chain, marks the session, transfers the payment to the patient and emits <code>SessionPaid</code>.</p></div></li>
+    <li><div><strong>The panels read the payments from the chain</strong><p>The patient, cold-chain and company panels read the <code>SessionPaid</code> events from the testnet RPC and link each transaction on stellar.expert. None of them receives health readings.</p></div></li>
   </ol>
 </section>
 
-<!-- Privacidad -->
+<!-- Privacy -->
 <section id="privacidad">
-  <div class="eyebrow">03 · Privacidad</div>
-  <h2>Qué sale y qué no sale de Phonendo</h2>
+  <div class="eyebrow">03 · Privacy</div>
+  <h2>What leaves Phonendo and what does not</h2>
   <div class="split">
     <div class="side p">
-      <h3>Se queda fuera de la cadena</h3>
+      <h3>Stays off-chain</h3>
       <ul>
-        <li>Las 32 lecturas de pulso de cada sesión</li>
-        <li>La sal aleatoria del lote</li>
-        <li>Los eventos verificados y sus firmas, en Storage</li>
-        <li>Identidad del dispositivo y del Reader</li>
-        <li>Logs y estado interno de los servicios</li>
+        <li>The 5 pulse readings of each session</li>
+        <li>The batch's random salt</li>
+        <li>Verified events and their signatures, in Storage</li>
+        <li>Device and Reader identity</li>
+        <li>Logs and internal state of the services</li>
       </ul>
     </div>
     <div class="side c">
-      <h3>Se publica en Stellar</h3>
+      <h3>Published on Stellar</h3>
       <ul>
-        <li>El commitment: una huella Poseidon del lote que no revela las lecturas</li>
-        <li>La pauta pública: 90, 130 y 28 de 32</li>
-        <li>El <code>sessionId</code> y la cuenta <code>G…</code> de la paciente</li>
-        <li>La prueba Groth16 y la firma del Verifier</li>
-        <li>El pago y el evento <code>SessionPaid</code></li>
+        <li>The commitment: a Poseidon fingerprint of the batch that does not reveal the readings</li>
+        <li>The public policy: 90, 130 and 4 of 5</li>
+        <li>The <code>sessionId</code> and the patient's <code>G…</code> account</li>
+        <li>The Groth16 proof and the Verifier's signature</li>
+        <li>The payment and the <code>SessionPaid</code> event</li>
       </ul>
     </div>
   </div>
-  <p class="prose">Sin la sal, el commitment no permite adivinar las lecturas aunque solo valgan de 0 a 255. Y como el <code>sessionId</code> entra en la prueba y en la firma, una prueba válida no se puede reutilizar para cobrar otra sesión.</p>
+  <p class="prose">Without the salt, the commitment does not let anyone guess the readings even though they only range from 0 to 255. And because the <code>sessionId</code> goes into the proof and the signature, a valid proof cannot be reused to claim another session. The same readings always give the same <code>sessionId</code>, so they are never paid twice, even with several Publishers.</p>
 </section>
 
 <!-- Stellar -->
 <section id="stellar">
-  <div class="eyebrow">04 · Encaje con Stellar</div>
-  <h2>Una sola llamada con funciones nativas</h2>
-  <p class="prose">Toda la verificación ocurre dentro de <code>claim()</code>, con funciones del host de Soroban. No hay verificador fuera de la cadena ni oráculo intermedio.</p>
+  <div class="eyebrow">04 · Fit with Stellar</div>
+  <h2>One call with native functions</h2>
+  <p class="prose">All verification happens inside <code>claim()</code>, with Soroban host functions. There is no off-chain verifier and no intermediate oracle.</p>
   <div class="table-wrap">
     <table>
-      <thead><tr><th>Función nativa</th><th>Dónde se usa</th></tr></thead>
+      <thead><tr><th>Native feature</th><th>Where it is used</th></tr></thead>
       <tbody>
-        <tr><td>Operaciones BLS12-381 (CAP-59)</td><td><code>claim()</code> comprueba la prueba Groth16 con <code>g1_mul</code>, <code>g1_add</code> y <code>pairing_check</code>.</td></tr>
-        <tr><td>Verificación ed25519 del host</td><td><code>claim()</code> comprueba la firma del Verifier sobre <code>commitment ‖ sessionId ‖ cuenta de la paciente</code>.</td></tr>
-        <tr><td>Contrato del token (USDC o XLM)</td><td><code>claim()</code> transfiere el pago desde el saldo del contrato, que financia la aseguradora.</td></tr>
-        <tr><td>Almacenamiento persistente con TTL</td><td>Cada sesión cobrada queda marcada un año; un segundo cobro falla con <code>AlreadyClaimed</code>.</td></tr>
-        <tr><td>Eventos de contrato</td><td><code>SessionPaid</code> anuncia cada pago; el panel lo lee con <code>getEvents</code> del RPC.</td></tr>
-        <tr><td>Cuentas Stellar <code>G…</code></td><td>La clave ed25519 de la cuenta de la paciente va dentro del mensaje firmado, así el pago no se puede desviar.</td></tr>
+        <tr><td>BLS12-381 operations (CAP-59)</td><td><code>claim()</code> checks the Groth16 proof with <code>g1_mul</code>, <code>g1_add</code> and <code>pairing_check</code>.</td></tr>
+        <tr><td>Host ed25519 verification</td><td><code>claim()</code> checks the Verifier's signature over <code>commitment ‖ sessionId ‖ patient account ‖ verifierId</code>.</td></tr>
+        <tr><td>Token contract (USDC or XLM)</td><td><code>claim()</code> transfers the payment from the contract balance, funded by the insurer.</td></tr>
+        <tr><td>Persistent storage with TTL</td><td>Each paid session stays marked for a year; a second claim fails with <code>AlreadyClaimed</code>.</td></tr>
+        <tr><td>Contract events</td><td><code>SessionPaid</code> announces each payment; the panel reads it with the RPC's <code>getEvents</code>.</td></tr>
+        <tr><td>Stellar <code>G…</code> accounts</td><td>The ed25519 key of the patient's account goes inside the signed message, so the payment cannot be diverted.</td></tr>
       </tbody>
     </table>
   </div>
 </section>
 
-<!-- Código -->
+<!-- Code -->
 <section id="codigo">
-  <div class="eyebrow">05 · El código</div>
-  <h2>Pieza a pieza</h2>
-  <p class="prose">Los fragmentos son del repositorio, recortados para leerlos aquí. Cada pieza enlaza a su carpeta.</p>
+  <div class="eyebrow">05 · The code</div>
+  <h2>Piece by piece</h2>
+  <p class="prose">The excerpts come from the repository, trimmed to read here. Each piece links to its folder.</p>
 
   <div class="module">
-    <div class="module-head"><h3>Circuito ZK</h3><span class="path"><a href="../circuits/README.md">circuits/</a> · Circom 2 · Groth16 sobre BLS12-381</span><span class="tag new">nuevo en el evento</span></div>
+    <div class="module-head"><h3>ZK circuit</h3><span class="path"><a href="../circuits/README.md">circuits/</a> · Circom 2 · Groth16 on BLS12-381</span><span class="tag new">new at the event</span></div>
     <div class="prose">
-      <p><code>range_adherence.circom</code> recibe las 32 lecturas y la sal como señales <span class="private">privadas</span>, y la pauta y el <code>sessionId</code> como <span class="chain">públicas</span>. Cuenta cuántas lecturas están en rango con comparadores de 8 bits y exige que el recuento llegue a <code>minCount</code>. Si no llega, no se puede generar la prueba.</p>
-      <p>A la vez calcula el commitment con <code>lib/commitment.circom</code>: empaqueta 30 lecturas por elemento de campo y aplica Poseidon junto con la sesión y la sal. El orden de las señales públicas es <code>[commitment, minValue, maxValue, minCount, sessionId]</code> y el contrato usa el mismo. Se compila con <code>-p bls12381</code> porque Circom usa BN254 por defecto.</p>
+      <p><code>range_adherence.circom</code> takes the 5 readings and the salt as <span class="private">private</span> signals, and the policy and the <code>sessionId</code> as <span class="chain">public</span> ones. It counts how many readings are in range with 8-bit comparators and requires the count to reach <code>minCount</code>. If it does not, no proof can be generated.</p>
+      <p>At the same time it computes the commitment with <code>lib/commitment.circom</code>: it packs up to 30 readings per field element (always two elements) and applies Poseidon together with the session and the salt. The public signal order is <code>[commitment, minValue, maxValue, minCount, sessionId]</code> and the contract uses the same one. It is compiled with <code>-p bls12381</code> because Circom uses BN254 by default.</p>
     </div>
     <details>
-      <summary>range_adherence.circom · recuento y condición</summary>
+      <summary>range_adherence.circom · count and condition</summary>
 <pre><code><span class="kw">for</span> (var i = 0; i &lt; N; i++) {
     commit.readings[i] &lt;== <span class="pv">readings[i]</span>;
 
@@ -461,15 +461,15 @@ footer { border-top: 1px solid var(--line); padding-top: 24px; color: var(--mute
 component enough = GreaterEqThan(COUNT_BITS);
 enough.in[0] &lt;== count[N];
 enough.in[1] &lt;== minCount;
-enough.out === 1;                 <span class="cm">// sin esto no hay prueba</span>
+enough.out === 1;                 <span class="cm">// without this there is no proof</span>
 
 commitment &lt;== commit.out;
 
-component main {public [minValue, maxValue, minCount, sessionId]} = RangeAdherence(32);</code></pre>
+component main {public [minValue, maxValue, minCount, sessionId]} = RangeAdherence(5);</code></pre>
     </details>
     <details>
-      <summary>lib/commitment.circom · compromiso Poseidon del lote</summary>
-<pre><code><span class="cm">// Empaqueta 30 lecturas por elemento de campo y añade sesión y sal.</span>
+      <summary>lib/commitment.circom · Poseidon commitment of the batch</summary>
+<pre><code><span class="cm">// Packs 30 readings per field element and adds session and salt.</span>
 acc[w][j + 1] &lt;== acc[w][j] + <span class="pv">readings[i]</span> * (256 ** j);
 
 component hash = Poseidon(WORDS + 2);
@@ -483,25 +483,26 @@ out &lt;== hash.out;</code></pre>
   </div>
 
   <div class="module">
-    <div class="module-head"><h3>Contrato Soroban <code>adherence</code></h3><span class="path"><a href="../contracts/README.md">contracts/adherence/</a> · Rust · soroban-sdk</span><span class="tag new">nuevo en el evento</span></div>
+    <div class="module-head"><h3>Soroban contract <code>adherence</code></h3><span class="path"><a href="../contracts/README.md">contracts/adherence/</a> · Rust · soroban-sdk</span><span class="tag new">new at the event</span></div>
     <div class="prose">
-      <p>El constructor guarda la clave pública del Verifier, el token de pago, la pauta y la clave de verificación del circuito. <code>claim()</code> no confía en nada que envíe quien llama: los límites de la pauta salen del almacenamiento del contrato y el destino del pago es la cuenta que firmó el Verifier.</p>
-      <p>Cualquiera puede enviar el <code>claim</code>, normalmente el Publisher. Solo el administrador puede cambiar la pauta con <code>set_policy</code>.</p>
+      <p>The constructor stores the Verifier's public key, the payment token, the policy and the circuit's verification key. <code>claim()</code> trusts nothing the caller sends: the policy limits come from the contract's storage and the payment goes to the account the Verifier signed.</p>
+      <p>Anyone can submit the <code>claim</code>, usually the Publisher. Only the admin can change the policy with <code>set_policy</code>.</p>
     </div>
     <details open>
       <summary>src/lib.rs · claim()</summary>
 <pre><code><span class="kw">pub fn</span> claim(env: Env, patient: Address, session_id: u64, commitment: BytesN&lt;32&gt;,
              signature: BytesN&lt;64&gt;, proof: Proof) -&gt; Result&lt;(), Error&gt; {
-    <span class="cm">// 1. Antirrepetición</span>
+    <span class="cm">// 1. Anti-replay</span>
     <span class="kw">if</span> env.storage().persistent().has(&amp;DataKey::Claimed(session_id)) {
         <span class="kw">return</span> Err(Error::AlreadyClaimed);
     }
-    <span class="cm">// 2. Firma del Verifier sobre commitment ‖ sessionId ‖ clave de la paciente</span>
+    <span class="cm">// 2. Verifier signature over commitment ‖ sessionId ‖ patient key ‖ verifierId</span>
     <span class="kw">let</span> config = Self::config(&amp;env);
-    <span class="kw">let</span> message = signed_message(&amp;env, &amp;commitment, session_id, &amp;patient)?;
+    <span class="kw">let mut</span> message = signed_message(&amp;env, &amp;commitment, session_id, &amp;patient)?;
+    message.append(&amp;Bytes::from_array(&amp;env, &amp;config.verifier_key.to_array()));
     env.crypto().ed25519_verify(&amp;config.verifier_key, &amp;message, &amp;signature);
 
-    <span class="cm">// 3. Prueba Groth16 con la pauta guardada, nunca con la del que llama</span>
+    <span class="cm">// 3. Groth16 proof with the stored policy, never the caller's</span>
     <span class="kw">let</span> policy = &amp;config.policy;
     inputs.push_back(Bls12381Fr::from_bytes(commitment));
     inputs.push_back(fr(&amp;env, policy.min_value <span class="kw">as</span> u128));
@@ -512,7 +513,7 @@ out &lt;== hash.out;</code></pre>
         <span class="kw">return</span> Err(Error::InvalidProof);
     }
 
-    <span class="cm">// 4. Marcar, pagar y anunciar</span>
+    <span class="cm">// 4. Mark, pay and announce</span>
     env.storage().persistent().set(&amp;claimed, &amp;true);
     token::Client::new(&amp;env, &amp;config.token)
         .transfer(&amp;env.current_contract_address(), &amp;patient, &amp;policy.payout);
@@ -521,7 +522,7 @@ out &lt;== hash.out;</code></pre>
 }</code></pre>
     </details>
     <details>
-      <summary>src/lib.rs · verify_groth16() con las funciones BLS12-381 del host</summary>
+      <summary>src/lib.rs · verify_groth16() with the host's BLS12-381 functions</summary>
 <pre><code><span class="kw">let</span> bls = env.crypto().bls12_381();
 <span class="kw">let mut</span> vk_x = verification_key.ic.get(0).unwrap();
 <span class="kw">for</span> (signal, point) <span class="kw">in</span> inputs.iter().zip(verification_key.ic.iter().skip(1)) {
@@ -534,33 +535,38 @@ bls.pairing_check(lhs, rhs)</code></pre>
   </div>
 
   <div class="module">
-    <div class="module-head"><h3>Verifier: firma del lote</h3><span class="path"><a href="../apps/verifier/README.md">apps/verifier/</a> · Python · Flask</span><span class="tag new">ed25519 nuevo en el evento</span></div>
+    <div class="module-head"><h3>Verifier: batch signature</h3><span class="path"><a href="../apps/verifier/README.md">apps/verifier/</a> · Python · Flask</span><span class="tag new">ed25519 new at the event</span></div>
     <div class="prose">
-      <p>Es la pieza que une la prueba con datos reales. El Verifier guarda cada lectura que verifica. Cuando llega <code>POST /signBatch</code>, solo acepta 32 eventos distintos que él verificó y que pertenecen a un mismo dispositivo. Recalcula el commitment con su propia implementación de Poseidon, idéntica a la del circuito, y lo firma. El Publisher comprueba que coincide con el de su prueba antes de cobrar.</p>
+      <p>This is the piece that binds the proof to real data. The Verifier keeps every reading it verifies. When <code>POST /signBatch</code> arrives, it only accepts 5 distinct events that it verified, that belong to one device and that were not signed in another session. It recomputes the commitment with its own Poseidon implementation, identical to the circuit's, and signs it. The Publisher checks that it matches the one in its proof before claiming.</p>
     </div>
     <details>
       <summary>verifier_support/batch_signer.py · sign()</summary>
-<pre><code><span class="kw">with</span> self.lock:
+<pre><code><span class="kw">if</span> session_id != session_id_for(event_keys):
+    <span class="kw">raise</span> ValueError(<span class="cm">'sessionId must be derived from eventKeys'</span>)
+<span class="kw">with</span> self.lock:
     known = [self.readings.get(key) <span class="kw">for</span> key <span class="kw">in</span> event_keys]
+    reused = any(self.signed.get(key, session_id) != session_id <span class="kw">for</span> key <span class="kw">in</span> event_keys)
+<span class="kw">if</span> reused:
+    <span class="kw">raise</span> ValueError(<span class="cm">'eventKeys contains events already signed in another session'</span>)
 <span class="kw">if</span> None <span class="kw">in</span> known:
     <span class="kw">raise</span> ValueError(<span class="cm">'eventKeys contains events not verified by this Verifier'</span>)
-<span class="kw">if</span> len({device <span class="kw">for</span> device, _ <span class="kw">in</span> known}) != 1:
+<span class="kw">if</span> len({item[:3] <span class="kw">for</span> item <span class="kw">in</span> known}) != 1:
     <span class="kw">raise</span> ValueError(<span class="cm">'eventKeys must belong to one device'</span>)
-commitment = batch_commitment([<span class="pv">reading</span> <span class="kw">for</span> _, <span class="pv">reading</span> <span class="kw">in</span> known], salt, session_id).to_bytes(32, <span class="cm">'big'</span>)
-message = commitment + session_id.to_bytes(32, <span class="cm">'big'</span>) + patient_key
+commitment = batch_commitment([<span class="pv">item[3]</span> <span class="kw">for</span> item <span class="kw">in</span> known], salt, session_id).to_bytes(32, <span class="cm">'big'</span>)
+message = commitment + session_id.to_bytes(32, <span class="cm">'big'</span>) + patient_key + bytes.fromhex(self.verifier_id)
 <span class="kw">return</span> commitment.hex(), self.private_key.sign(message).hex()</code></pre>
     </details>
   </div>
 
   <div class="module">
-    <div class="module-head"><h3>Publisher</h3><span class="path"><a href="../apps/publisher/README.md">apps/publisher/</a> · Python</span><span class="tag new">nuevo en el evento</span></div>
+    <div class="module-head"><h3>Publisher</h3><span class="path"><a href="../apps/publisher/README.md">apps/publisher/</a> · Python</span><span class="tag new">new at the event</span></div>
     <div class="prose">
-      <p>Escucha el <code>/stream</code> del Manager y agrupa 32 lecturas por dispositivo, contando cada evento una sola vez aunque el stream lo repita. Genera la prueba con los scripts de <code>circuits/</code>, pide la firma con <code>signBatch</code> y envía <code>claim()</code> con la CLI de Stellar. Un lote que no cumple la pauta se registra y no se cobra.</p>
+      <p>It listens to the Manager's <code>/stream</code> and groups 5 readings per device, counting each event only once even if the stream repeats it. It generates the proof with the <code>circuits/</code> scripts, asks for the signature with <code>signBatch</code> and sends <code>claim()</code> with the Stellar CLI. A batch that does not meet the policy is logged and not claimed.</p>
     </div>
     <details>
       <summary>publisher.py · process_batch()</summary>
 <pre><code><span class="kw">def</span> process_batch(batch):
-    <span class="cm">"""Prueba el lote, lo firma y cobra la sesión con claim()."""</span>
+    <span class="cm">"""Proves the batch, gets it signed and claims the session with claim()."""</span>
     <span class="kw">try</span>:
         commitment, proof_file = prover.prove(batch)
         signature = get_signer().sign(batch, commitment, batch[<span class="cm">'patient'</span>])
@@ -573,128 +579,130 @@ message = commitment + session_id.to_bytes(32, <span class="cm">'big'</span>) + 
   </div>
 
   <div class="module">
-    <div class="module-head"><h3>Pipeline de datos</h3><span class="path">apps/reader · manager · storage · Python y C++</span></div>
+    <div class="module-head"><h3>Data pipeline</h3><span class="path">apps/reader · manager · storage · Python and C++</span></div>
     <div class="prose">
-      <p>Reader, Manager, Verifier y Storage forman el pipeline de datos. En el evento se ha adaptado: el Reader simula pulso, el Manager evita conexiones HTTP/SSE redundantes por servicio, el Verifier firma con ed25519 en lugar de RSA y todos los servicios exponen <code>/info</code> y <code>/logs</code> para el panel.</p>
+      <p>Reader, Manager, Verifier and Storage make up the data pipeline. It was adapted at the event: the Reader simulates a pulse, the Manager avoids redundant HTTP/SSE connections per service, the Verifier signs with ed25519 instead of RSA and every service exposes <code>/info</code> and <code>/logs</code> for the panel.</p>
     </div>
   </div>
 </section>
 
 <!-- Panel -->
 <section id="panel">
-  <div class="eyebrow">06 · Panel de control</div>
-  <h2>Observar la red y separar lo que ve cada uno</h2>
+  <div class="eyebrow">06 · Control panel</div>
+  <h2>Watching the network and separating what each party sees</h2>
   <div class="grid-2">
     <div class="card">
-      <h3>Consola del operador · <code>apps/web</code></h3>
-      <p>React + Vite. Mapa vivo de los servicios: estado de cada nodo, conexiones HTTP y Stream, errores visibles al momento e inspector contextual. Arranca, para y despliega contenedores Docker a través de <code>tools/web_runtime.py</code>, una API local limitada a loopback.</p>
+      <h3>Operator console · <code>apps/web</code></h3>
+      <p>React + Vite. A live map of the services: status of each node, HTTP and Stream connections, errors shown as they happen and a contextual inspector. It starts, stops and deploys Docker containers through <code>tools/web_runtime.py</code>, a local API bound to loopback.</p>
     </div>
     <div class="card">
-      <h3>Paneles de pagos · <code>apps/web</code></h3>
-      <p>Paciente, cadena de frío y empresa. Leen los cobros de los eventos <code>SessionPaid</code> del contrato directamente del RPC de testnet; ninguno recibe lecturas de salud.</p>
+      <h3>Payment panels · <code>apps/web</code></h3>
+      <p>Patient, cold chain and company. They read the claims from the contract's <code>SessionPaid</code> events straight from the testnet RPC; none of them receives health readings.</p>
     </div>
   </div>
 </section>
 
 <!-- Demo -->
 <section id="demo">
-  <div class="eyebrow">07 · Funcionamiento final</div>
-  <h2>Lo que funciona hoy en testnet</h2>
+  <div class="eyebrow">07 · Final result</div>
+  <h2>What works today on testnet</h2>
   <div class="prose">
-    <p>La pila completa arranca con un solo comando. El Reader simulado emite pulso dentro de la zona, el Publisher junta 32 lecturas, genera la prueba y cobra. La transacción aparece en stellar.expert y el panel la muestra.</p>
+    <p>The full stack starts with one command. The simulated Reader first emits pulse and then temperature; the Publisher collects 5 readings from each device, generates the proof and claims on the contract for its use case. The transaction shows up on stellar.expert and in the panels. To claim, the Publisher needs a funded testnet wallet and the Verifier its signing key, both created in <code>keys/</code> with <code>tools/keys.sh</code>.</p>
   </div>
 <pre class="cmd"><code>docker compose -f deploy/docker/compose.yml up --build -d --wait
-curl http://127.0.0.1:7104/raw          <span class="cm"># eventos Verified en Storage</span>
+curl http://127.0.0.1:7104/raw          <span class="cm"># Verified events in Storage</span>
 docker compose -f deploy/docker/compose.yml logs -f publisher   <span class="cm"># publisher_session_paid … txHash</span></code></pre>
   <div class="table-wrap">
     <table>
-      <thead><tr><th>Evidencia en testnet</th><th>Enlace</th></tr></thead>
+      <thead><tr><th>Evidence on testnet</th><th>Link</th></tr></thead>
       <tbody>
-        <tr><td>Contrato <code>adherence</code> que paga USDC</td><td class="hash"><a href="https://stellar.expert/explorer/testnet/contract/CBF2MBQ6W4S6LD3JSIM3NNZET5KBUKOADRZSKIYZRZBAXRM6OJZCNSFI">CBF2MBQ6…OJZCNSFI</a></td></tr>
-        <tr><td>Cobro de extremo a extremo: Reader → Manager → Verifier → Publisher → <code>claim()</code>, 5 USDC</td><td class="hash"><a href="https://stellar.expert/explorer/testnet/tx/2a345e9fdf594fc385107a2e1a2e973d3cb16f5274fc14e763bbe9dc0406ef47">2a345e9f…06ef47</a></td></tr>
-        <tr><td>Primer cobro en USDC: 5 USDC a la paciente y evento <code>SessionPaid</code></td><td class="hash"><a href="https://stellar.expert/explorer/testnet/tx/0ba0adb7ca42e09350f71eec15c09d252dcfacf13b6cc3672afab8017ce78033">0ba0adb7…e78033</a></td></tr>
-        <tr><td>Fondos del contrato USDC (20 USDC de la aseguradora)</td><td class="hash"><a href="https://stellar.expert/explorer/testnet/tx/f791426c649045fc02dfbbf7cc69d1b6796292d53da0a4455a6499a0657dc4fa">f791426c…c4fa</a></td></tr>
-        <tr><td>Contrato <code>adherence</code> que paga XLM</td><td class="hash"><a href="https://stellar.expert/explorer/testnet/contract/CAPZ2O7LPTRGJ2Q7TTHMCHOKRZ4T7KU5I4E74M2U3YUTC3XONIQDOP2D">CAPZ2O7L…NIQDOP2D</a></td></tr>
-        <tr><td>Primer cobro real: prueba y firma verificadas en la cadena, 5 XLM</td><td class="hash"><a href="https://stellar.expert/explorer/testnet/tx/891b2fe1504a9d9c0a34146828e9caac9527a41e3d467eaecf5a994c145c0aa1">891b2fe1…c0aa1</a></td></tr>
+        <tr><td>Rehabilitation <code>adherence</code> contract (4 of 5, 0.1 USDC per session)</td><td class="hash"><a href="https://stellar.expert/explorer/testnet/contract/CCLQFKRWBLRSPLVAFWBLG22LPRGP3GEV47CGXA6C3VAGPQ2QITE3DNYL">CCLQFKRW…ITE3DNYL</a></td></tr>
+        <tr><td>Cold-chain <code>adherence</code> contract (2–8 °C, 5 of 5, 0.1 USDC)</td><td class="hash"><a href="https://stellar.expert/explorer/testnet/contract/CACUZG5V45NPFFB5JSLHMTF6NHEP5GMGZ5QJKJPET4ZIRTWOW6VS2VQS">CACUZG5V…W6VS2VQS</a></td></tr>
+        <tr><td>Docker demo, rehabilitation: simulated pulse → <code>claim()</code>, 0.1 USDC</td><td class="hash"><a href="https://stellar.expert/explorer/testnet/tx/084d4e8223cb1a2db2d040920c59b19aa10968352815839e4134836f70fbb1ed">084d4e82…bb1ed</a></td></tr>
+        <tr><td>Docker demo, cold chain: simulated temperature → <code>claim()</code>, 0.1 USDC</td><td class="hash"><a href="https://stellar.expert/explorer/testnet/tx/a9466f1ea47b3f0662322988721a5da954487cb31be31bb9d64fae266e90a986">a9466f1e…a986</a></td></tr>
+        <tr><td>First cold-chain claim: temperature Reader → Publisher → <code>claim()</code>, 5 USDC</td><td class="hash"><a href="https://stellar.expert/explorer/testnet/tx/639fcfddd74ddcd1344a26cd1638ac5f66e12a7bc2f69be04da8fb7815a9efb6">639fcfdd…a9efb6</a></td></tr>
+        <tr><td>First end-to-end claim: Reader → Manager → Verifier → Publisher → <code>claim()</code>, 5 USDC</td><td class="hash"><a href="https://stellar.expert/explorer/testnet/tx/2a345e9fdf594fc385107a2e1a2e973d3cb16f5274fc14e763bbe9dc0406ef47">2a345e9f…06ef47</a></td></tr>
+        <tr><td>First USDC claim: 5 USDC to the patient and a <code>SessionPaid</code> event</td><td class="hash"><a href="https://stellar.expert/explorer/testnet/tx/0ba0adb7ca42e09350f71eec15c09d252dcfacf13b6cc3672afab8017ce78033">0ba0adb7…e78033</a></td></tr>
+        <tr><td>First real claim: proof and signature verified on-chain, 5 XLM</td><td class="hash"><a href="https://stellar.expert/explorer/testnet/tx/891b2fe1504a9d9c0a34146828e9caac9527a41e3d467eaecf5a994c145c0aa1">891b2fe1…c0aa1</a></td></tr>
       </tbody>
     </table>
   </div>
-  <p class="prose">Pauta de ambos contratos: de 90 a 130 lpm, al menos 28 de 32 lecturas y 5 unidades por sesión. USDC de Circle en testnet, emisor <code>GBBD47IF…ZLLFLA5</code>.</p>
+  <p class="prose">Rehabilitation: 90 to 130 bpm in at least 4 of 5 readings. Cold chain: 2 to 8 °C in 5 of 5. The first claims paid 5 units with 32-reading batches, on contracts now retired (<code>CD3ZLDTB…</code>, <code>CDNPBN6H…</code>); each session now pays 0.1 USDC so the demo can be repeated. Circle USDC on testnet, issuer <code>GBBD47IF…ZLLFLA5</code>.</p>
 </section>
 
-<!-- Pruebas -->
+<!-- Tests -->
 <section id="pruebas">
-  <div class="eyebrow">08 · Calidad</div>
-  <h2>Pruebas que lo sostienen</h2>
+  <div class="eyebrow">08 · Quality</div>
+  <h2>The tests behind it</h2>
   <ul class="checks">
-    <li><span><strong>Contrato:</strong> paga una sesión válida una sola vez y rechaza una prueba de otra pauta, una prueba de otra sesión, una firma para otra paciente y una prueba manipulada.</span></li>
-    <li><span><strong>Circuito:</strong> <code>inputs/session.json</code> genera prueba y <code>session_fail.json</code>, con lecturas fuera de rango, no puede generarla.</span></li>
-    <li><span><strong>Servicios Python:</strong> unas 80 pruebas de componentes e integración con procesos reales, firmas ed25519, streams SSE y LevelDB temporal; la pila Docker se prueba con los cinco servicios.</span></li>
-    <li><span><strong>Web:</strong> pruebas de la lógica del lienzo con Node y de los paneles y la consola con Vitest: estados, conexiones, logs, pagos del RPC y despliegue de contenedores.</span></li>
+    <li><span><strong>Contract:</strong> pays a valid session only once and rejects a proof for another policy, a proof for another session, a signature for another patient, a signature without the Verifier's identity and a tampered proof.</span></li>
+    <li><span><strong>Circuit:</strong> <code>inputs/session.json</code> and <code>cold_chain.json</code> produce a proof; <code>session_fail.json</code>, with out-of-range readings, cannot.</span></li>
+    <li><span><strong>Python services:</strong> about 150 component and integration tests, including two Verifiers with two Publishers, with real processes, ed25519 signatures, SSE streams and a temporary LevelDB; the Docker stack is tested with all five services.</span></li>
+    <li><span><strong>Web:</strong> tests of the canvas logic with Node and of the panels and console with Vitest: states, connections, logs, RPC payments and container deployment.</span></li>
   </ul>
 </section>
 
-<!-- Límites -->
+<!-- Limits -->
 <section id="limites">
-  <div class="eyebrow">09 · Límites</div>
-  <h2>Lo que todavía no resuelve</h2>
+  <div class="eyebrow">09 · Limits</div>
+  <h2>What it does not solve yet</h2>
   <ul class="checks limits">
-    <li><span>Se confía en el Verifier de Phonendo y en el sensor. La firma garantiza que las lecturas son las que el Verifier comprobó, no que el sensor midiera bien.</span></li>
-    <li><span>La ceremonia de claves del circuito la hace un solo participante: vale para desarrollo, no para producción.</span></li>
-    <li><span>Poseidon usa las constantes de circomlib sobre el campo de BLS12-381. Está probado contra el circuito, pero no son parámetros estándar ni coinciden con la función Poseidon nativa de Stellar.</span></li>
-    <li><span>El Publisher guarda los lotes en memoria: si se detiene, pierde el lote en curso y no reintenta cobros.</span></li>
-    <li><span>El contrato está en testnet y no está auditado. El panel usa tokens fijos por rol, sin cuentas de usuario.</span></li>
+    <li><span>We trust the Phonendo Verifier and the sensor. The signature guarantees that the readings are the ones the Verifier checked, not that the sensor measured correctly.</span></li>
+    <li><span>The circuit key ceremony is done by a single participant: fine for development, not for production.</span></li>
+    <li><span>Poseidon uses circomlib's constants over the BLS12-381 field. It is tested against the circuit, but these are not standard parameters and do not match Stellar's native Poseidon function.</span></li>
+    <li><span>The circuit checks the value of each reading and how many are in range, but not the time between readings: 5 readings taken within a few seconds count as a session.</span></li>
+    <li><span>The Publisher keeps batches in memory: if it stops, it loses the batch in progress and does not retry claims.</span></li>
+    <li><span>The contract is on testnet and has not been audited. The operator console only works locally: its API listens on loopback only.</span></li>
   </ul>
 </section>
 
-<!-- Evento -->
+<!-- Event -->
 <section id="evento">
-  <div class="eyebrow">10 · Progreso en el hackathon</div>
-  <h2>Hecho en el evento</h2>
+  <div class="eyebrow">10 · Hackathon progress</div>
+  <h2>Built at the event</h2>
   <div class="table-wrap">
     <table>
-      <thead><tr><th>Pieza</th><th>Qué hace</th></tr></thead>
+      <thead><tr><th>Piece</th><th>What it does</th></tr></thead>
       <tbody>
-        <tr><td>Circuito ZK y scripts de prueba (<code>circuits/</code>)</td><td>Prueba Groth16 de que al menos N lecturas están en rango</td></tr>
-        <tr><td>Publisher</td><td>Lotes, prueba, firma del lote y <code>claim()</code></td></tr>
-        <tr><td>Verifier</td><td>Una clave ed25519 firma los eventos y el commitment del lote</td></tr>
-        <tr><td>Contrato Soroban</td><td>Groth16, antirrepetición y pago en USDC</td></tr>
-        <tr><td>Paneles web</td><td>Consola del operador y paneles de rehabilitación, cadena de frío y empresa</td></tr>
+        <tr><td>ZK circuit and proving scripts (<code>circuits/</code>)</td><td>Groth16 proof that at least N readings are in range</td></tr>
+        <tr><td>Publisher</td><td>Batches, proof, batch signature and <code>claim()</code></td></tr>
+        <tr><td>Verifier</td><td>One ed25519 key signs the events and the batch commitment</td></tr>
+        <tr><td>Soroban contract</td><td>Groth16, anti-replay and USDC payment</td></tr>
+        <tr><td>Web panels</td><td>Operator console and rehabilitation, cold-chain and company panels</td></tr>
       </tbody>
     </table>
   </div>
 </section>
 
-<!-- Futuro -->
+<!-- Future -->
 <section id="futuro">
-  <div class="eyebrow">11 · Mercado y hoja de ruta</div>
-  <h2>Por qué ahora y qué sigue</h2>
+  <div class="eyebrow">11 · Market and roadmap</div>
+  <h2>Why now and what comes next</h2>
   <div class="grid-2">
-    <div class="card"><h3>Cliente</h3><p>Aseguradoras de salud y programas de rehabilitación que quieren premiar la adherencia sin tratar datos clínicos.</p></div>
-    <div class="card"><h3>Ingresos</h3><p>Una tarifa por cada prueba verificada que termina en pago.</p></div>
-    <div class="card"><h3>Por qué ahora</h3><p>Soroban verifica pruebas Groth16 sobre BLS12-381 de forma nativa, y USDC en Stellar permite pagar en la misma transacción.</p></div>
-    <div class="card"><h3>Por qué Phonendo</h3><p>Ya tenía un pipeline probado que captura, verifica y guarda datos de sensores; Stellar le añade prueba y pago.</p></div>
+    <div class="card"><h3>Customer</h3><p>Health insurers and rehabilitation programmes that want to reward adherence without handling clinical data.</p></div>
+    <div class="card"><h3>Revenue</h3><p>A fee for each verified proof that ends in a payment.</p></div>
+    <div class="card"><h3>Why now</h3><p>Soroban verifies Groth16 proofs on BLS12-381 natively, and USDC on Stellar makes it possible to pay in the same transaction.</p></div>
+    <div class="card"><h3>Why Phonendo</h3><p>It already had a tested pipeline that captures, verifies and stores sensor data; Stellar adds proof and payment.</p></div>
   </div>
   <ol class="steps">
-    <li><div><strong>Firma en el dispositivo</strong><p>El ESP32 firma cada lectura con P-256 para no depender de un único Verifier.</p></div></li>
-    <li><div><strong>Varios Verifiers y ceremonia multiparte</strong><p>Repartir la confianza y generar las claves del circuito entre varios participantes.</p></div></li>
-    <li><div><strong>Huella de todos los datos en la cadena</strong><p>Anclar el hash de los datos verificados con el dato cifrado en Storage.</p></div></li>
-    <li><div><strong>Consentimiento en el contrato</strong><p>La paciente concede o retira el acceso a su dato y el contrato lo comprueba antes de que Storage lo entregue.</p></div></li>
+    <li><div><strong>Signing on the device</strong><p>The ESP32 signs each reading with P-256 so there is no dependence on a single Verifier.</p></div></li>
+    <li><div><strong>Several Verifiers and a multi-party ceremony</strong><p>Spread the trust and generate the circuit keys among several participants.</p></div></li>
+    <li><div><strong>Fingerprint of all data on-chain</strong><p>Anchor the hash of the verified data, with the encrypted data in Storage.</p></div></li>
+    <li><div><strong>Consent in the contract</strong><p>The patient grants or revokes access to her data and the contract checks it before Storage hands it over.</p></div></li>
   </ol>
 </section>
 
 <footer>
-  <p>Phonendo · HackMeridian 2026, Lisboa. Código y documentación en este repositorio: <a href="../README.md">README</a>, <a href="../circuits/README.md">circuito</a>, <a href="../contracts/README.md">contrato</a>.</p>
+  <p>Phonendo · HackMeridian 2026, Lisbon. Code and documentation in this repository: <a href="../README.md">README</a>, <a href="../circuits/README.md">circuit</a>, <a href="../contracts/README.md">contract</a>.</p>
 </footer>
 
 </main>
 </div>
 
 <script>
-// Tira de ritmo: 32 lecturas sobre papel de ECG, a escala (60–150 lpm).
+// Rhythm strip: 5 readings on ECG paper, to scale (60–150 bpm).
 (function () {
-  const readings = [86, 92, 97, 101, 104, 108, 111, 113, 115, 117, 118, 116, 119, 121, 120, 118,
-                    122, 124, 123, 121, 134, 125, 122, 119, 117, 114, 112, 108, 104, 99, 95, 88];
+  const readings = [98, 112, 134, 121, 104];
   const zone = { min: 90, max: 130 };
   const W = 720, H = 230, left = 44, right = 12, top = 12, bottom = 30;
   const yMin = 60, yMax = 150;
@@ -702,7 +710,7 @@ docker compose -f deploy/docker/compose.yml logs -f publisher   <span class="cm"
   const y = v => top + (yMax - v) * (H - top - bottom) / (yMax - yMin);
   const svg = document.getElementById('rhythm');
   const ns = 'http://www.w3.org/2000/svg';
-  // Los colores van en `style` para que las variables CSS sigan el tema.
+  // Colours go in `style` so the CSS variables follow the theme.
   const el = (name, attrs, text) => {
     const node = document.createElementNS(ns, name);
     for (const [k, v] of Object.entries(attrs)) {
@@ -715,7 +723,7 @@ docker compose -f deploy/docker/compose.yml logs -f publisher   <span class="cm"
   };
   const token = name => `var(${name})`;
 
-  // Cuadrícula de papel de ECG: líneas finas cada 2 lpm, gruesas cada 10.
+  // ECG paper grid: thin lines every 2 bpm, thick every 10.
   for (let v = yMin; v <= yMax; v += 2) {
     el('line', { x1: left, x2: W - right, y1: y(v), y2: y(v),
                  stroke: token(v % 10 === 0 ? '--grid-strong' : '--grid'), 'stroke-width': v % 10 === 0 ? 1 : 0.6 });
@@ -724,23 +732,23 @@ docker compose -f deploy/docker/compose.yml logs -f publisher   <span class="cm"
   for (let i = 0; i <= readings.length; i++) {
     const gx = left + i * colW;
     el('line', { x1: gx, x2: gx, y1: y(yMax), y2: y(yMin),
-                 stroke: token(i % 4 === 0 ? '--grid-strong' : '--grid'), 'stroke-width': i % 4 === 0 ? 1 : 0.6 });
+                 stroke: token('--grid-strong'), 'stroke-width': 1 });
   }
-  // Zona del médico.
+  // Doctor's zone.
   el('rect', { x: left, y: y(zone.max), width: W - left - right, height: y(zone.min) - y(zone.max),
                fill: token('--chain-soft'), opacity: 0.55 });
   for (const v of [zone.min, zone.max]) {
     el('line', { x1: left, x2: W - right, y1: y(v), y2: y(v), stroke: token('--chain'),
                  'stroke-width': 1.2, 'stroke-dasharray': '6 4' });
   }
-  // Eje: valores que la escala alcanza.
+  // Axis: values the scale reaches.
   for (const v of [60, 90, 130, 150]) {
     el('text', { x: left - 8, y: y(v) + 4, 'text-anchor': 'end', fill: token(v === 90 || v === 130 ? '--chain' : '--muted'),
                  style: 'font: 600 11px var(--font-mono)' }, String(v));
   }
-  el('text', { x: left, y: H - 8, fill: token('--muted'), style: 'font: 400 11px var(--font-mono)' }, 'lectura 1');
-  el('text', { x: W - right, y: H - 8, 'text-anchor': 'end', fill: token('--muted'), style: 'font: 400 11px var(--font-mono)' }, 'lectura 32 · lpm');
-  // Trazo y puntos: fuera de zona con anillo.
+  el('text', { x: left, y: H - 8, fill: token('--muted'), style: 'font: 400 11px var(--font-mono)' }, 'reading 1');
+  el('text', { x: W - right, y: H - 8, 'text-anchor': 'end', fill: token('--muted'), style: 'font: 400 11px var(--font-mono)' }, 'reading 5 · bpm');
+  // Line and dots: out-of-zone ones get a ring.
   el('polyline', { points: readings.map((v, i) => `${x(i)},${y(v)}`).join(' '), fill: 'none',
                    stroke: token('--private'), 'stroke-width': 2, 'stroke-linejoin': 'round' });
   readings.forEach((v, i) => {
@@ -754,7 +762,7 @@ docker compose -f deploy/docker/compose.yml logs -f publisher   <span class="cm"
   });
 })();
 
-// Índice: marca la sección visible.
+// Contents: highlight the visible section.
 (function () {
   const links = [...document.querySelectorAll('.toc a')];
   if (!('IntersectionObserver' in window)) return;

@@ -3,9 +3,9 @@
 skinparam classAttributeIconSize 0
 skinparam packageStyle rectangle
 hide empty members
-title Reader base — dominio, servicio y servidor Python
+title Python Reader — domain, service and server
 
-package "Core (sin HTTP ni hardware)" {
+package "Core (no HTTP, no hardware)" {
   class ReaderCore {
     +reader_id: str
     +allow_new_devices: bool = True
@@ -48,7 +48,7 @@ package "Core (sin HTTP ni hardware)" {
     +unit: str
   }
 }
-package "Service y outputs" {
+package "Service and outputs" {
   class ReaderService {
     +ingest(observation): bool
     +publish(observation)
@@ -59,17 +59,22 @@ package "Service y outputs" {
     +publish(reader_id, observation)
   }
   class StreamOutput
+  class ManagerOutput {
+    +managers: tuple
+    +timeout: float
+    +publish(reader_id, observation)
+  }
   class ObservationStream {
     +subscribe()
     +publish(event)
     +close()
   }
-  class "Serialización JSON" as JSON {
+  class "JSON serialization" as JSON {
     +observation_to_dict(observation)
     +observation_event(reader_id, observation)
   }
 }
-package "Server HTTP opcional" {
+package "Optional HTTP server" {
   class ReaderServer {
     +start()
     +stop()
@@ -85,30 +90,36 @@ package "Server HTTP opcional" {
     +queue_size: int = 256
   }
 }
-ReaderCore o-- "0..*" Device : dispositivos locales
+ReaderCore o-- "0..*" Device : local devices
 Device o-- "0..*" Sensor
-Sensor ..> Observation : construye
-ReaderCore ..> Observation : valida y emite el objeto
-ReaderService --> ReaderCore : core externo
-ReaderCore --> ReaderService : callbacks instalados por el servicio
-ReaderService o-- "0..*" ObservationOutput : distribuye objetos
+Sensor ..> Observation : builds
+ReaderCore ..> Observation : validates and emits
+ReaderService --> ReaderCore : uses an external core\nand installs its callbacks
+ReaderService o-- "0..*" ObservationOutput : fans out observations
 StreamOutput ..|> ObservationOutput
+ManagerOutput ..|> ObservationOutput
 StreamOutput --> JSON
+ManagerOutput --> JSON
 StreamOutput --> ObservationStream
-ReaderServer *-- ReaderService : compone
-ReaderServer --> ReaderCore : recibe instancia externa
+ReaderServer *-- ReaderService : composes
+ReaderServer --> ReaderCore : receives an external instance
 ReaderServer --> ServerConfig
 ReaderServer --> ObservationStream
-ReaderServer ..> StreamOutput : añade si stream habilitado
+ReaderServer ..> StreamOutput : added when the stream is enabled
 note bottom of ReaderCore
-  on_observation puede ser una función del usuario.
-  Si se conecta ReaderService, este gestiona los callbacks.
-  Core no serializa ni envía HTTP por sí mismo.
+  on_observation can be a user function.
+  When ReaderService is attached, it owns the callbacks.
+  The core never serializes or sends HTTP by itself.
+end note
+note bottom of ManagerOutput
+  HTTP push: POST /newEvent to every configured
+  Manager, with the token in the body.
 end note
 note bottom of ReaderServer
-  GET /health, /metadata, /devices
-  GET /observations/stream (opcional)
-  No existe ingestión HTTP ni historial SSE.
-  enabled refleja el código actual: aún no se ha eliminado.
+  GET /health, /metadata, /devices, /devices/{id}
+  GET /stream (SSE, optional)
+  GET /info and /logs without a token
+  The C++ core and the ESP32 example
+  follow the same event contract.
 end note
 @enduml

@@ -3,49 +3,58 @@
 hide footbox
 skinparam shadowing false
 skinparam sequenceMessageAlign center
-title Phonendo — secuencia simplificada entre servicios
+title Phonendo — from reading to payment
 
 participant Reader as R
 participant Manager as M
 participant Verifier as V
 participant Storage as S
-participant "Publisher\n(pendiente)" as P #FFF2CC
+participant Publisher as P
+participant "Soroban contract" as C #E8E6FF
+participant "Web panels" as W
 
-note over R,S
-  Cada observación incluye readerId y deviceId, sin alta previa.
-  Flujo operativo: SSE desde Reader; verificación y guardado por HTTP.
-end note
-M -> R : Suscribirse a /stream
-R --> M : Observación (SSE)
-note over R,M : Alternativa: POST /newEvent; tiene prioridad para ese readerId.
-note over M : Preparar evento Captured y calcular el hash del contenido.
-M -> V : Verificar evento (HTTP /verify)
-alt Verificación positiva
-  V --> M : Evento Verified con firma ed25519
-  M -> S : Guardar evento Verified (HTTP)
-  S --> M : Confirmación de guardado
-else Rechazo explícito
-  V --> M : Rechazo
-  note over M,S : Descartar evento; no guardarlo.
+== Verification (every reading) ==
+M -> R : subscribe to /stream
+R --> M : observation (SSE)
+note over R,M : Alternative: POST /newEvent; the first transport chosen for a readerId wins.
+note over M : Build the Captured event and hash its content.
+M -> V : verify event (HTTP /verify)
+alt Accepted
+  V --> M : Verified event, ed25519 signature
+  M -> S : store Verified event
+  M --> P : Verified event (SSE /stream)
+else Explicit rejection
+  V --> M : rejection
+  note over M,S : Discard; never stored.
 else Timeout
-  note over M,S : Cola en memoria y reintento desde la etapa pendiente.
+  note over M,S : In-memory queue; retry from the pending stage.
 end
 
-== Intercambio SSE opcional con Verifier ==
-V -> M : Suscribirse a /stream/verifier
-M --> V : Evento Captured (SSE)
-note over V : Verificar y firmar si se acepta.
-V --> M : Resultado Verified por /stream del Verifier
-note over M,V
-  El Verifier ya publica para varios suscriptores.
-  Manager correlaciona el resultado con su evento y continúa el guardado.
-  El envío SSE no espera respuestas ni reintenta por timeout del suscriptor.
+== Proof and payment (every 5 readings of one device) ==
+note over P
+  Collect 5 Verified readings, derive sessionId from their event ids, pick a random salt.
+  Generate the Groth16 proof (circuits/): at least minCount
+  readings are inside [minValue, maxValue].
 end note
-
-M -> S : Guardar Verified (HTTP o salida SSE /stream/storage)
-S --> M : Evento guardado por /stream propio (si está suscrito)
-note over M,S : Recibir la confirmación no provoca otro guardado.
-
-== Publicación futura ==
-M --> P : Publicar evento verificado (pendiente)
+P -> M : POST /signBatch (sessionId, salt, patient, 5 event ids)
+M -> V : POST /signBatch
+note over V
+  Checks sessionId against the event ids and that
+  no event was signed in another session.
+  Takes the readings from its own memory,
+  computes Poseidon(sessionId, salt, readings)
+  and signs it with ed25519.
+end note
+V --> M : commitment + signature
+M --> P : commitment + signature
+note over P : Rejects the signature if the commitment differs from its proof.
+P -> C : claim(patient, sessionId, commitment, signature, proof)
+note over C
+  1. Session not paid before (anti-replay)
+  2. Verifier signature (host ed25519)
+  3. Groth16 proof against the stored policy (BLS12-381)
+end note
+C -> C : mark session, transfer USDC to the patient (or carrier)
+C --> W : SessionPaid event
+W -> W : show the payment and its transaction on stellar.expert
 @enduml
