@@ -1,0 +1,532 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Phonendo Pitch</title>
+<style>
+@import url("https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=DM+Mono:wght@400;500&family=DotGothic16&family=Figtree:wght@400;500;600&display=swap");
+
+:root {
+  --bg: #0a1210;
+  --surface: #11201d;
+  --surface-2: #162a26;
+  --line: #24423c;
+  --text: #eaf5f1;
+  --muted: #8fb0a8;
+  --mint: #4be3b0;
+  --heart: #ff5d6c;
+  --ice: #8fd3ff;
+  --gold: #ffd166;
+  --pixel: "DotGothic16", "Bricolage Grotesque", sans-serif;
+  --head: "Bricolage Grotesque", "Figtree", sans-serif;
+  --body: "Figtree", system-ui, sans-serif;
+  --mono: "DM Mono", ui-monospace, monospace;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--body);
+  -webkit-font-smoothing: antialiased;
+}
+
+.mono { font-family: var(--mono); letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+.pixel { font-family: var(--pixel); font-weight: 400; }
+.mint { color: var(--mint); }
+.heart { color: var(--heart); }
+.ice { color: var(--ice); }
+.gold { color: var(--gold); }
+
+.card {
+  background: var(--surface);
+  border: 1.5px solid var(--line);
+  border-radius: 20px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-delay: 0ms !important; transition-duration: 0.01ms !important; }
+}
+</style>
+<style>
+  html, body { height: 100%; overflow: hidden; }
+  .viewport { position: fixed; inset: 0; display: grid; place-items: center; }
+  .stage { width: 1920px; height: 1080px; position: relative; transform-origin: center center; flex: none; }
+
+  .slide {
+    position: absolute; inset: 0; padding: 120px 120px 96px;
+    opacity: 0; visibility: hidden; transition: opacity .5s ease, visibility .5s;
+    background:
+      radial-gradient(1100px 700px at 85% -10%, rgb(75 227 176 / 9%), transparent 60%),
+      radial-gradient(900px 600px at -5% 110%, rgb(143 211 255 / 7%), transparent 60%),
+      var(--bg);
+  }
+  .slide.on { opacity: 1; visibility: visible; }
+
+  .chrome { position: absolute; left: 120px; right: 120px; top: 44px; display: flex; justify-content: space-between; font-size: 18px; }
+  .progress { position: absolute; left: 0; bottom: 0; height: 6px; background: var(--mint); transition: width .5s ease; }
+
+  [data-a] { opacity: 0; transform: translateY(28px); transition: opacity .7s ease, transform .7s cubic-bezier(.2,.8,.2,1); transition-delay: calc(var(--i, 0) * 140ms + 150ms); }
+  .slide.on [data-a] { opacity: 1; transform: none; }
+  [data-a="pop"] { transform: scale(.85); }
+  .slide.on [data-a="pop"] { transform: none; }
+
+  h1, h2 { font-family: var(--pixel); font-weight: 400; line-height: 1.08; letter-spacing: 0; }
+  h2 { font-size: 68px; max-width: 1500px; }
+  .kicker { font-size: 22px; margin-bottom: 22px; }
+  p, li { font-size: 28px; line-height: 1.4; color: var(--text); }
+  .lead { font-size: 32px; color: var(--muted); margin-top: 22px; max-width: 1300px; }
+
+  /* cover */
+  .cover { display: flex; flex-direction: column; justify-content: center; }
+  .cover h1 { font-size: 300px; line-height: .9; color: var(--text); }
+  .cover h1 span { color: var(--mint); }
+  .cover .tag { font-family: var(--head); font-weight: 700; font-size: 64px; margin-top: 28px; }
+  .cover .sub { font-size: 34px; color: var(--muted); margin-top: 18px; }
+  .badges { display: flex; gap: 16px; margin-top: 56px; }
+  .badge { font-family: var(--mono); font-size: 20px; text-transform: uppercase; letter-spacing: .06em; padding: 12px 22px; border-radius: 999px; border: 1.5px solid var(--line); color: var(--text); }
+  .badge.live { border-color: var(--mint); color: var(--mint); }
+  .badge.live::before { content: ""; display: inline-block; width: 12px; height: 12px; border-radius: 50%; background: var(--mint); margin-right: 12px; animation: blink 1.4s infinite; }
+  @keyframes blink { 50% { opacity: .25; } }
+  .ecg { position: absolute; left: 0; right: 0; top: 330px; height: 420px; opacity: .55; pointer-events: none; }
+  .ecg path { fill: none; stroke: var(--mint); stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 3200; stroke-dashoffset: 3200; filter: drop-shadow(0 0 10px rgb(75 227 176 / 60%)); }
+  .slide.on .ecg path { animation: draw 3.6s ease-out forwards, loop 6s 3.6s linear infinite; }
+  @keyframes draw { to { stroke-dashoffset: 0; } }
+  @keyframes loop { 0% { stroke-dashoffset: 0; } 100% { stroke-dashoffset: -3200; } }
+
+  /* problem */
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 36px; margin-top: 64px; }
+  .stat { padding: 40px 44px 44px; }
+  .stat b { display: block; font-family: var(--pixel); font-weight: 400; font-size: 150px; line-height: 1; }
+  .stat .lbl { font-size: 30px; margin-top: 18px; line-height: 1.3; }
+  .stat .src { font-size: 17px; margin-top: 22px; }
+  .bar { height: 14px; border-radius: 99px; background: var(--surface-2); margin-top: 26px; overflow: hidden; }
+  .bar i { display: block; height: 100%; width: 0; background: var(--mint); border-radius: 99px; transition: width 1.6s cubic-bezier(.2,.8,.2,1) .8s; }
+  .slide.on .bar i { width: var(--w); }
+  .dilemma { display: flex; align-items: center; gap: 28px; margin-top: 44px; font-size: 28px; }
+  .dilemma .pill { padding: 18px 30px; border-radius: 16px; border: 1.5px solid var(--line); background: var(--surface); }
+  .dilemma .vs { font-family: var(--mono); color: var(--heart); font-size: 24px; }
+
+  /* solution */
+  .steps { display: grid; grid-template-columns: 1fr 90px 1fr 90px 1fr; align-items: stretch; margin-top: 56px; }
+  .step { padding: 36px 40px 40px; display: flex; flex-direction: column; }
+  .step .viz { height: 210px; display: grid; place-items: center; }
+  .step h3 { font-family: var(--head); font-weight: 800; font-size: 46px; margin-top: 8px; }
+  .step p { font-size: 26px; color: var(--muted); margin-top: 10px; }
+  .step.pay { border-color: var(--gold); background: linear-gradient(180deg, rgb(255 209 102 / 9%), var(--surface)); }
+  .arrow { display: grid; place-items: center; }
+  .arrow svg { width: 70px; overflow: visible; }
+  .arrow path { stroke: var(--mint); stroke-width: 5; fill: none; stroke-linecap: round; stroke-dasharray: 8 12; animation: dash 1s linear infinite; }
+  @keyframes dash { to { stroke-dashoffset: -20; } }
+  .usecases { display: flex; gap: 28px; margin-top: 36px; }
+  .uc { padding: 22px 32px; font-size: 26px; flex: 1; display: flex; gap: 20px; align-items: center; }
+  .uc i { width: 16px; height: 16px; border-radius: 50%; flex: none; }
+  .pulse-dots circle { animation: dotpulse 1.8s infinite; transform-origin: center; transform-box: fill-box; }
+  @keyframes dotpulse { 0%,100% { opacity: .35; } 50% { opacity: 1; } }
+  .coin { animation: bob 2.2s ease-in-out infinite; transform-origin: center; transform-box: fill-box; }
+  @keyframes bob { 50% { transform: translateY(-12px); } }
+  .lock-check { stroke-dasharray: 60; stroke-dashoffset: 60; }
+  .slide.on .lock-check { animation: draw60 1s 1.2s forwards; }
+  @keyframes draw60 { to { stroke-dashoffset: 0; } }
+
+  /* workflow */
+  .pipe { display: grid; grid-template-columns: repeat(5, 1fr); gap: 54px; margin-top: 70px; position: relative; }
+  .node { padding: 28px 28px 30px; position: relative; min-height: 190px; }
+  .node .tag { font-size: 16px; }
+  .node h4 { font-family: var(--head); font-weight: 800; font-size: 33px; margin-top: 10px; line-height: 1.1; }
+  .node p { font-size: 22px; color: var(--muted); margin-top: 8px; line-height: 1.3; }
+  .node.chain { border-color: var(--mint); background: linear-gradient(180deg, rgb(75 227 176 / 12%), var(--surface)); }
+  .node:not(:last-child)::after { content: "→"; position: absolute; right: -44px; top: 50%; transform: translateY(-50%); font-size: 40px; color: var(--mint); }
+  .zones { position: relative; height: 60px; margin-top: 62px; display: grid; grid-template-columns: repeat(5, 1fr); gap: 54px; }
+  .zone { border-radius: 14px; display: grid; place-items: center; font-size: 18px; }
+  .zone.priv { grid-column: span 4; background: rgb(255 255 255 / 4%); border: 1.5px dashed var(--line); }
+  .zone.pub { background: rgb(75 227 176 / 14%); border: 1.5px solid var(--mint); color: var(--mint); }
+  .packet { position: absolute; top: 110px; left: 0; width: 26px; height: 26px; border-radius: 50%; background: var(--ice); box-shadow: 0 0 24px 6px rgb(143 211 255 / 55%); opacity: 0; }
+  .slide.on .packet { animation: travel 6s 1s ease-in-out infinite; }
+  @keyframes travel { 0% { left: 6%; opacity: 0; background: var(--ice); } 6% { opacity: 1; } 70% { background: var(--ice); } 78% { background: var(--mint); } 94% { left: 90%; opacity: 1; background: var(--mint); } 100% { left: 92%; opacity: 0; } }
+  .feat-title { margin-top: 56px; font-size: 20px; }
+  .feats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 28px; margin-top: 18px; }
+  .feat { padding: 24px 28px 26px; }
+  .feat .mono { font-size: 17px; color: var(--mint); }
+  .feat b { display: block; font-family: var(--head); font-size: 30px; font-weight: 800; margin-top: 8px; line-height: 1.15; }
+  .feat span { display: block; font-size: 21px; color: var(--muted); margin-top: 8px; line-height: 1.3; }
+
+  /* live */
+  .live-grid { display: grid; grid-template-columns: 560px 1fr; gap: 64px; margin-top: 52px; }
+  .counters { display: flex; flex-direction: column; gap: 22px; }
+  .counter { padding: 26px 34px; display: flex; align-items: center; gap: 22px; }
+  .counter b { font-family: var(--pixel); font-weight: 400; font-size: 96px; line-height: 1; min-width: 150px; }
+  .counter > span { font-size: 26px; color: var(--muted); line-height: 1.2; }
+  .receipts { display: grid; gap: 26px; }
+  .receipt { padding: 30px 38px 32px; display: grid; grid-template-columns: 1fr auto; gap: 8px 30px; align-items: center; }
+  .receipt h4 { font-family: var(--head); font-weight: 800; font-size: 36px; }
+  .receipt .amt { font-family: var(--pixel); font-size: 64px; color: var(--gold); text-align: right; grid-row: span 2; }
+  .receipt .hash { font-family: var(--mono); font-size: 21px; color: var(--ice); text-decoration: none; word-break: break-all; }
+  .receipt .ev { font-size: 20px; }
+  .note { margin-top: 26px; font-size: 22px; color: var(--muted); }
+
+  /* business */
+  .biz { display: grid; grid-template-columns: 1.25fr 1fr; gap: 56px; margin-top: 44px; }
+  .flow { position: relative; height: 560px; }
+  .fnode { position: absolute; width: 340px; padding: 24px 28px; }
+  .fnode h4 { font-family: var(--head); font-weight: 800; font-size: 32px; }
+  .fnode p { font-size: 22px; color: var(--muted); margin-top: 6px; line-height: 1.3; }
+  .fnode.gold { border-color: var(--gold); }
+  .fnode.mintb { border-color: var(--mint); }
+  .flow svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+  .flow .edge { stroke: var(--line); stroke-width: 3; fill: none; stroke-dasharray: 8 10; animation: dash 1s linear infinite; }
+  .flow .edge.g { stroke: var(--gold); }
+  .flow .elabel { font-family: var(--mono); font-size: 18px; fill: var(--muted); text-transform: uppercase; }
+  .econ { padding: 36px 40px; }
+  .econ .big { font-family: var(--pixel); font-size: 120px; line-height: 1; color: var(--mint); }
+  .econ .row { display: grid; grid-template-columns: 1fr 1.4fr auto; gap: 18px; align-items: center; margin-top: 22px; font-size: 24px; }
+  .econ .row .t { height: 16px; border-radius: 99px; background: var(--surface-2); overflow: hidden; }
+  .econ .row .t i { display: block; height: 100%; width: 0; background: var(--mint); transition: width 1.4s cubic-bezier(.2,.8,.2,1) .9s; }
+  .slide.on .econ .row .t i { width: var(--w); }
+  .econ .row b { font-family: var(--mono); font-weight: 500; font-size: 22px; }
+  .econ .foot { margin-top: 26px; font-size: 20px; color: var(--muted); line-height: 1.35; }
+
+  /* roadmap */
+  .road { position: relative; display: grid; grid-template-columns: repeat(4, 1fr); gap: 32px; margin-top: 90px; }
+  .road::before { content: ""; position: absolute; left: 0; right: 0; top: -34px; height: 4px; background: var(--line); }
+  .road::after { content: ""; position: absolute; left: 0; top: -34px; height: 4px; width: 0; background: var(--mint); transition: width 2.4s ease .6s; }
+  .slide.on .road::after { width: 100%; }
+  .phase { padding: 30px 32px 34px; position: relative; min-height: 430px; }
+  .phase::before { content: ""; position: absolute; top: -44px; left: 32px; width: 24px; height: 24px; border-radius: 50%; background: var(--bg); border: 4px solid var(--mint); }
+  .phase .when { font-size: 18px; }
+  .phase h4 { font-family: var(--pixel); font-weight: 400; font-size: 44px; margin-top: 8px; }
+  .phase ul { list-style: none; margin-top: 18px; }
+  .phase li { font-size: 24px; color: var(--text); padding: 6px 0 6px 28px; position: relative; line-height: 1.3; }
+  .phase li::before { content: "▸"; position: absolute; left: 0; color: var(--mint); }
+  .gate { position: absolute; left: 32px; right: 32px; bottom: 28px; padding-top: 16px; border-top: 1.5px dashed var(--line); font-size: 20px; color: var(--gold); font-family: var(--mono); text-transform: uppercase; letter-spacing: .03em; }
+  .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 32px; margin-top: 40px; }
+  .kpi { padding: 22px 30px; display: flex; align-items: baseline; gap: 18px; }
+  .kpi b { font-family: var(--pixel); font-weight: 400; font-size: 64px; color: var(--mint); }
+  .kpi span { font-size: 22px; color: var(--muted); line-height: 1.2; }
+
+  /* team */
+  .team { display: grid; grid-template-columns: repeat(5, 1fr); gap: 28px; margin-top: 70px; }
+  .member { padding: 36px 30px 38px; text-align: left; }
+  .avatar { width: 150px; height: 150px; border-radius: 50%; background: var(--surface-2); border: 3px solid var(--mint); display: grid; place-items: center; font-family: var(--pixel); font-size: 74px; color: var(--mint); overflow: hidden; position: relative; }
+  .avatar img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  .member h4 { font-family: var(--head); font-weight: 800; font-size: 40px; margin-top: 26px; }
+  .member .role { font-size: 17px; margin-top: 8px; color: var(--mint); }
+  .member p { font-size: 23px; color: var(--muted); margin-top: 14px; line-height: 1.3; }
+  .why { margin-top: 44px; padding: 26px 36px; font-size: 30px; border-color: var(--mint); }
+
+  /* close */
+  .close { display: flex; flex-direction: column; justify-content: center; }
+  .close h1 { font-size: 200px; line-height: .95; }
+  .close h1 span { color: var(--mint); }
+  .links { display: grid; grid-template-columns: repeat(3, auto); gap: 22px; margin-top: 64px; justify-content: start; }
+  .link { padding: 24px 34px; }
+  .link .mono { font-size: 16px; }
+  .link b { display: block; font-family: var(--head); font-weight: 700; font-size: 32px; margin-top: 8px; color: var(--mint); }
+
+  .hint { position: fixed; right: 28px; bottom: 18px; font-family: var(--mono); font-size: 13px; color: var(--muted); opacity: .7; z-index: 5; text-transform: uppercase; letter-spacing: .05em; }
+
+  @media print {
+    @page { size: 1920px 1080px; margin: 0; }
+    html, body { height: auto; overflow: visible; background: var(--bg); }
+    .viewport { position: static; display: block; }
+    .stage { transform: none !important; height: auto; }
+    .slide { position: relative; opacity: 1; visibility: visible; width: 1920px; height: 1080px; page-break-after: always; break-after: page; overflow: hidden; }
+    [data-a] { opacity: 1 !important; transform: none !important; transition: none !important; }
+    .bar i { width: var(--w) !important; transition: none !important; }
+    .econ .row .t i { width: var(--w) !important; transition: none !important; }
+    .road::after { width: 100% !important; transition: none !important; }
+    .ecg path { animation: none !important; stroke-dashoffset: 0 !important; }
+    .packet, .progress, .hint { display: none !important; }
+    .lock-check { stroke-dashoffset: 0 !important; animation: none !important; }
+  }
+</style>
+</head>
+<body>
+<div class="viewport">
+<div class="stage" id="stage">
+
+  <!-- 1 · COVER -->
+  <section class="slide cover">
+    <div class="chrome mono"><span>HackMeridian 2026 · Lisbon</span><span>01 / 09</span></div>
+    <svg class="ecg" viewBox="0 0 1920 420" preserveAspectRatio="none" aria-hidden="true">
+      <path d="M0 210 H260 L300 210 L340 120 L380 300 L420 60 L470 360 L520 210 H900 L940 210 L980 130 L1020 290 L1060 80 L1110 340 L1160 210 H1560 L1600 210 L1640 140 L1680 280 L1720 100 L1770 320 L1820 210 H1920"/>
+    </svg>
+    <h1 data-a style="--i:0">PHONEN<span>DO</span></h1>
+    <div class="tag" data-a style="--i:2">Proof, then pay.</div>
+    <div class="sub" data-a style="--i:3">Pay for real-world outcomes without ever touching the data. On Stellar.</div>
+    <div class="badges" data-a style="--i:4">
+      <span class="badge">Genesis · Stellar Unlocked + Composed</span>
+      <span class="badge live">Live on testnet</span>
+      <span class="badge">phonendo.vercel.app</span>
+    </div>
+  </section>
+
+  <!-- 2 · PROBLEM / PMF -->
+  <section class="slide">
+    <div class="chrome mono"><span>The problem</span><span>02 / 09</span></div>
+    <div class="kicker mono" data-a style="--i:0">Why this matters</div>
+    <h2 data-a style="--i:1">Everyone wants to pay for results. Nobody can verify them without health data.</h2>
+    <div class="stats">
+      <div class="stat card" data-a style="--i:2">
+        <b class="heart"><span class="count" data-to="26" data-pre="-" data-suf="%">0</span></b>
+        <div class="lbl">cardiovascular deaths with cardiac rehab</div>
+        <div class="src mono">Cochrane review · 2022</div>
+      </div>
+      <div class="stat card" data-a style="--i:3">
+        <b class="mint"><span class="count" data-to="36.5" data-dec="1" data-suf="%">0</span></b>
+        <div class="lbl">of European coronary patients attend rehab. In Spain, under 1%.</div>
+        <div class="bar"><i style="--w:36.5%"></i></div>
+        <div class="src mono">EUROASPIRE III</div>
+      </div>
+      <div class="stat card" data-a style="--i:4">
+        <b class="ice">$<span class="count" data-to="35" data-suf="B">0</span></b>
+        <div class="lbl">lost every year to biopharma cold-chain failures</div>
+        <div class="src mono">IQVIA</div>
+      </div>
+    </div>
+    <div class="dilemma" data-a style="--i:5">
+      <div class="pill">The payer needs <b>proof</b></div>
+      <div class="vs">vs</div>
+      <div class="pill">The provider cannot share <b>raw data</b></div>
+    </div>
+  </section>
+
+  <!-- 3 · SOLUTION -->
+  <section class="slide">
+    <div class="chrome mono"><span>The solution</span><span>03 / 09</span></div>
+    <div class="kicker mono" data-a style="--i:0">What Phonendo does</div>
+    <h2 data-a style="--i:1">Pay for the outcome.<br>Never touch the data.</h2>
+    <div class="steps">
+      <div class="step card" data-a style="--i:2">
+        <div class="viz">
+          <svg viewBox="0 0 360 200" width="360" aria-hidden="true">
+            <path d="M10 110 H70 L90 110 L110 50 L135 170 L160 30 L185 150 L205 110 H350" fill="none" stroke="#ff5d6c" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+            <g class="pulse-dots" fill="#ff5d6c">
+              <circle cx="40" cy="110" r="7" style="animation-delay:.0s"/><circle cx="110" cy="50" r="7" style="animation-delay:.3s"/>
+              <circle cx="160" cy="30" r="7" style="animation-delay:.6s"/><circle cx="205" cy="110" r="7" style="animation-delay:.9s"/>
+              <circle cx="270" cy="110" r="7" style="animation-delay:1.2s"/><circle cx="330" cy="110" r="7" style="animation-delay:1.5s"/>
+            </g>
+          </svg>
+        </div>
+        <h3>1 · Measure</h3>
+        <p>A sensor records one session: <b style="color:var(--text)">32 readings</b> of pulse or temperature.</p>
+      </div>
+      <div class="arrow"><svg viewBox="0 0 70 20"><path d="M2 10 H60 M50 2 L62 10 L50 18"/></svg></div>
+      <div class="step card" data-a style="--i:3">
+        <div class="viz">
+          <svg viewBox="0 0 200 200" width="200" aria-hidden="true">
+            <rect x="40" y="86" width="120" height="92" rx="16" fill="#162a26" stroke="#4be3b0" stroke-width="5"/>
+            <path d="M65 86 V62 a35 35 0 0 1 70 0 V86" fill="none" stroke="#4be3b0" stroke-width="5"/>
+            <path class="lock-check" d="M76 132 L96 152 L128 112" fill="none" stroke="#4be3b0" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <h3>2 · Prove</h3>
+        <p><b style="color:var(--text)">1 zero-knowledge proof:</b> “the policy was met.” The data stays private.</p>
+      </div>
+      <div class="arrow"><svg viewBox="0 0 70 20"><path d="M2 10 H60 M50 2 L62 10 L50 18"/></svg></div>
+      <div class="step card pay" data-a style="--i:4">
+        <div class="viz">
+          <svg viewBox="0 0 200 200" width="200" aria-hidden="true">
+            <g class="coin">
+              <circle cx="100" cy="100" r="74" fill="#ffd166" stroke="#fff3c8" stroke-width="6"/>
+              <circle cx="100" cy="100" r="56" fill="none" stroke="#b8860b" stroke-width="3" stroke-dasharray="6 6"/>
+              <text x="100" y="116" text-anchor="middle" font-family="DM Mono, monospace" font-weight="500" font-size="44" fill="#4a3300">$</text>
+            </g>
+          </svg>
+        </div>
+        <h3 class="gold">3 · Get paid</h3>
+        <p>A Soroban contract checks the proof and pays <b style="color:var(--gold)">0.1 USDC</b> in seconds.</p>
+      </div>
+    </div>
+    <div class="usecases">
+      <div class="uc card" data-a style="--i:5"><i style="background:var(--heart)"></i><span><b>Cardiac rehab:</b> 90–130 bpm in at least 28 of 32 readings</span></div>
+      <div class="uc card" data-a style="--i:6"><i style="background:var(--ice)"></i><span><b>Cold chain:</b> 2–8 °C in all 32 readings</span></div>
+    </div>
+  </section>
+
+  <!-- 4 · TECHNICAL WORKFLOW -->
+  <section class="slide">
+    <div class="chrome mono"><span>Technical workflow</span><span>04 / 09</span></div>
+    <div class="kicker mono" data-a style="--i:0">How it works</div>
+    <h2 data-a style="--i:1">The chain sees a proof, never the readings.</h2>
+    <div class="pipe" data-a style="--i:2">
+      <div class="packet"></div>
+      <div class="node card"><div class="tag mono">Sensor</div><h4>Reader</h4><p>Pulse or temperature, 32 readings</p></div>
+      <div class="node card"><div class="tag mono">Private</div><h4>Manager + Storage</h4><p>Collects and keeps the raw data</p></div>
+      <div class="node card"><div class="tag mono">Private</div><h4>Verifier</h4><p>Checks integrity, signs with ed25519</p></div>
+      <div class="node card"><div class="tag mono">Private</div><h4>Publisher</h4><p>Builds the Groth16 proof (Circom)</p></div>
+      <div class="node card chain"><div class="tag mono mint">Stellar</div><h4>Soroban contract</h4><p>Verifies, blocks replays, pays USDC</p></div>
+    </div>
+    <div class="zones" data-a style="--i:3">
+      <div class="zone priv mono">Private zone · raw data never leaves</div>
+      <div class="zone pub mono">Public · Stellar</div>
+    </div>
+    <div class="feat-title mono" data-a style="--i:4">What we use on Stellar</div>
+    <div class="feats">
+      <div class="feat card" data-a style="--i:5"><div class="mono">CAP-59</div><b>BLS12-381 pairing</b><span>claim() verifies the Groth16 proof on chain</span></div>
+      <div class="feat card" data-a style="--i:6"><div class="mono">Host function</div><b>ed25519 check</b><span>The Verifier signature binds session and patient</span></div>
+      <div class="feat card" data-a style="--i:7"><div class="mono">Token contract</div><b>USDC transfer</b><span>Paid from the contract balance to the patient</span></div>
+      <div class="feat card" data-a style="--i:8"><div class="mono">Storage + events</div><b>No double pay</b><span>Persistent anti-replay and a SessionPaid event</span></div>
+    </div>
+  </section>
+
+  <!-- 5 · LIVE ON STELLAR -->
+  <section class="slide">
+    <div class="chrome mono"><span>Proof it works</span><span>05 / 09</span></div>
+    <div class="kicker mono" data-a style="--i:0">Live on Stellar testnet</div>
+    <h2 data-a style="--i:1">Real sessions. Real USDC. Public receipts.</h2>
+    <div class="live-grid">
+      <div class="counters">
+        <div class="counter card" data-a style="--i:2"><b class="mint"><span class="count" data-to="2">0</span></b><span>contracts deployed<br>rehab and cold chain</span></div>
+        <div class="counter card" data-a style="--i:3"><b class="heart"><span class="count" data-to="2">0</span></b><span>use cases, one engine<br>and one Verifier key</span></div>
+        <div class="counter card" data-a style="--i:4"><b class="gold"><span class="count" data-to="0.1" data-dec="1">0</span></b><span>USDC paid per<br>verified session</span></div>
+      </div>
+      <div class="receipts">
+        <div class="receipt card" data-a style="--i:3">
+          <h4>Cardiac rehab session</h4><div class="amt">0.1 USDC</div>
+          <a class="hash" href="https://stellar.expert/explorer/testnet/tx/084d4e8223cb1a2db2d040920c59b19aa10968352815839e4134836f70fbb1ed" target="_blank" rel="noopener">tx 084d4e82…bb1ed</a>
+        </div>
+        <div class="receipt card" data-a style="--i:4">
+          <h4>Cold-chain shipment</h4><div class="amt">0.1 USDC</div>
+          <a class="hash" href="https://stellar.expert/explorer/testnet/tx/a9466f1ea47b3f0662322988721a5da954487cb31be31bb9d64fae266e90a986" target="_blank" rel="noopener">tx a9466f1e…a986</a>
+        </div>
+        <div class="note" data-a style="--i:5">Each receipt carries the on-chain proof check, the signature check and the <b style="color:var(--text)">SessionPaid</b> event. A session can only be paid once. Try the dashboards at <b style="color:var(--mint)">phonendo.vercel.app</b>.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6 · BUSINESS -->
+  <section class="slide">
+    <div class="chrome mono"><span>Business model</span><span>06 / 09</span></div>
+    <div class="kicker mono" data-a style="--i:0">Who pays, who earns</div>
+    <h2 data-a style="--i:1">Payers fund rewards. Operators buy proof.</h2>
+    <div class="biz">
+      <div class="flow" data-a style="--i:2">
+        <svg viewBox="0 0 902 560" aria-hidden="true">
+          <path class="edge g" d="M350 80 H552"/>
+          <path class="edge g" d="M732 150 V330"/>
+          <path class="edge" d="M350 440 H552"/>
+          <text class="elabel" x="451" y="62" text-anchor="middle">USDC pool</text>
+          <text class="elabel" x="750" y="246">0.1 USDC / session</text>
+          <text class="elabel" x="451" y="422" text-anchor="middle">proof, no data</text>
+        </svg>
+        <div class="fnode card gold" style="left:0;top:20px"><h4>Payer</h4><p>Insurer, employer plan or pharma brand</p></div>
+        <div class="fnode card mintb" style="right:0;top:20px"><h4>Soroban contract</h4><p>Checks the proof, releases USDC</p></div>
+        <div class="fnode card" style="right:0;top:350px"><h4>Patient or carrier</h4><p>Paid on proof, not after a dispute</p></div>
+        <div class="fnode card" style="left:0;top:350px"><h4>Operator, our buyer</h4><p>Rehab provider or pharma 3PL. Pays us €4 per patient a month + 2% of payouts.</p></div>
+      </div>
+      <div class="econ card" data-a style="--i:3">
+        <div class="mono">One mid-size rehab provider, year one</div>
+        <div class="big">≈ €15.7k</div>
+        <div class="row"><span>Platform fee</span><div class="t"><i style="--w:100%"></i></div><b>12,000</b></div>
+        <div class="row"><span>Setup</span><div class="t"><i style="--w:25%"></i></div><b>3,000</b></div>
+        <div class="row"><span>2% of payouts</span><div class="t"><i style="--w:6%"></i></div><b>720</b></div>
+        <div class="foot">1,000 patients, 12-week programme, 3 sessions a week, €1 reward per session. Our price hypotheses, to test in the first pilots.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7 · ROADMAP -->
+  <section class="slide">
+    <div class="chrome mono"><span>Go to market</span><span>07 / 09</span></div>
+    <div class="kicker mono" data-a style="--i:0">The next 12 months</div>
+    <h2 data-a style="--i:1">From hackathon to two paying contracts.</h2>
+    <div class="road">
+      <div class="phase card" data-a style="--i:2"><div class="when mono">Nov 2026 – Jan 2027</div><h4>Prove</h4><ul><li>Mainnet audit</li><li>Device signing</li><li>Circuit gap check</li><li>2 clinical champions</li></ul><div class="gate">Gate · audit passed</div></div>
+      <div class="phase card" data-a style="--i:3"><div class="when mono">Feb – Jun 2027</div><h4>Pilot</h4><ul><li>3 rehab pilots in Iberia</li><li>1 cold-chain pilot</li><li>20–50 patients each</li><li>Public case study</li></ul><div class="gate">Gate · +15 pts adherence</div></div>
+      <div class="phase card" data-a style="--i:4"><div class="when mono">Jul – Oct 2027</div><h4>Convert</h4><ul><li>2 annual contracts</li><li>Insurer co-funding</li><li>Cold-chain contract</li></ul><div class="gate">Gate · 2 contracts signed</div></div>
+      <div class="phase card" data-a style="--i:5"><div class="when mono">2028</div><h4>Scale</h4><ul><li>White label via DTx platforms</li><li>France, Italy, Germany</li><li>New sensors</li></ul><div class="gate">Open</div></div>
+    </div>
+    <div class="kpis" data-a style="--i:6">
+      <div class="kpi card"><b>5</b><span>pilots signed</span></div>
+      <div class="kpi card"><b>2</b><span>annual contracts</span></div>
+      <div class="kpi card"><b>+15</b><span>points of completed sessions</span></div>
+      <div class="kpi card"><b>€35k</b><span>recurring revenue, target</span></div>
+    </div>
+  </section>
+
+  <!-- 8 · TEAM -->
+  <section class="slide">
+    <div class="chrome mono"><span>The team</span><span>08 / 09</span></div>
+    <div class="kicker mono" data-a style="--i:0">Who is behind it</div>
+    <h2 data-a style="--i:1">A full stack, from sensor to USDC payout.</h2>
+    <div class="team">
+      <div class="member card" data-a style="--i:2"><div class="avatar">A<img src="team/alex.jpg" alt="Alex" onerror="this.remove()"></div><h4>Alex</h4><div class="role mono">ZK + Stellar</div><p>Circuit, proof verifier and the USDC payout contract.</p></div>
+      <div class="member card" data-a style="--i:3"><div class="avatar">P<img src="team/parri.jpg" alt="Parri" onerror="this.remove()"></div><h4>Parri</h4><div class="role mono">Backend lead</div><p>Publisher bridge to Stellar and the Verifier service.</p></div>
+      <div class="member card" data-a style="--i:4"><div class="avatar">C<img src="team/cesar.jpg" alt="César" onerror="this.remove()"></div><h4>César</h4><div class="role mono">Hardware</div><p>Pulse and temperature sensors and device readers.</p></div>
+      <div class="member card" data-a style="--i:5"><div class="avatar">M<img src="team/manuel.jpg" alt="Manuel" onerror="this.remove()"></div><h4>Manuel</h4><div class="role mono">Web</div><p>Patient, cold-chain and company dashboards.</p></div>
+      <div class="member card" data-a style="--i:6"><div class="avatar">L<img src="team/lucia.jpg" alt="Lucía" onerror="this.remove()"></div><h4>Lucía</h4><div class="role mono">Pitch + business</div><p>Story, market research and submission.</p></div>
+    </div>
+    <div class="why card" data-a style="--i:7"><b>Why us:</b> we already run the whole path, from a sensor reading to a USDC payout, on Stellar testnet.</div>
+  </section>
+
+  <!-- 9 · CLOSE -->
+  <section class="slide close">
+    <div class="chrome mono"><span>HackMeridian 2026 · Genesis</span><span>09 / 09</span></div>
+    <div class="kicker mono" data-a style="--i:0">Phonendo</div>
+    <h1 data-a style="--i:1">Proof,<br><span>then pay.</span></h1>
+    <div class="links">
+      <div class="link card" data-a style="--i:3"><div class="mono">Live demo</div><b>phonendo.vercel.app</b></div>
+      <div class="link card" data-a style="--i:4"><div class="mono">Code</div><b>github.com/ParriCode/phonedo</b></div>
+      <div class="link card" data-a style="--i:5"><div class="mono">Track</div><b>Genesis · Unlocked + Composed</b></div>
+    </div>
+  </section>
+
+  <div class="progress" id="progress"></div>
+</div>
+</div>
+<div class="hint">← → to navigate · F fullscreen</div>
+
+<script>
+(() => {
+  const stage = document.getElementById('stage');
+  const slides = [...document.querySelectorAll('.slide')];
+  const bar = document.getElementById('progress');
+  let cur = 0;
+
+  const fit = () => { stage.style.transform = 'scale(' + Math.min(innerWidth / 1920, innerHeight / 1080) + ')'; };
+  addEventListener('resize', fit); fit();
+
+  const countUp = (el) => {
+    const to = parseFloat(el.dataset.to), dec = +(el.dataset.dec || 0), pre = el.dataset.pre || '', suf = el.dataset.suf || '';
+    const t0 = performance.now(), dur = 1500;
+    const step = (t) => {
+      const k = Math.min(1, (t - t0) / dur), e = 1 - Math.pow(1 - k, 3);
+      el.textContent = pre + (to * e).toFixed(dec) + suf;
+      if (k < 1) requestAnimationFrame(step);
+    };
+    el.textContent = pre + (0).toFixed(dec) + suf;
+    setTimeout(() => requestAnimationFrame(step), 500);
+  };
+
+  const go = (n) => {
+    cur = Math.max(0, Math.min(slides.length - 1, n));
+    slides.forEach((s, i) => s.classList.toggle('on', i === cur));
+    slides[cur].querySelectorAll('.count').forEach(countUp);
+    bar.style.width = ((cur + 1) / slides.length * 100) + '%';
+    history.replaceState(null, '', '#' + (cur + 1));
+  };
+
+  addEventListener('keydown', (e) => {
+    if (['ArrowRight', 'ArrowDown', 'PageDown', ' ', 'Enter'].includes(e.key)) { e.preventDefault(); go(cur + 1); }
+    else if (['ArrowLeft', 'ArrowUp', 'PageUp', 'Backspace'].includes(e.key)) { e.preventDefault(); go(cur - 1); }
+    else if (e.key === 'Home') go(0);
+    else if (e.key === 'End') go(slides.length - 1);
+    else if (e.key === 'f' || e.key === 'F') { document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen(); }
+  });
+  addEventListener('click', (e) => { if (e.target.closest('a')) return; go(e.clientX > innerWidth / 2 ? cur + 1 : cur - 1); });
+  let x0 = null;
+  addEventListener('touchstart', (e) => { x0 = e.touches[0].clientX; }, { passive: true });
+  addEventListener('touchend', (e) => { if (x0 === null) return; const dx = e.changedTouches[0].clientX - x0; if (Math.abs(dx) > 40) go(dx < 0 ? cur + 1 : cur - 1); x0 = null; });
+
+  if (new URLSearchParams(location.search).has('print')) {
+    document.querySelectorAll('.count').forEach((el) => { el.textContent = (el.dataset.pre || '') + (+el.dataset.to).toFixed(+(el.dataset.dec || 0)) + (el.dataset.suf || ''); });
+  } else {
+    go((parseInt(location.hash.slice(1), 10) || 1) - 1);
+  }
+})();
+</script>
+</body>
+</html>

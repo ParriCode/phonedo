@@ -1,0 +1,489 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Phonendo GTM Summary</title>
+<style>
+@import url("https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=DM+Mono:wght@400;500&family=DotGothic16&family=Figtree:wght@400;500;600&display=swap");
+
+:root {
+  --bg: #0a1210;
+  --surface: #11201d;
+  --surface-2: #162a26;
+  --line: #24423c;
+  --text: #eaf5f1;
+  --muted: #8fb0a8;
+  --mint: #4be3b0;
+  --heart: #ff5d6c;
+  --ice: #8fd3ff;
+  --gold: #ffd166;
+  --pixel: "DotGothic16", "Bricolage Grotesque", sans-serif;
+  --head: "Bricolage Grotesque", "Figtree", sans-serif;
+  --body: "Figtree", system-ui, sans-serif;
+  --mono: "DM Mono", ui-monospace, monospace;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--body);
+  -webkit-font-smoothing: antialiased;
+}
+
+.mono { font-family: var(--mono); letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+.pixel { font-family: var(--pixel); font-weight: 400; }
+.mint { color: var(--mint); }
+.heart { color: var(--heart); }
+.ice { color: var(--ice); }
+.gold { color: var(--gold); }
+
+.card {
+  background: var(--surface);
+  border: 1.5px solid var(--line);
+  border-radius: 20px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-delay: 0ms !important; transition-duration: 0.01ms !important; }
+}
+</style>
+<style>
+  body { background: radial-gradient(1000px 600px at 90% -5%, rgb(75 227 176 / 9%), transparent 60%), var(--bg); }
+  .wrap { max-width: 1320px; margin: 0 auto; padding: 0 28px; }
+  .layout { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 56px; align-items: start; }
+  .col { min-width: 0; }
+  .journey { position: sticky; top: 74px; height: calc(100vh - 100px); min-height: 560px; max-height: 760px; margin-top: 90px; display: flex; flex-direction: column; }
+  .journey .mono { font-size: 12px; margin-bottom: 6px; opacity: .8; }
+  .journey svg { flex: 1; width: 100%; min-height: 0; overflow: visible; }
+  @media (max-width: 1120px) { .layout { grid-template-columns: minmax(0, 1fr); } .journey { display: none; } }
+  .j-fill { stroke: var(--mint); stroke-width: 3; fill: none; stroke-linecap: round; stroke-dasharray: 500; stroke-dashoffset: 500; opacity: .85; filter: drop-shadow(0 0 5px rgb(75 227 176 / 55%)); }
+  .j-st { opacity: 0; transform: translateX(-16px); transition: opacity .8s ease, transform .8s cubic-bezier(.2,.8,.2,1); }
+  .j-st.on { opacity: 1; transform: none; }
+  .j-st .t1 { font-family: var(--head); font-weight: 800; font-size: 19px; fill: var(--text); }
+  .j-st .t2 { font-size: 14px; fill: var(--muted); }
+  .j-st .cnt { font-family: var(--mono); font-size: 13px; fill: var(--mint); }
+  .j-ecg { stroke-dasharray: 90; stroke-dashoffset: 90; }
+  .j-st.on .j-ecg { animation: ecgrun 2.2s linear infinite; }
+  @keyframes ecgrun { 0% { stroke-dashoffset: 90; } 60%, 100% { stroke-dashoffset: 0; } }
+  .j-bar { transform-box: fill-box; transform-origin: bottom; transform: scaleY(0); transition: transform .6s cubic-bezier(.2,.8,.2,1); transition-delay: calc(var(--k) * 45ms + 250ms); }
+  .j-st.on .j-bar { transform: scaleY(1); }
+  .j-check { stroke-dasharray: 60; stroke-dashoffset: 60; transition: stroke-dashoffset .8s ease .5s; }
+  .j-st.on .j-check { stroke-dashoffset: 0; }
+  .j-ring { stroke-dasharray: 100; stroke-dashoffset: 100; transition: stroke-dashoffset 1.4s ease .4s; }
+  .j-st.on .j-ring { stroke-dashoffset: 0; }
+  .j-spd { stroke-dasharray: 14; stroke-dashoffset: 14; }
+  .j-st.on .j-spd { animation: spd 1.4s ease-out infinite; }
+  @keyframes spd { 0% { stroke-dashoffset: 14; opacity: 0; } 30% { opacity: 1; } 100% { stroke-dashoffset: -14; opacity: 0; } }
+  .j-led { animation: blink 1.6s infinite; }
+  @keyframes blink { 50% { opacity: .3; } }
+  section { padding: 84px 0 0; }
+  .kicker { font-size: 14px; margin-bottom: 14px; }
+  h1, h2 { font-family: var(--pixel); font-weight: 400; line-height: 1.1; }
+  h1 { font-size: clamp(40px, 7vw, 84px); }
+  h2 { font-size: clamp(30px, 4.4vw, 50px); max-width: 900px; }
+  p { font-size: 18px; line-height: 1.5; }
+  .lead { font-size: clamp(18px, 2.2vw, 24px); color: var(--muted); margin-top: 20px; max-width: 840px; }
+  .lead b { color: var(--text); }
+
+  nav { position: sticky; top: 0; z-index: 10; backdrop-filter: blur(10px); background: rgb(10 18 16 / 80%); border-bottom: 1px solid var(--line); }
+  nav .wrap { display: flex; gap: 22px; align-items: center; height: 54px; overflow-x: auto; white-space: nowrap; }
+  nav a { font-family: var(--mono); font-size: 13px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); text-decoration: none; }
+  nav a:hover { color: var(--mint); }
+  nav .brand { font-family: var(--pixel); font-size: 22px; color: var(--text); margin-right: 8px; text-transform: none; letter-spacing: 0; }
+
+  .hero { padding-top: 90px; }
+  .hero h1 span { color: var(--mint); }
+  .wedge { margin-top: 36px; display: inline-block; padding: 18px 26px; border: 1.5px solid var(--mint); border-radius: 16px; font-family: var(--head); font-weight: 700; font-size: clamp(18px, 2.4vw, 26px); }
+
+  .nums { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 18px; margin-top: 36px; }
+  .num { padding: 24px 26px; }
+  .num b { display: block; font-family: var(--pixel); font-weight: 400; font-size: 64px; line-height: 1; }
+  .num span { display: block; font-size: 16px; color: var(--muted); margin-top: 10px; line-height: 1.35; }
+  .num .mono { display: block; font-size: 12px; margin-top: 12px; }
+
+  .tabs { display: flex; gap: 10px; margin-top: 30px; }
+  .tab { font-family: var(--mono); font-size: 14px; text-transform: uppercase; letter-spacing: .04em; padding: 12px 20px; border-radius: 999px; border: 1.5px solid var(--line); background: transparent; color: var(--muted); cursor: pointer; }
+  .tab[aria-selected="true"] { border-color: var(--mint); color: var(--mint); background: rgb(75 227 176 / 10%); }
+  .roles { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px; margin-top: 20px; }
+  .role { padding: 22px 24px; }
+  .role .mono { font-size: 12px; color: var(--mint); }
+  .role b { display: block; font-size: 19px; margin-top: 8px; line-height: 1.3; }
+  .role span { display: block; font-size: 15px; color: var(--muted); margin-top: 6px; line-height: 1.4; }
+  .roles.hide { display: none; }
+  .avoid { margin-top: 18px; color: var(--muted); font-size: 16px; }
+
+  .timeline { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 18px; margin-top: 40px; position: relative; }
+  .phase { padding: 24px 24px 22px; position: relative; }
+  .phase .mono { font-size: 12px; }
+  .phase h3 { font-family: var(--pixel); font-weight: 400; font-size: 34px; margin-top: 6px; }
+  .phase ul { list-style: none; margin-top: 12px; }
+  .phase li { font-size: 16px; padding: 4px 0 4px 20px; position: relative; line-height: 1.35; }
+  .phase li::before { content: "▸"; position: absolute; left: 0; color: var(--mint); }
+  .gate { margin-top: 14px; padding-top: 12px; border-top: 1.5px dashed var(--line); font-family: var(--mono); font-size: 12px; text-transform: uppercase; color: var(--gold); letter-spacing: .03em; }
+
+  .calc { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; margin-top: 34px; }
+  @media (max-width: 860px) { .calc { grid-template-columns: 1fr; } }
+  .calc .ctl, .calc .out { padding: 28px 30px; }
+  .field { margin-bottom: 22px; }
+  .field label { display: flex; justify-content: space-between; font-size: 16px; margin-bottom: 8px; }
+  .field label b { font-family: var(--mono); font-weight: 500; color: var(--mint); }
+  input[type=range] { width: 100%; accent-color: #4be3b0; }
+  .out .big { font-family: var(--pixel); font-size: clamp(54px, 8vw, 88px); line-height: 1; color: var(--mint); margin: 6px 0 14px; }
+  .line { display: grid; grid-template-columns: 130px 1fr 80px; gap: 12px; align-items: center; margin-top: 12px; font-size: 15px; }
+  .line .t { height: 12px; border-radius: 99px; background: var(--surface-2); overflow: hidden; }
+  .line .t i { display: block; height: 100%; background: var(--mint); border-radius: 99px; transition: width .5s ease; }
+  .line b { font-family: var(--mono); font-weight: 500; text-align: right; }
+  .small { font-size: 14px; color: var(--muted); margin-top: 18px; line-height: 1.45; }
+  .prices { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 14px; margin-top: 18px; }
+  .price { padding: 18px 22px; }
+  .price b { font-family: var(--mono); font-weight: 500; font-size: 22px; color: var(--gold); display: block; }
+  .price span { font-size: 14px; color: var(--muted); }
+
+  .grid5 { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 16px; margin-top: 30px; }
+  .ch { padding: 22px 22px 20px; }
+  .ch .mono { font-size: 12px; color: var(--mint); }
+  .ch h3 { font-family: var(--head); font-weight: 800; font-size: 21px; margin-top: 8px; line-height: 1.2; }
+  .ch p { font-size: 15px; color: var(--muted); margin-top: 8px; line-height: 1.4; }
+
+  .stepper { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-top: 30px; counter-reset: s; }
+  .st { padding: 22px 22px 20px; position: relative; }
+  .st::before { counter-increment: s; content: counter(s); font-family: var(--pixel); font-size: 44px; color: var(--mint); line-height: 1; display: block; margin-bottom: 8px; }
+  .st b { font-size: 17px; display: block; line-height: 1.3; }
+  .st span { display: block; font-size: 14px; color: var(--muted); margin-top: 6px; line-height: 1.4; }
+  .success { margin-top: 18px; padding: 18px 24px; border-color: var(--gold); font-size: 16px; line-height: 1.5; }
+  .success b { color: var(--gold); }
+
+  table { width: 100%; border-collapse: separate; border-spacing: 0; margin-top: 28px; font-size: 15px; }
+  th, td { text-align: left; padding: 14px 16px; border-bottom: 1px solid var(--line); vertical-align: top; line-height: 1.35; }
+  th { font-family: var(--mono); font-weight: 400; font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+  tr.us td { background: rgb(75 227 176 / 10%); font-weight: 600; }
+  tr.us td:first-child { border-radius: 12px 0 0 12px; }
+  tr.us td:last-child { border-radius: 0 12px 12px 0; }
+  .y { color: var(--mint); font-weight: 600; }
+  .n { color: var(--heart); }
+  .p { color: var(--gold); }
+  .tw { overflow-x: auto; }
+
+  .risks { display: grid; grid-template-columns: repeat(auto-fit, minmax(330px, 1fr)); gap: 14px; margin-top: 30px; }
+  .risk { padding: 18px 22px; display: grid; gap: 6px; }
+  .risk b { font-size: 17px; line-height: 1.3; }
+  .risk span { font-size: 14px; color: var(--muted); line-height: 1.4; }
+  .chip { justify-self: start; font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: .04em; padding: 4px 10px; border-radius: 99px; border: 1px solid var(--line); }
+  .chip.built { color: var(--mint); border-color: var(--mint); }
+  .chip.todo { color: var(--gold); border-color: var(--gold); }
+
+  footer { padding: 70px 0 90px; color: var(--muted); font-size: 15px; line-height: 1.6; }
+  footer a { color: var(--mint); }
+
+  .rv { opacity: 0; transform: translateY(26px); transition: opacity .7s ease, transform .7s cubic-bezier(.2,.8,.2,1); }
+  .rv.in { opacity: 1; transform: none; }
+  @media print { .rv { opacity: 1; transform: none; } nav { display: none; } section { break-inside: avoid; } }
+</style>
+</head>
+<body>
+<nav><div class="wrap">
+  <a class="brand" href="#top">Phonendo</a>
+  <a href="#buyers">Buyers</a><a href="#roadmap">Roadmap</a><a href="#pricing">Pricing</a><a href="#channels">Channels</a><a href="#pilot">Pilot</a><a href="#competition">Competition</a><a href="#risks">Risks</a><a href="#kpis">KPIs</a>
+</div></nav>
+
+<main class="wrap" id="top">
+<div class="layout">
+<div class="col">
+
+<section class="hero">
+  <div class="kicker mono rv">Go-to-market summary · October 2026</div>
+  <h1 class="rv">Sell the <span>proof</span>,<br>not the data.</h1>
+  <p class="lead rv"><b>Phonendo lets a payer reward a real-world outcome without ever seeing the data behind it.</b> We sell to the operators who already run programmes for insurers and pharma: home cardiac rehab providers and pharma logistics. Rehab adherence is the hero case; the cold chain shows the same engine works for any sensor.</p>
+  <div class="wedge rv">“Pay for the outcome, never touch the data.”</div>
+  <div class="nums">
+    <div class="num card rv"><b class="heart">-26%</b><span>cardiovascular deaths with cardiac rehab</span><em class="mono">Cochrane review · 2022</em></div>
+    <div class="num card rv"><b class="mint">36.5%</b><span>of European coronary patients attend rehab; in Spain under 1%</span><em class="mono">EUROASPIRE III</em></div>
+    <div class="num card rv"><b class="ice">$35B</b><span>lost a year to biopharma cold-chain failures</span><em class="mono">IQVIA</em></div>
+    <div class="num card rv"><b class="gold">170+</b><span>countries where Stellar USDC cashes out, so rewards need no bank account</span><em class="mono">MoneyGram Ramps</em></div>
+  </div>
+</section>
+
+<section id="buyers">
+  <div class="kicker mono rv">Who we sell to</div>
+  <h2 class="rv">The buyer is the operator in the middle.</h2>
+  <p class="lead rv">It carries the reporting pain and already holds the payer contract. Public health systems (long tenders) and big pharma direct (procurement over a year) wait.</p>
+  <div class="tabs rv" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-t="rehab">Cardiac rehab · hero</button>
+    <button class="tab" role="tab" aria-selected="false" data-t="cold">Cold chain · second vertical</button>
+  </div>
+  <div class="roles" id="rehab">
+    <div class="role card"><div class="mono">Buyer · signs our contract</div><b>Home cardiac rehab providers and DTx companies</b><span>Running programmes for insurers or hospitals</span></div>
+    <div class="role card"><div class="mono">Payer · funds the USDC pool</div><b>Private insurer, employer plan, hospital network</b><span>Fewer readmissions for the same programme</span></div>
+    <div class="role card"><div class="mono">User · operates the device</div><b>Patient with a pulse sensor, and the nurse who enrols them</b><span>One session = 32 readings</span></div>
+    <div class="role card"><div class="mono">Ideal first account</div><b>200–2,000 patients a year, already remote-monitoring</b><span>One payer contract up for renewal</span></div>
+  </div>
+  <div class="roles hide" id="cold">
+    <div class="role card"><div class="mono">Buyer · signs our contract</div><b>Specialist pharma 3PLs and carriers</b><span>Products held at 2–8 °C</span></div>
+    <div class="role card"><div class="mono">Payer · funds the USDC pool</div><b>Pharma brand or distributor</b><span>Pays a bonus per compliant shipment</span></div>
+    <div class="role card"><div class="mono">User · operates the device</div><b>Driver or warehouse team</b><span>The logger is already on the pallet</span></div>
+    <div class="role card"><div class="mono">Ideal first account</div><b>Fleet of 20+ refrigerated vehicles with IoT loggers</b><span>Frequent temperature disputes</span></div>
+  </div>
+</section>
+
+<section id="roadmap">
+  <div class="kicker mono rv">Beachhead and sequence</div>
+  <h2 class="rv">Start in Portugal and Spain, then Europe.</h2>
+  <p class="lead rv">Lisbon gives us the first clinical champions; Spain, where fewer than 1% of coronary patients attended rehab, has the most room to grow. A cold-chain pilot runs in parallel because it closes faster.</p>
+  <div class="timeline">
+    <div class="phase card rv"><div class="mono">Nov 2026 – Jan 2027</div><h3>Prove</h3><ul><li>Mainnet audit</li><li>Device signing</li><li>Circuit gap check</li><li>2 clinical champions</li></ul><div class="gate">Gate · audit passed</div></div>
+    <div class="phase card rv"><div class="mono">Feb – Jun 2027</div><h3>Pilot</h3><ul><li>3 rehab pilots in Iberia</li><li>1 cold-chain pilot</li><li>20–50 patients each</li><li>Public case study</li></ul><div class="gate">Gate · +15 pts adherence</div></div>
+    <div class="phase card rv"><div class="mono">Jul – Oct 2027</div><h3>Convert</h3><ul><li>2 annual contracts</li><li>Insurer co-funding</li><li>Cold-chain contract</li><li>ARR €30–40k</li></ul><div class="gate">Gate · 2 contracts signed</div></div>
+    <div class="phase card rv"><div class="mono">2028</div><h3>Scale</h3><ul><li>White label via DTx platforms</li><li>France, Italy, Germany</li><li>New sensors</li></ul><div class="gate">Open</div></div>
+  </div>
+</section>
+
+<section id="pricing">
+  <div class="kicker mono rv">Business model</div>
+  <h2 class="rv">A platform fee, a small take, and pass-through rewards.</h2>
+  <p class="lead rv">The payer's reward money passes through the contract untouched. Prices are our starting hypothesis, to test in the first three pilots. Move the sliders.</p>
+  <div class="prices">
+    <div class="price card rv"><b>€4</b><span>per active patient per month (rehab)</span></div>
+    <div class="price card rv"><b>€1.50</b><span>per verified shipment (cold chain)</span></div>
+    <div class="price card rv"><b>2%</b><span>of USDC released by the contract</span></div>
+    <div class="price card rv"><b>€3,000</b><span>one-off setup: policy, deploy, training</span></div>
+  </div>
+  <div class="calc">
+    <div class="ctl card rv">
+      <div class="field"><label for="pat">Patients a year <b id="patv">1,000</b></label><input id="pat" type="range" min="100" max="5000" step="100" value="1000"></div>
+      <div class="field"><label for="rew">Reward per verified session <b id="rewv">€1.00</b></label><input id="rew" type="range" min="0.5" max="5" step="0.5" value="1"></div>
+      <div class="field"><label for="spw">Sessions per week <b id="spwv">3</b></label><input id="spw" type="range" min="1" max="5" step="1" value="3"></div>
+      <p class="small">12-week programme, full adherence, billed for 3 months per patient.</p>
+    </div>
+    <div class="out card rv">
+      <div class="mono">Year-one revenue per account</div>
+      <div class="big" id="total">€15.7k</div>
+      <div class="line"><span>Platform fee</span><div class="t"><i id="b1"></i></div><b id="v1"></b></div>
+      <div class="line"><span>Setup</span><div class="t"><i id="b2"></i></div><b id="v2"></b></div>
+      <div class="line"><span>2% of payouts</span><div class="t"><i id="b3"></i></div><b id="v3"></b></div>
+      <p class="small" id="pool"></p>
+    </div>
+  </div>
+  <p class="small rv">Why the payer says yes: one hospital admission avoided for every 81 patients who do rehab (NNT 81, <a href="https://eprints.gla.ac.uk/290126" style="color:var(--mint)">Cochrane 2022</a>). We bring the payer's own admission cost to the meeting.</p>
+</section>
+
+<section id="channels">
+  <div class="kicker mono rv">Channels and partners</div>
+  <h2 class="rv">The first ten accounts come through people who already sell to them.</h2>
+  <p class="lead rv">No partnership exists yet; each card is a target with a concrete ask.</p>
+  <div class="grid5">
+    <div class="ch card rv"><div class="mono">Clinical champions</div><h3>Rehab units in Lisbon, Porto, Madrid, Andalusia</h3><p>Ask: a 20-patient pilot and a co-authored adherence report.</p></div>
+    <div class="ch card rv"><div class="mono">Rehab and DTx platforms</div><h3>White-label “verified adherence”</h3><p>Ask: embed Phonendo; they get a differentiator at renewal.</p></div>
+    <div class="ch card rv"><div class="mono">IoT makers</div><h3>“Phonendo-ready” sensors</h3><p>Ask: add our signing firmware; no build cost for them.</p></div>
+    <div class="ch card rv"><div class="mono">Stellar ecosystem</div><h3>MoneyGram Ramps, Circle, SCF</h3><p>Ask: showcase listing and a grant for the mainnet audit.</p></div>
+    <div class="ch card rv"><div class="mono">Insurer innovation labs</div><h3>Iberian private insurers</h3><p>Ask: a sandbox pilot with no data transfer.</p></div>
+  </div>
+</section>
+
+<section id="pilot">
+  <div class="kicker mono rv">How a deal closes</div>
+  <h2 class="rv">A paid 12-week pilot on one programme.</h2>
+  <div class="stepper">
+    <div class="st card rv"><b>Scoping, week 0</b><span>Write the policy in plain words, the reward per session and who funds the pool.</span></div>
+    <div class="st card rv"><b>Setup, weeks 1–2</b><span>One contract per programme, funded in USDC; sensors paired; two nurses trained.</span></div>
+    <div class="st card rv"><b>Run, weeks 3–12</b><span>20–50 patients. Sessions are verified and paid automatically.</span></div>
+    <div class="st card rv"><b>Readout, week 12</b><span>Adherence vs baseline, payouts made, zero raw data shared.</span></div>
+    <div class="st card rv"><b>Conversion</b><span>The pilot price credits against an annual contract.</span></div>
+  </div>
+  <div class="success card rv"><b>Agreed up front:</b> completed sessions at least 15 points above baseline · 100% of payouts traceable on chain · no data-protection incident · nurse time per patient not higher than today. <b>Expected cycle:</b> 2–3 months to pilot, 6–9 months to an annual contract with an insurer.</div>
+</section>
+
+<section id="competition">
+  <div class="kicker mono rv">Competition</div>
+  <h2 class="rv">Others do one or two of the three things.</h2>
+  <div class="tw rv"><table>
+    <thead><tr><th>Alternative</th><th>Verifies the condition</th><th>Data stays private</th><th>Pays automatically</th></tr></thead>
+    <tbody>
+      <tr><td>Remote monitoring platforms</td><td class="y">Yes, in their cloud</td><td class="n">No, shared</td><td class="n">No</td></tr>
+      <tr><td>Wellness reward apps (e.g. Stride)</td><td class="p">Partly</td><td class="n">No</td><td class="y">Yes, in points</td></tr>
+      <tr><td>Cold-chain IoT trackers (Tive, Paxafe)</td><td class="y">Yes</td><td class="n">No, trace shared</td><td class="n">No</td></tr>
+      <tr><td>On-chain parametric insurance (e.g. Sentinel)</td><td class="y">Yes, public oracles</td><td class="p">Not needed</td><td class="y">Yes</td></tr>
+      <tr class="us"><td>Phonendo</td><td class="y">Yes, ZK proof on chain</td><td class="y">Yes, only a proof leaves</td><td class="y">Yes, USDC in seconds</td></tr>
+    </tbody></table></div>
+  <p class="small rv">Moat, in order: policies and sensor certification inside each provider's workflow; clinical evidence from our pilots; an open verifier any DPO can audit.</p>
+</section>
+
+<section id="risks">
+  <div class="kicker mono rv">Risks</div>
+  <h2 class="rv">The biggest risk is trust in the sensor, and we say so.</h2>
+  <div class="risks">
+    <div class="risk card rv"><b>Sensor spoofing</b><span>Verifier ed25519 signature is live; device keys in secure hardware are next.</span><em class="chip built">Partly built</em></div>
+    <div class="risk card rv"><b>Gaps between readings</b><span>32 readings could be spread over a day. Fix: a maximum-gap rule in the circuit.</span><em class="chip todo">Known limit</em></div>
+    <div class="risk card rv"><b>Single Verifier key</b><span>Rotation through set_policy now, multi-verifier threshold later.</span><em class="chip todo">Planned</em></div>
+    <div class="risk card rv"><b>GDPR</b><span>Only commitments and a session id go on chain. DPIA with the first provider.</span><em class="chip todo">Validate with a DPO</em></div>
+    <div class="risk card rv"><b>Reward and MiCA rules</b><span>Rewards follow the payer's rules; USDC from its EU-regulated issuer.</span><em class="chip todo">Legal review</em></div>
+    <div class="risk card rv"><b>Medical device status</b><span>We measure adherence only and never make a clinical decision.</span><em class="chip todo">Confirm with counsel</em></div>
+  </div>
+</section>
+
+<section id="kpis">
+  <div class="kicker mono rv">What we measure</div>
+  <h2 class="rv">Two paying contracts and one public result by month 12.</h2>
+  <div class="tw rv"><table>
+    <thead><tr><th>KPI</th><th>Month 3</th><th>Month 6</th><th>Month 12</th></tr></thead>
+    <tbody>
+      <tr><td>Signed pilots (rehab + cold chain)</td><td>1</td><td>3</td><td>5</td></tr>
+      <tr><td>Annual contracts</td><td>0</td><td>0</td><td class="y">2</td></tr>
+      <tr><td>Patients or shipments verified per month</td><td>20</td><td>150</td><td>1,500</td></tr>
+      <tr><td>Completed sessions vs baseline</td><td>Baseline set</td><td>+10 pts</td><td class="y">+15 pts</td></tr>
+      <tr><td>Payouts traceable on chain</td><td>100%</td><td>100%</td><td>100%</td></tr>
+      <tr><td>Annual recurring revenue</td><td>€0</td><td>€0</td><td class="y">€30–40k</td></tr>
+      <tr><td>Time from proof to payout</td><td>&lt; 10 s</td><td>&lt; 10 s</td><td>&lt; 10 s</td></tr>
+    </tbody></table></div>
+</section>
+
+<footer>
+  <p>Prices, cycle lengths and targets are our hypotheses, not market data. Market figures: <a href="https://eprints.gla.ac.uk/290126">Cochrane 2022</a>, <a href="https://cardiovascularbusiness.com/topics/clinical/interventional-cardiology/study-cardiac-rehab-programs-underutilized-eu">EUROASPIRE III</a>, <a href="https://www.aircargonews.net/?p=1023281">IQVIA via Air Cargo News</a>, <a href="https://stellar.org/moneygram">MoneyGram Ramps</a>.</p>
+</footer>
+</div>
+<aside class="journey" aria-label="One session, from sensor to payment">
+  <div class="mono">Follow one session</div>
+  <svg id="jsvg" viewBox="0 0 320 660" role="img" aria-label="A sensor measures, the session is checked, and the reward is sent to the patient">
+    <defs>
+      <linearGradient id="gBand" x1="0" x2="1"><stop offset="0" stop-color="#26332f"/><stop offset=".5" stop-color="#3c4d47"/><stop offset="1" stop-color="#1c2623"/></linearGradient>
+      <linearGradient id="gMetal" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#dfe8e5"/><stop offset=".5" stop-color="#8d9f99"/><stop offset="1" stop-color="#c9d6d2"/></linearGradient>
+      <linearGradient id="gLog" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f4f8f7"/><stop offset="1" stop-color="#b7c6c1"/></linearGradient>
+      <linearGradient id="gBar" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7dffd2"/><stop offset="1" stop-color="#1f9c7a"/></linearGradient>
+      <linearGradient id="gShield" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6df0c4"/><stop offset="1" stop-color="#15806a"/></linearGradient>
+      <radialGradient id="gCoin" cx=".35" cy=".3" r=".9"><stop offset="0" stop-color="#5aa4f0"/><stop offset=".6" stop-color="#2775ca"/><stop offset="1" stop-color="#16498a"/></radialGradient>
+      <linearGradient id="gSkin" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f0cfae"/><stop offset="1" stop-color="#d3a47d"/></linearGradient>
+      <linearGradient id="gBg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#244f48"/><stop offset="1" stop-color="#12302b"/></linearGradient>
+      <clipPath id="cAv"><circle r="32"/></clipPath>
+    </defs>
+    <path class="j-fill" id="jfill" d="M50 70 V570"/>
+
+    <g class="j-st on" id="j1">
+      <g transform="translate(50 70)">
+        <rect x="-16" y="-46" width="32" height="92" rx="9" fill="url(#gBand)"/>
+        <rect x="-28" y="-28" width="56" height="56" rx="16" fill="url(#gMetal)"/>
+        <rect x="-23" y="-23" width="46" height="46" rx="12" fill="#050d0b"/>
+        <rect x="28" y="-6" width="4" height="12" rx="2" fill="#9fb4ad"/>
+        <path d="M-17 -12 C-22 -17 -19 -22 -15 -21 C-13 -20 -12 -18 -12 -18 C-12 -18 -11 -20 -9 -21 C-5 -22 -2 -17 -7 -12 L-12 -7Z" fill="#ff5d6c"/>
+        <text x="3" y="-10" font-family="DM Mono, monospace" font-size="11" fill="#eaf5f1">72</text>
+        <polyline class="j-ecg" points="-19,10 -12,10 -8,1 -3,17 2,-4 7,10 19,10" fill="none" stroke="#ff5d6c" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+        <rect x="-23" y="-23" width="46" height="46" rx="12" fill="none" stroke="rgb(255 255 255 / 10%)"/>
+      </g>
+      <g transform="translate(286 70)">
+        <rect x="-24" y="-34" width="48" height="68" rx="9" fill="url(#gLog)" stroke="#8aa09a"/>
+        <rect x="-17" y="-26" width="34" height="24" rx="4" fill="#0b2a20"/>
+        <text x="0" y="-9" text-anchor="middle" font-family="DM Mono, monospace" font-size="9.5" fill="#7dffc6">4.2°C</text>
+        <circle class="j-led" cx="-9" cy="12" r="3.2" fill="#2de39a"/><circle cx="3" cy="12" r="3.2" fill="#9fb4ad"/>
+        <rect x="-14" y="21" width="28" height="3" rx="1.5" fill="#8aa09a"/>
+      </g>
+      <text class="t1" x="108" y="64">Sensors on</text>
+      <text class="t2" x="108" y="84">pulse or temperature</text>
+    </g>
+
+    <g class="j-st" id="j2">
+      <g transform="translate(50 195)">
+        <rect x="-42" y="-32" width="84" height="64" rx="9" fill="#0b1815" stroke="#2c4a44" stroke-width="1.5"/>
+        <circle cx="-34" cy="-24" r="2" fill="#ff5d6c"/><circle cx="-27" cy="-24" r="2" fill="#ffd166"/><circle cx="-20" cy="-24" r="2" fill="#4be3b0"/>
+        <path d="M-38 -10 H38 M-38 6 H38 M-38 22 H38" stroke="#1f3a35" stroke-width="1"/>
+        <g transform="translate(0 22)"><rect class="j-bar" style="--k:0" x="-34.0" y="-12" width="4" height="20" rx="1.5" fill="url(#gBar)"/><rect class="j-bar" style="--k:1" x="-28.1" y="-16" width="4" height="24" rx="1.5" fill="url(#gBar)"/><rect class="j-bar" style="--k:2" x="-22.2" y="-14" width="4" height="22" rx="1.5" fill="url(#gBar)"/><rect class="j-bar" style="--k:3" x="-16.3" y="-20" width="4" height="28" rx="1.5" fill="url(#gBar)"/><rect class="j-bar" style="--k:4" x="-10.4" y="-17" width="4" height="25" rx="1.5" fill="url(#gBar)"/><rect class="j-bar" style="--k:5" x="-4.5" y="-24" width="4" height="32" rx="1.5" fill="url(#gBar)"/><rect class="j-bar" style="--k:6" x="1.4" y="-15" width="4" height="23" rx="1.5" fill="url(#gBar)"/><rect class="j-bar" style="--k:7" x="7.3" y="-21" width="4" height="29" rx="1.5" fill="url(#gBar)"/><rect class="j-bar" style="--k:8" x="13.2" y="-26" width="4" height="34" rx="1.5" fill="url(#gBar)"/><rect class="j-bar" style="--k:9" x="19.1" y="-18" width="4" height="26" rx="1.5" fill="url(#gBar)"/><rect class="j-bar" style="--k:10" x="25.0" y="-22" width="4" height="30" rx="1.5" fill="url(#gBar)"/><rect class="j-bar" style="--k:11" x="30.9" y="-16" width="4" height="24" rx="1.5" fill="url(#gBar)"/></g>
+      </g>
+      <text class="t1" x="108" y="189">One session</text>
+      <text class="cnt" id="jcnt" x="108" y="209">0 / 32 readings</text>
+    </g>
+
+    <g class="j-st" id="j3">
+      <g transform="translate(50 320)">
+        <path d="M0 -42 L33 -29 V-3 C33 23 17 38 0 46 C-17 38 -33 23 -33 -3 V-29Z" fill="url(#gShield)" stroke="#a6ffe0" stroke-width="1.5"/>
+        <path d="M0 -42 L33 -29 V-3 C33 23 17 38 0 46Z" fill="rgb(255 255 255 / 12%)"/>
+        <path class="j-check" d="M-14 0 L-4 11 L16 -13" fill="none" stroke="#fff" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+      </g>
+      <text class="t1" x="108" y="314">Rules met</text>
+      <text class="t2" x="108" y="334">nothing private shared</text>
+    </g>
+
+    <g class="j-st" id="j4">
+      <g transform="translate(50 445)">
+        <path class="j-spd" d="M-60 -10 H-42" stroke="#6fb4ff" stroke-width="3" stroke-linecap="round"/>
+        <path class="j-spd" style="animation-delay:.2s" d="M-66 2 H-42" stroke="#6fb4ff" stroke-width="3" stroke-linecap="round"/>
+        <path class="j-spd" style="animation-delay:.4s" d="M-58 14 H-42" stroke="#6fb4ff" stroke-width="3" stroke-linecap="round"/>
+        <circle r="36" fill="url(#gCoin)" stroke="#9cc8f5" stroke-width="1.5"/>
+        <circle r="28" fill="none" stroke="#fff" stroke-opacity=".9" stroke-width="2.5"/>
+        <text y="12" text-anchor="middle" font-family="Figtree, sans-serif" font-weight="700" font-size="36" fill="#fff">$</text>
+        <ellipse cx="-12" cy="-20" rx="14" ry="7" fill="#fff" opacity=".18" transform="rotate(-25 -12 -20)"/>
+      </g>
+      <text class="t1" x="108" y="439">Reward sent</text>
+      <text class="t2" x="108" y="459">in seconds</text>
+    </g>
+
+    <g class="j-st" id="j5">
+      <g transform="translate(50 570)">
+        <circle r="32" fill="url(#gBg)"/>
+        <g clip-path="url(#cAv)">
+          <path d="M-30 34 C-30 12 -14 6 0 6 C14 6 30 12 30 34Z" fill="#35927f"/>
+          <path d="M-8 6 L0 16 L8 6Z" fill="#e6f4f0"/>
+          <circle cy="-8" r="12" fill="url(#gSkin)"/>
+          <path d="M-12 -9 C-12 -24 12 -24 12 -9 C8 -16 -6 -17 -12 -9Z" fill="#2a2018"/>
+        </g>
+        <circle class="j-ring" r="38" fill="none" stroke="#ffd166" stroke-width="3.5" stroke-linecap="round" pathLength="100" transform="rotate(-90)"/>
+        <circle cx="26" cy="26" r="11" fill="#4be3b0" stroke="#0a1210" stroke-width="3"/>
+        <path d="M21 26 L25 30 L32 22" fill="none" stroke="#06231a" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+      </g>
+      <text class="t1" x="108" y="564">Patient paid</text>
+      <text class="t2" x="108" y="584">the payer never saw the data</text>
+    </g>
+
+    <circle id="jmark" cx="50" cy="70" r="7" fill="#ff5d6c" style="filter: drop-shadow(0 0 8px currentColor)"/>
+  </svg>
+</aside>
+</div>
+</main>
+
+<script>
+(() => {
+  // reveal on scroll
+  const io = new IntersectionObserver((es) => es.forEach((e) => { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } }), { threshold: 0.12 });
+  document.querySelectorAll('.rv').forEach((el, i) => { el.style.transitionDelay = (i % 4) * 90 + 'ms'; io.observe(el); });
+
+  // buyer tabs
+  document.querySelectorAll('.tab').forEach((b) => b.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach((t) => t.setAttribute('aria-selected', t === b));
+    document.querySelectorAll('.roles').forEach((r) => r.classList.toggle('hide', r.id !== b.dataset.t));
+  }));
+
+  // journey panel driven by scroll
+  const jf = document.getElementById('jfill'), jm = document.getElementById('jmark'), jc = document.getElementById('jcnt');
+  const stops = [0, 0.25, 0.5, 0.75, 0.96];
+  const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
+  const upd = () => {
+    const max = document.documentElement.scrollHeight - innerHeight;
+    const p = max > 0 ? scrollY / max : 0, t = clamp(p / 0.92);
+    jf.style.strokeDashoffset = 500 * (1 - t);
+    jm.setAttribute('cy', 70 + 500 * t);
+    jm.setAttribute('fill', t < 0.12 ? '#ff5d6c' : t < 0.4 ? '#8fd3ff' : t < 0.62 ? '#4be3b0' : '#ffd166');
+    stops.forEach((s, i) => document.getElementById('j' + (i + 1)).classList.toggle('on', t >= s));
+    jc.textContent = Math.round(32 * clamp((t - 0.25) / 0.2)) + ' / 32 readings';
+  };
+  addEventListener('scroll', () => requestAnimationFrame(upd), { passive: true });
+  addEventListener('resize', upd);
+  upd();
+
+  // revenue calculator
+  const $ = (id) => document.getElementById(id);
+  const eur = (n) => '€' + Math.round(n).toLocaleString('en');
+  const calc = () => {
+    const pat = +$('pat').value, rew = +$('rew').value, spw = +$('spw').value;
+    const fee = pat * 3 * 4, setup = 3000, pool = pat * 12 * spw * rew, take = pool * 0.02, total = fee + setup + take;
+    $('patv').textContent = pat.toLocaleString('en');
+    $('rewv').textContent = '€' + rew.toFixed(2);
+    $('spwv').textContent = spw;
+    $('total').textContent = '€' + (total / 1000).toFixed(1) + 'k';
+    [[fee, 'v1', 'b1'], [setup, 'v2', 'b2'], [take, 'v3', 'b3']].forEach(([v, t, b]) => { $(t).textContent = eur(v); $(b).style.width = Math.max(3, v / total * 100) + '%'; });
+    $('pool').textContent = 'Reward pool funded by the payer: up to ' + eur(pool) + ' a year, paid in USDC straight to patients.';
+  };
+  ['pat', 'rew', 'spw'].forEach((id) => $(id).addEventListener('input', calc));
+  calc();
+})();
+</script>
+</body>
+</html>
