@@ -57,9 +57,24 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
+# dev.env no se versiona (lleva tokens): si falta, se crea desde la plantilla con
+# tokens y contraseña aleatorios, para que ningún entorno comparta secretos.
 if [[ ! -f "$SOURCE_ENV" ]]; then
-    error "No existe el archivo de configuración maestro: $SOURCE_ENV"
-    exit 1
+    if [[ ! -f "$SOURCE_ENV.example" ]]; then
+        error "No existe $SOURCE_ENV ni su plantilla $SOURCE_ENV.example"
+        exit 1
+    fi
+    warn "No existe $SOURCE_ENV: se crea desde la plantilla con secretos aleatorios"
+    (umask 077 && python3 - "$SOURCE_ENV.example" "$SOURCE_ENV" <<'PY'
+import re, secrets, sys
+origen, destino = sys.argv[1:]
+secreto = re.compile(r'^(API_TOKEN_[A-Z]+|MANAGER_PASSWORD)=')
+with open(origen) as entrada, open(destino, 'w') as salida:
+    for linea in entrada:
+        clave = secreto.match(linea)
+        salida.write(clave.group(0) + secrets.token_hex(24) + '\n' if clave else linea)
+PY
+    )
 fi
 
 # Cargar variables del archivo maestro

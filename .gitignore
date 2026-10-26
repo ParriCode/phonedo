@@ -49,3 +49,19 @@ MANIFEST-*
 .vscode/
 
 target/
+
+# Secretos y claves: nunca al repositorio (ver odd/tasks/gestion-claves.md)
+deploy/env/dev.env
+signing_key*.json
+*.keystore
+*.keystore.lock
+*.jks
+*.pem
+*.key
+.phonendo/
+apps/reader/examples/wearos/secrets.properties
+apps/reader/examples/wearos/local.properties
+apps/reader/examples/wearos/.android/
+apps/reader/examples/wearos/.gradle/
+apps/reader/examples/wearos/.devenv/
+apps/reader/examples/wearos/app/.cxx/

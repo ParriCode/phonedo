@@ -1,0 +1,57 @@
+# Gestión de claves para producción
+
+Rama: `feature/gestion-claves` (desde `desarrollo`). Sin KMS: las claves viven en un archivo local y el panel las inyecta.
+
+## Objetivo
+Dejar las claves ordenadas y poder ir a producción sin secretos en git, sin claves temporales y sin que la clave privada pase por el navegador.
+
+## Decisiones tomadas (usuario)
+- **No se usa KMS ni Vault.** Almacén = archivo de claves en el equipo del operador.
+- El panel web inyecta las claves en los servicios, por referencia (`id`), nunca mostrando la privada.
+- Las claves de cartera se configuran desde la web al configurar el contrato / el paso hacia otros servicios.
+
+## Hechos que condicionan el plan (path:línea)
+- `deploy/env/dev.env` está versionado con tokens de prueba (`.gitignore:6` solo ignora `.env`); lo lee `tools/generate_configs.sh:5,63`.
+- `apps/reader/examples/wearos/` tiene versionado `.android/debug.keystore(.lock)`, `secrets.properties`, `local.properties`, `.gradle/`, `.devenv/` y `app/.cxx/` (142 archivos de compilación). `secrets.properties` no tiene tokens reales (READER_TOKEN, MANAGER_URLS y MANAGER_TOKEN vacíos), aunque su cabecera dice «ignorado por git».
+- El verifier, sin `signing_key.json`, genera una clave temporal y solo avisa (`apps/verifier/verifier.py:102-110`). Es lo que rompe al publisher.
+- El contrato guarda **una sola** `verifier_key` fijada en el constructor y no tiene setter (`contracts/adherence/src/lib.rs:84-97`): rotar exige redesplegar.
+- El despliegue del contrato es manual (`contracts/README.md:47-71`); firma la cuenta `--source`.
+- `tools/web_docker.py:195-201` pasa secretos con `-e` (visibles en `docker inspect`); `:206-210` monta todo `~/.config/stellar` en el publisher; el verifier genera su clave dentro de `/data` (`:230-238`).
+- La redacción de logs usa solo nombres de clave (`token|password|secret|seed`) y no cubre variables de entorno (`web_docker.py:17-22, 290-300`).
+- El panel escucha en `127.0.0.1` pero no tiene autenticación, solo cabecera de origen (`web_runtime.py:190-197`).
+- No hay CI ni pre-commit.
+
+## Tres claves, tres funciones (no se mezclan)
+| Rol | Lo usa | Se inyecta en un servicio |
+|---|---|---|
+| `verifier` (Ed25519) | verifier | sí, en el verifier |
+| `publisher` (cuenta Stellar que paga) | publisher | sí, en el publisher |
+| `deployer` (admin del contrato) | operador, al desplegar | **no, nunca** |
+
+## Formato del almacén (propuesta)
+`~/.phonendo/keys.json`, permisos 0600, fuera del repo. Una entrada por clave: `id`, `rol`, `red` (`testnet|mainnet`), `publica`, `privada`. El panel rechaza inyectar una clave de `testnet` en un servicio `mainnet`.
+
+## Tareas
+- [ ] **T1 Higiene del repositorio.** `dev.env` → `dev.env.example` y generado con tokens aleatorios si falta; `secrets.properties` → `.example`; dejar de versionar keystore, `local.properties`, `.gradle/`, `.devenv/`, `app/.cxx/`; ampliar `.gitignore` (`*.keystore`, `*.jks`, `*.pem`, `*.key`, `signing_key*.json`, claves del almacén). Check: `git ls-files` sin secretos ni basura de build; `generate_configs.sh` sigue funcionando desde cero.
+- [ ] **T2 Almacén de claves.** `tools/keys.py` (genera, lista, exporta públicas; Ed25519 para verifier y par Stellar para publisher y deployer) con tests. Check: tests del script; el archivo se crea con 0600; nunca imprime privadas.
+- [ ] **T3 Verifier sin clave temporal en producción.** Con `PHONENDO_ENV=production` el verifier falla al arrancar si falta la clave; en desarrollo mantiene el aviso. Test RED/GREEN en `tests/app_tests/test_verifier_keys.py`.
+- [ ] **T4 Inyección desde el panel.** El backend (`web_docker.py`, `web_runtime.py`) lee el almacén, monta la clave del verifier y la identidad del publisher como archivos de solo lectura, sin `-e`; deja de montar todo `~/.config/stellar`; endpoint que lista solo claves públicas; el selector del panel elige por `id`. Ampliar la redacción a variables de entorno y valores.
+- [ ] **T5 Despliegue del contrato.** `tools/deploy_contract.sh` con la clave `deployer` y la pública del verifier del almacén; guarda el id del contrato. Decidir si se añade `set_verifier_key` (solo admin) al contrato para poder rotar sin redesplegar.
+- [ ] **T6 Autenticación del panel.** Token local obligatorio para operaciones que muevan claves.
+- [ ] **T7 Escáner de secretos.** `gitleaks` en pre-commit.
+
+## Pendiente de decidir
+1. Archivo de claves en claro con 0600 o cifrado con `age` (añade una contraseña a gestionar).
+2. Añadir `set_verifier_key` al contrato (T5) o aceptar redesplegar para rotar.
+3. Dónde se despliega producción (VPS con Compose, Kubernetes u otro): afecta a cómo se entregan los archivos a los contenedores.
+4. Los tokens que alguna vez estuvieron en git (`dev.env`, `compose.yml` con `demo-*`) son de prueba; rotarlos si se reutilizan fuera de desarrollo.
+
+## Estrategia de entrega
+`ask-on-risk`. T1 es la primera unidad de trabajo; cada tarea cierra con un commit convencional en esta rama. Push y PR los decide el usuario.
+
+## Ruta por tarea
+- Mapa de claves: explorador de solo lectura (más de 5 búsquedas encadenadas). T1: inline (ediciones mecánicas ya entendidas).
+
+## Progreso
+- Mirror Engram `odd/gestion-claves/tasks`: **pendiente** (herramientas de memoria no disponibles en esta sesión).
+- Siguiente paso: T1.
