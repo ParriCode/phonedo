@@ -49,7 +49,8 @@ iniciar() {
         echo "El panel ya está en marcha en $URL"
     else
         echo 'Arrancando el panel...'
-        (cd "$RAIZ" && setsid "$PYTHON" tools/web_runtime.py >"$RUN/panel.log" 2>&1 & echo $! >"$RUN/panel.pid")
+        # `cd` va antes del `&` para que $! sea el pid del propio panel y no el de un subshell.
+        (cd "$RAIZ"; setsid "$PYTHON" tools/web_runtime.py >"$RUN/panel.log" 2>&1 & echo $! >"$RUN/panel.pid")
         for _ in $(seq 1 50); do panel_responde && break; sleep 0.2; done
         panel_responde || fallo "el panel no arrancó; mira $RUN/panel.log"
     fi
@@ -63,7 +64,9 @@ iniciar() {
 
 parar() {
     if [[ -f "$RUN/panel.pid" ]]; then
-        kill "$(cat "$RUN/panel.pid")" 2>/dev/null || true
+        local pid; pid="$(cat "$RUN/panel.pid")"
+        kill "$pid" 2>/dev/null || true
+        for _ in $(seq 1 50); do kill -0 "$pid" 2>/dev/null || break; sleep 0.2; done
         rm -f "$RUN/panel.pid"
     fi
     if command -v docker >/dev/null && [[ -n "$(contenedores 2>/dev/null)" ]]; then
