@@ -148,8 +148,8 @@ phonedo/
 │   ├── docker/           # compose.yml and per-service JSON config
 │   └── env/              # dev.env for local runs
 ├── docs/                 # PlantUML diagrams (.plantuml + .png/.svg) and overview.md
-├── tests/                # app_tests/, integration/, docker/, arduino_uno_test/
-└── tools/                # dev, build, test and lab scripts (lab.sh = UI lab)
+├── tests/                # app_tests/, integration/, arduino_uno_test/
+└── tools/                # configs, tests and operator console (web.sh)
 ```
 
 Generated folders (`circuits/build/`, `node_modules/`, `target/`, `.venv/`) are

@@ -145,15 +145,15 @@ Requisitos: Python 3.11 o superior, soporte para entornos virtuales y `pip`.
 
 Configura `deploy/env/dev.env` con los puertos y secretos, y las listas de
 conexiones en `apps/reader/config.json`, `apps/manager/config.json`, `apps/verifier/config.json` y
-`apps/storage/config.json`. Después genera sus configuraciones y arranca el entorno:
+`apps/storage/config.json`. Después genera sus configuraciones:
 
 ```sh
 ./tools/generate_configs.sh
-./tools/dev.sh
 ```
 
-El generador escribe los archivos `config.env` de los servicios. El Reader del
-entorno local utiliza el ejemplo Linux con observaciones simuladas.
+El generador escribe los archivos `config.env` de los servicios y la clave del
+Verifier. Para levantar la pila usa Docker (arriba) o la consola del operador
+(`./tools/web.sh`, más abajo).
 
 ## Cobro de una sesión
 
@@ -227,13 +227,6 @@ echo "STELLAR_SECRET_KEY=$(stellar keys show <alias>)" > deploy/docker/.env
 4. Comprobar en el circuito el tiempo entre lecturas, para que una sesión dure lo debido.
 5. Registro de consentimiento: el paciente concede o retira el acceso a su dato y el
    contrato lo comprueba antes de que Storage lo entregue.
-
-## Laboratorio con interfaz
-
-Para gestionar contenedores Docker, ver sus puertos y crear dispositivos, sensores
-y observaciones manuales o periódicas: `./tools/lab.sh`. Permite parar, pausar y
-reanudar servicios.
-Consulta [las instrucciones del laboratorio](tools/LABORATORIO.md).
 
 ## Información y logs
 

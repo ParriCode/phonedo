@@ -1,4 +1,28 @@
+import { useEffect, useRef } from 'react';
 import { TRANSPORTS, edgeGeometry } from '../../../service_network/edge.js';
+import { PULSE_DURATION } from './useMessagePulses.js';
+
+/** Bolita que recorre el cable; SMIL insertado tarde no arranca solo, así que se lanza a mano. */
+function EdgePulse({ pulse, path }) {
+  const ref = useRef(null);
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const group = ref.current;
+      if (!group) return;
+      group.classList.add('edge__pulse--running');
+      group.querySelectorAll('animateMotion').forEach((motion) => motion.beginElement?.());
+    }, pulse.delay);
+    return () => clearTimeout(timer);
+  }, [pulse.delay]);
+  const motion = (lag = 0) => <animateMotion begin="indefinite" dur={`${PULSE_DURATION + lag}ms`} fill="freeze" path={path} keyPoints={pulse.reverse ? '1;0' : '0;1'} keyTimes="0;1" calcMode="spline" keySplines=".4 0 .6 1" />;
+  return (
+    <g ref={ref} className={`edge__pulse edge__pulse--${pulse.level}`}>
+      <circle className="edge__pulse-trail" r="5">{motion(120)}</circle>
+      <circle className="edge__pulse-glow" r="13">{motion()}</circle>
+      <circle className="edge__pulse-core" r="5">{motion()}</circle>
+    </g>
+  );
+}
 
 /**
  * Conexiones en coordenadas del mundo. El trazo comunica el estado:
@@ -21,11 +45,7 @@ export function CanvasEdges({ connections, positions, states, selectedEdgeId, la
             <path className="edge__hit" d={geometry.path} />
             <path className="edge__path" markerEnd={`url(#network-arrow-${marker})`} d={geometry.path} />
             {transport === 'sse' && state === 'active' ? <path className="edge__flow" d={geometry.path} /> : null}
-            {pulses.filter((pulse) => pulse.edgeId === edge.id).map((pulse) => (
-              <circle key={pulse.id} className={`edge__pulse edge__pulse--${pulse.level}`} r="6">
-                <animateMotion dur="1.1s" fill="freeze" path={geometry.path} keyPoints={pulse.reverse ? '1;0' : '0;1'} keyTimes="0;1" calcMode="linear" />
-              </circle>
-            ))}
+            {pulses.filter((pulse) => pulse.edgeId === edge.id).map((pulse) => <EdgePulse key={pulse.id} pulse={pulse} path={geometry.path} />)}
             {state === 'error'
               ? <g className="edge__break" transform={`translate(${geometry.x} ${geometry.y + 9})`}><circle r="11" /><path d="M -4 -4 L 4 4 M 4 -4 L -4 4" /></g>
               : null}

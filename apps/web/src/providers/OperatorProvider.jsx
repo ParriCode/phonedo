@@ -103,7 +103,8 @@ export function OperatorProvider({ children }) {
       let overlap = Math.min(lines.length, previous.length);
       while (overlap && !previous.slice(-overlap).every((message, index) => message === lines[index])) overlap--;
       const historical = !Object.hasOwn(seen.current, node.id);
-      lines.slice(overlap).filter((message) => typeof message === 'string').forEach((line) => {
+      // El aviso de servidor de desarrollo de Werkzeug no aporta nada al operador.
+      lines.slice(overlap).filter((message) => typeof message === 'string' && !message.includes('This is a development server')).forEach((line) => {
         let parsed;
         try { parsed = JSON.parse(line.replace(/\u001b\[[0-9;]*m/g, '')); } catch { parsed = null; }
         if (node.kind === 'reader' && node.managed && parsed?.sequence) return;
