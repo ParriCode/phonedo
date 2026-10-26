@@ -1,41 +1,43 @@
-# Phonendo
+<div align="center">
 
-**Private sensor data, public proof, automatic payment on Stellar.**
+# 🩺 Phonendo
 
-Phonendo collects sensor readings, verifies their integrity and stores them. On Stellar it
-proves that the readings meet a condition **without revealing them**: a Soroban contract
-checks a zero-knowledge (ZK) proof and pays automatically.
+### Private sensor data · Public ZK proof · Automatic payment on Stellar
 
-Built for **HackMeridian 2026** (Lisbon) · Genesis track · Stellar Unlocked & Stellar Composed.
+Phonendo proves that sensor readings meet a condition **without revealing them**.
+A Soroban contract checks the zero-knowledge proof and pays in USDC, automatically.
+
+[![Live demo](https://img.shields.io/badge/▶_Live_demo-phonendo.vercel.app-000000?style=for-the-badge&logo=vercel)](https://phonendo.vercel.app)
+[![Demo payment](https://img.shields.io/badge/Testnet_payment-view_on_Stellar_Expert-7D00FF?style=for-the-badge&logo=stellar)](https://stellar.expert/explorer/testnet/tx/084d4e8223cb1a2db2d040920c59b19aa10968352815839e4134836f70fbb1ed)
 
 ![Network](https://img.shields.io/badge/Stellar-testnet-7D00FF)
 ![Contract](https://img.shields.io/badge/Soroban-Rust-orange)
 ![Proof](https://img.shields.io/badge/ZK-Groth16%20%C2%B7%20BLS12--381-blue)
+![Circuit](https://img.shields.io/badge/circuit-Circom%202.2-lightgrey)
 ![Payment](https://img.shields.io/badge/payout-USDC-2775CA)
+![Web](https://img.shields.io/badge/web-React%20%2B%20Vite-61DAFB)
 
-**Live demo:** https://phonendo.vercel.app
+**HackMeridian 2026 · Lisbon** — Genesis track · Stellar Unlocked & Stellar Composed
 
----
+[Problem](#-the-problem) · [How it works](#-how-it-works) · [On-chain proof](#-testnet-deployments) · [Quick start](#-quick-start) · [Web panels](#-web-panels) · [Security](#-security-and-limits) · [Roadmap](#-roadmap)
 
-## Contents
-
-- [The problem](#the-problem)
-- [How it works](#how-it-works)
-- [Stellar features used](#stellar-features-used)
-- [Testnet deployments](#testnet-deployments)
-- [Architecture](#architecture)
-- [Quick start](#quick-start)
-- [Claiming a session](#claiming-a-session)
-- [Environment variables](#environment-variables)
-- [Web panels](#web-panels)
-- [Tests](#tests)
-- [Security and limits](#security-and-limits)
-- [Roadmap](#roadmap)
-- [Documentation](#documentation)
+</div>
 
 ---
 
-## The problem
+## ✨ At a glance
+
+| 🔒 Private | ✅ Verifiable | 💸 Automatic |
+| :---: | :---: | :---: |
+| Readings never leave the system; only a Poseidon commitment goes on-chain. | A Groth16 proof and an ed25519 Verifier signature are checked inside `claim()`. | The contract pays the patient in USDC and emits `SessionPaid`. |
+
+| 32 | ≥ 28 | 0.1 USDC | 2 |
+| :---: | :---: | :---: | :---: |
+| readings per session | in range to get paid (rehab) | paid per session on testnet | use cases, one circuit |
+
+---
+
+## 🎯 The problem
 
 **Main use case: cardiac rehabilitation adherence.** An insurer pays the patient a USDC
 reward for every completed session. A session counts when the heart rate stayed in the
@@ -57,7 +59,7 @@ buyer pays when a shipment stayed inside its temperature range.
 
 ---
 
-## How it works
+## 🧭 How it works
 
 ```mermaid
 sequenceDiagram
@@ -100,7 +102,7 @@ sequenceDiagram
 
 ---
 
-## Stellar features used
+## ⭐ Stellar features used
 
 | Native feature | Where it is used |
 | --- | --- |
@@ -113,7 +115,7 @@ sequenceDiagram
 
 ---
 
-## Testnet deployments
+## 🔗 Testnet deployments
 
 Rehabilitation policy: 90-130 bpm, at least 28 of 32 readings. The first claims paid 5
 units; each session now pays **0.1 USDC** so the demo can be repeated.
@@ -151,7 +153,7 @@ units; each session now pays **0.1 USDC** so the demo can be repeated.
 
 ---
 
-## Architecture
+## 🏗 Architecture
 
 ### Services
 
@@ -210,7 +212,7 @@ server for these queries.
 
 ---
 
-## Quick start
+## 🚀 Quick start
 
 Requirements: Docker with Compose.
 
@@ -223,7 +225,7 @@ emits heart rate first and cold-chain temperature afterwards, each with its own 
 and policy. See [Docker configuration, ports and tests](deploy/docker/README.md).
 
 To claim on testnet, the Publisher needs a funded account key in `deploy/docker/.env`
-(see [Environment variables](#environment-variables)). Without it, the Publisher
+(see [Environment variables](#-environment-variables)). Without it, the Publisher
 prepares batches but does not claim.
 
 ### Running without Docker
@@ -238,15 +240,23 @@ Set ports and secrets in `deploy/env/dev.env`, and the connection lists in
 ./tools/generate_configs.sh
 ```
 
-The generator writes each service's `config.env` and the Verifier key. To start the
-stack, use Docker (above) or the operator console (`./tools/web.sh`, see
-[Web panels](#web-panels)).
+The generator writes each service's `config.env` and the Verifier key.
+
+### Operator console (one command)
+
+```sh
+./tools/web.sh
+```
+
+Builds the web, opens the operator console at `http://127.0.0.1:8080/operator.html`
+and lets you deploy, connect and watch every service as a Docker container from the
+browser. Requires Docker. See [Web panels](#-web-panels).
 
 > **Windows:** the `tools/*.sh` scripts are Bash. Run them from WSL.
 
 ---
 
-## Claiming a session
+## 💳 Claiming a session
 
 Requires Node.js, `circom` 2.2, Rust, Stellar CLI and a testnet account configured in the
 CLI. Contract steps are in [contracts](contracts/README.md) and circuit steps in
@@ -266,7 +276,7 @@ from 95 to 120 bpm and then temperature from 2 to 8 °C (`"simulation": "demo"` 
 
 ---
 
-## Environment variables
+## 🔑 Environment variables
 
 | Variable | Where | Purpose |
 | --- | --- | --- |
@@ -284,7 +294,7 @@ echo "STELLAR_SECRET_KEY=$(stellar keys show <alias>)" > deploy/docker/.env
 
 ---
 
-## Web panels
+## 💻 Web panels
 
 [`apps/web`](apps/web/README.md) is a React app built with Vite (Node.js 20 or newer).
 `npm run build` writes static pages to `apps/web/dist` that can be published as they are
@@ -316,26 +326,26 @@ need it and also work with `npm run dev` or `npm run build` in `apps/web`.
 When the server responds, it opens two tabs: the operator at
 `http://127.0.0.1:8080/operator.html` and Stellar Expert (testnet) with the first contract
 in `apps/publisher/config.json`, or the general explorer if none is configured.
-`Ctrl+C` stops the server. It installs Python 3 and the browser opener if missing
-(Debian/Ubuntu), prepares `.venv`, installs `aiohttp` if missing, and builds the web into
-`apps/web/dist` first when `npm` is available.
+`Ctrl+C` stops the web server. The script installs Python 3 if missing (Debian/Ubuntu),
+prepares `.venv` with `aiohttp`, builds the web into `apps/web/dist` when `npm` is
+available, and warns if Docker Engine or Docker Desktop is not installed.
 
 Change the port with `WEB_PORT=8081 ./tools/web.sh` and pick another JSON with
 `PUBLISHER_CONFIG_PATH=deploy/docker/publisher.json ./tools/web.sh`.
 
-The operator served by `tools/web.sh` can create real Python Readers, add devices and
-sensors, emit single pulses or 32 readings, and change HTTP push, SSE, tokens and
-Managers live. Readers live in memory and stop when the script closes; secrets are not
-stored in the browser. The control API listens only on loopback and requires the same
-origin for actions. For external services, logs are polled every 3 seconds; editing
-requires their own API and is not enabled. SSE requires configuring the subscription in
-the Manager. The visual walkthrough only confirms observed steps and never simulates
+The operator served by `tools/web.sh` deploys and manages the services as **Docker
+containers**: it builds the images, creates Readers, Managers, Verifiers, Storages and
+Publishers, connects them, shows their logs and lets a Reader emit single pulses or 32
+readings. It also detects the containers already started with `compose.yml` (project
+`phonendo`). Services keep running after the web is closed. Secrets are masked in the
+browser, the control API listens only on loopback and requires the same origin for
+actions, and the visual walkthrough only confirms observed steps, never simulating
 payments. The web architecture (React providers and consumers) is described in
 [apps/web](apps/web/README.md).
 
 ---
 
-## Tests
+## 🧪 Tests
 
 Set up the test environment:
 
@@ -357,7 +367,7 @@ the services down when it finishes.
 
 ---
 
-## Security and limits
+## 🛡 Security and limits
 
 | Area | Current state |
 | --- | --- |
@@ -371,19 +381,7 @@ the services down when it finishes.
 
 ---
 
-## Built at the event
-
-| Piece | What it does |
-| --- | --- |
-| ZK circuit (`circuits/`) | Groth16 proof that at least N readings are in range, without revealing them. |
-| Publisher | 32-reading batches, proof, batch signature and `claim()` call. |
-| Verifier | One ed25519 key signs events and the batch commitment. |
-| Soroban contract | Verifies proof and signature, prevents double claims and pays in USDC. |
-| Web panels | Operator console plus rehabilitation, cold-chain and company panels. |
-
----
-
-## Roadmap
+## 📍 Roadmap
 
 1. **On-device signing** of every reading (ESP32), so trust does not rest on a single
    Verifier.
@@ -397,7 +395,7 @@ the services down when it finishes.
 
 ---
 
-## Documentation
+## 📚 Documentation
 
 - Services: [Reader](apps/reader/README.md) · [Manager](apps/manager/README.md) ·
   [Verifier](apps/verifier/README.md) · [Storage](apps/storage/README.md) ·
