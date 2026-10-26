@@ -151,7 +151,7 @@ phonedo/
 ├── deploy/
 │   ├── docker/           # compose.yml and per-service JSON config
 │   └── env/              # dev.env for local runs
-├── docs/                 # PlantUML diagrams (.plantuml + .png/.svg) and overview.md
+├── docs/                 # PlantUML diagrams (.plantuml + .png/.svg) and presentacion.html
 ├── keys/                 # gitignored secrets (README only): verifiers/ signing keys, stellar/ wallets
 ├── tests/                # app_tests/, integration/, arduino_uno_test/
 └── tools/                # keys.sh, configs, tests and operator console (web.sh --regenerate-keys --rebuild)

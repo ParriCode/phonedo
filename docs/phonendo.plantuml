@@ -4,42 +4,56 @@ left to right direction
 skinparam componentStyle rectangle
 skinparam shadowing false
 skinparam defaultFontSize 13
-title Phonendo — relaciones entre servicios
+skinparam packageStyle rectangle
+title Phonendo — services, proof and payment on Stellar
 
-component Reader as R
-component Manager as M
-component Verifier as V
-component Storage as S
-component "Publisher\n(pendiente)" as P #FFF2CC
+package "Phonendo (off-chain, private readings)" {
+  component "Reader\n(simulated, ESP32, C++)" as R
+  component Manager as M
+  component "Verifier\n(ed25519 key)" as V
+  database "Storage\n(LevelDB)" as S
+  component "Publisher\n(Groth16 prover)" as P
+}
 
-R --> M : Observaciones por SSE\nManager se suscribe a Reader /stream
-R --> M : Alternativa HTTP: /newEvent
-M --> V : HTTP /verify: evento Captured con hash\nRespuesta: Verified firmado o rechazo
-M --> V : SSE /stream/verifier del Manager\nVerifier se suscribe (opcional)
-V --> M : SSE /stream del Verifier\nManager se suscribe y continúa el guardado
-M --> S : HTTP: guardar eventos Verified
-M --> S : SSE /stream/storage del Manager\nStorage se suscribe (opcional)
-S --> M : SSE /stream de Storage\nConfirmación después del guardado
-M ..> P : Publicación futura\nLlamada desactivada
+package "Stellar testnet (public)" {
+  component "Soroban contract\nadherence" as C #E8E6FF
+  component "USDC token" as T #E8E6FF
+}
 
-note bottom of R
-  Si un readerId usa /newEvent,
-  HTTP tiene prioridad sobre su SSE
-  hasta reiniciar el Manager.
-  Reader dispone de output HTTP opcional.
-end note
+actor "Patient / carrier" as U
+component "Web panels\n(React)" as W
+
+R --> M : readings over SSE\n(Manager subscribes)\nor HTTP /newEvent
+M --> V : HTTP /verify\nCaptured event + hash
+V --> M : Verified event\nsigned with ed25519
+M --> S : store Verified events\n(HTTP or SSE)
+M --> P : Verified stream (SSE)\nPublisher subscribes
+P --> M : POST /signBatch (event ids only)\nreply: commitment + signature
+M --> V : POST /signBatch\nreply: commitment + signature
+P --> C : claim(patient, session,\ncommitment, signature, proof)
+C --> T : transfer payout
+T --> U : USDC
+C ..> W : SessionPaid events\n(read from the RPC)
 
 note bottom of V
-  Puede consumir varios Managers
-  y distribuir resultados a varios suscriptores.
-  Cada servicio expone su propio /stream.
-  subscriptions configura qué streams consume.
-  outputStreams configura salidas del Manager.
+  Computes the commitment from the readings
+  it verified itself, never from the caller.
+  Signs commitment || sessionId ||
+  patient key || verifierId.
+end note
+
+note bottom of C
+  claim() checks: session not paid before,
+  Verifier signature (host ed25519),
+  Groth16 proof (BLS12-381) against the
+  policy stored on-chain. Then pays.
+  One contract per use case:
+  rehabilitation and cold chain.
 end note
 
 legend bottom
-  Flecha: dirección del dato; la etiqueta indica quién se suscribe al SSE.
-  Línea continua: transporte disponible; las integraciones pendientes se anotan.
-  Línea discontinua: publicación futura.
+  Arrow: direction of the data. Only the commitment, public
+  parameters, session id, result and payment reach Stellar.
+  Readings never leave Phonendo.
 endlegend
 @enduml
