@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { PageShell } from '../components/PageShell.jsx';
 import { I18nProvider } from '../providers/I18nProvider.jsx';
 import { PaymentsProvider } from '../providers/PaymentsProvider.jsx';
@@ -28,8 +28,8 @@ describe('paneles de pagos', () => {
   it('la empresa ve los pagos en directo con su transacción', async () => {
     mockFetch();
     const { container } = renderPanel(<CompanyView />);
-    await waitFor(() => expect(container.querySelector('#net-pill').dataset.state).toBe('live'));
-    expect(container.querySelector('#net-label').textContent).toBe('Stellar testnet · live');
+    await waitFor(() => expect(container.querySelectorAll('tbody tr')).toHaveLength(1));
+    expect(container.querySelector('#net-pill')).toBeNull();
     const link = container.querySelector('tbody a');
     expect(link.getAttribute('href')).toBe(`https://stellar.expert/explorer/testnet/tx/${paidEvent().txHash}`);
     expect(container.querySelector('tbody td.mono').textContent).toBe('20261025001');
@@ -39,8 +39,8 @@ describe('paneles de pagos', () => {
   it('sin RPC muestra los cobros confirmados y avisa', async () => {
     mockFetch({ events: null });
     const { container } = renderPanel(<CompanyView />);
-    await waitFor(() => expect(container.querySelector('#net-pill').dataset.state).toBe('error'));
-    expect(container.querySelector('.notice')).toBeTruthy();
+    await waitFor(() => expect(container.querySelector('.notice')).toBeTruthy());
+    expect(container.querySelector('#net-pill')).toBeNull();
     expect(container.querySelectorAll('tbody tr')).toHaveLength(5);
   });
 
@@ -125,8 +125,8 @@ describe('panel de empresa', () => {
 
   it('ignora los pagos de contratos que no son suyos', async () => {
     mockFetch({ events: [paidEvent({ contractId: 'CAJENO' })] });
-    const { container } = renderPanel(<CompanyView />);
-    await waitFor(() => expect(container.querySelector('#net-pill').dataset.state).toBe('live'));
+    let container;
+    await act(async () => { ({ container } = renderPanel(<CompanyView />)); });
     expect(container.querySelectorAll('tbody tr')).toHaveLength(0);
   });
 });

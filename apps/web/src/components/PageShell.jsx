@@ -1,5 +1,4 @@
 import { useI18n } from '../providers/I18nProvider.jsx';
-import { usePayments } from '../providers/PaymentsProvider.jsx';
 import { contractUrl } from '../lib/format.js';
 import { CONFIG } from '../config.js';
 import { Icon } from './Icon.jsx';
@@ -15,14 +14,6 @@ function LangSwitch() {
   );
 }
 
-function NetPill() {
-  const { t } = useI18n();
-  const { net } = usePayments();
-  return (
-    <span className="net-pill" id="net-pill" data-state={net} role="status"><i className="net-dot" /><span id="net-label">{t(`net.${net}`)}</span></span>
-  );
-}
-
 /** Barra superior, contenido y pie comunes a los paneles. `nav` añade enlaces a otros paneles. */
 export function PageShell({ children, nav = [] }) {
   const { t } = useI18n();
@@ -32,7 +23,6 @@ export function PageShell({ children, nav = [] }) {
         <a className="brand" href="index.html" aria-label="Phonendo"><span className="brand-mark"><svg className="icon"><use href="#i-pulse" /></svg></span><span>Phon<b>endo</b></span></a>
         <div className="topbar-end">
           {nav.map((item) => <a key={item.href} className="topbar-link" href={item.href}><Icon name={item.icon} />{t(item.label)}</a>)}
-          <NetPill />
           <LangSwitch />
         </div>
       </header>
