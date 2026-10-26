@@ -16,21 +16,28 @@ El ejemplo usa credenciales de demostración y un Reader simulado (`"demo"`): 32
 de pulso (95-120 BPM) y luego 32 de temperatura de transporte (2-8 °C). El Publisher
 consume el SSE del Manager y prepara lotes de 32.
 
-## Cobro real en testnet
+## Cobro real en testnet (demo preconfigurada)
 
-Prepara antes `circuits/` con `npm run setup`. El Publisher firma con una cuenta de
-Stellar cuya clave secreta recibe por entorno y que nunca entra en la imagen. Crea
-`deploy/docker/.env` (ignorado por git) con la clave de tu alias:
+**SOLO TESTNET / CLAVES DE DEMOSTRACIÓN.** El repositorio lleva todo lo necesario para
+cobrar sin pasos manuales: la cuenta `phonendo` (publisher, admin de los contratos y
+fuente de despliegue), la clave Ed25519 del Verifier (`deploy/demo/verifier_demo_key.json`),
+los artefactos del circuito (`circuits/build/`) y dos contratos desplegados y fondeados con
+XLM nativo, uno de rehabilitación y otro de cadena de frío. Los ids están en
+`deploy/docker/publisher.json`: `contracts` por `verifierId` (rehabilitación) y `devices`
+por dispositivo (cadena de frío). Esas claves son públicas y no valen nada; cualquiera
+puede gastar los fondos de testnet de esa cuenta.
+
+Tras `up --build -d --wait`, el Reader simulado emite los dos casos y el Publisher cobra
+cada uno. Comprueba el cobro con `curl http://127.0.0.1:7105/info` o buscando
+`publisher_session_paid` en `docker compose ... logs publisher`; el log trae el enlace de
+la transacción en Stellar Expert. Para usar tu propia cuenta, crea `deploy/docker/.env`
+(ignorado por git); tiene prioridad sobre la de demostración:
 
 ```sh
-echo "STELLAR_SECRET_KEY=$(stellar keys show alex)" > deploy/docker/.env
+printf 'STELLAR_SECRET_KEY=%s\nSTELLAR_SOURCE=%s\n' "$(stellar keys show alex)" alex > deploy/docker/.env
 ```
 
-En PowerShell: `"STELLAR_SECRET_KEY=$(stellar keys show alex)" | Set-Content -Encoding ascii deploy/docker/.env`.
-
-El contenedor crea con ella el alias `alex`. `deploy/docker/publisher.json` indica a qué
-contrato va cada caso: `contracts` por `verifierId` (rehabilitación) y `devices` por
-dispositivo (cadena de frío). Sin `.env` el Publisher prepara los lotes pero no cobra.
+Con tu cuenta tendrás que desplegar tus contratos (`deploy/demo/desplegar_demo.sh`).
 El Reader arranca cuando el Publisher ya escucha, para que no pierda lecturas; si
 repites la demo, reinícialo: `docker compose -f deploy/docker/compose.yml restart reader`.
 
@@ -83,7 +90,8 @@ docker build -t phonendo-publisher -f apps/publisher/Dockerfile .
 
 Cada contenedor admite su `config.json` montado en `/app/<servicio>/config.json`.
 Manager necesita `MANAGER_PASSWORD` y sus tokens; Verifier necesita la misma clave
-compartida, su token y `signing_key.json` montado en `/app/verifier/signing_key.json`.
+compartida, su token y su clave de firma (la demo monta `deploy/demo/verifier_demo_key.json`;
+sin clave genera una temporal).
 Storage recibe `API_TOKEN_STORAGE` y utiliza `/data/phonendo` para su base de datos.
 El Reader ejecuta el ejemplo Linux configurable con `READER_CONFIG_PATH`.
 

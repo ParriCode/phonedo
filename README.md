@@ -79,6 +79,9 @@ cobros pagaron 5 unidades; ahora cada sesión paga 0,1 USDC para poder repetir l
 
 | Qué | Dato |
 | --- | --- |
+| **Demo preconfigurada** (`docker compose up`): contrato de rehabilitación, paga 0,1 XLM por sesión | [`CDUDM26CRM5OGGIQGZPBDUR4O27IK5HN3ZBAZXTR65JAWFDLM3CTPTTO`](https://stellar.expert/explorer/testnet/contract/CDUDM26CRM5OGGIQGZPBDUR4O27IK5HN3ZBAZXTR65JAWFDLM3CTPTTO) |
+| **Demo preconfigurada**: contrato de cadena de frío (2–8 °C), paga 0,1 XLM por sesión | [`CCFO326BTSY5EAUPT5E74C44GVVQRX4HYB6TQQ7YSK647WDW2FM7DXH2`](https://stellar.expert/explorer/testnet/contract/CCFO326BTSY5EAUPT5E74C44GVVQRX4HYB6TQQ7YSK647WDW2FM7DXH2) |
+| Cuenta de la demo `phonendo` (publisher, admin y despliegue; clave pública a propósito, solo testnet) | `GBZCQXYSSUK5ELUXKWQBBNCSIAOBHPGG36THG35QJLSBLF3BBVGKEMGJ` |
 | Contrato `adherence` (paga XLM) | [`CAPZ2O7LPTRGJ2Q7TTHMCHOKRZ4T7KU5I4E74M2U3YUTC3XONIQDOP2D`](https://stellar.expert/explorer/testnet/contract/CAPZ2O7LPTRGJ2Q7TTHMCHOKRZ4T7KU5I4E74M2U3YUTC3XONIQDOP2D) |
 | Primer cobro real: prueba ZK y firma verificadas en cadena, 5 XLM | [`891b2fe1…c0aa1`](https://stellar.expert/explorer/testnet/tx/891b2fe1504a9d9c0a34146828e9caac9527a41e3d467eaecf5a994c145c0aa1) |
 | Contrato `adherence` de rehabilitación (paga 0,1 USDC por sesión) | [`CD3ZLDTB7QKJLMAIBSCL75TRHE6IUZ27RW5FLWNB4F3GUQENZZZSM45H`](https://stellar.expert/explorer/testnet/contract/CD3ZLDTB7QKJLMAIBSCL75TRHE6IUZ27RW5FLWNB4F3GUQENZZZSM45H) |
@@ -131,11 +134,20 @@ con el Verifier.
 
 ## Docker
 
-Para construir y arrancar los cinco servicios, incluido el Publisher:
+Inicio rápido. Tras clonar, la demo cobra sola en Stellar testnet (**solo testnet, claves
+de demostración**; ver [deploy/demo](deploy/demo/README.md)):
 
 ```sh
+git clone <este repositorio> && cd phonedo
 docker compose -f deploy/docker/compose.yml up --build -d --wait
+curl http://127.0.0.1:7105/info        # Publisher: sesiones pagadas y enlaces a la transacción
+curl http://127.0.0.1:7104/raw         # Storage: lecturas verificadas
+docker compose -f deploy/docker/compose.yml logs publisher | grep publisher_session_paid
 ```
+
+El Reader simulado emite pulso (rehabilitación) y temperatura (cadena de frío); cada caso
+termina en un `claim()` y un evento `SessionPaid` visibles en
+[Stellar Expert](https://stellar.expert/explorer/testnet/account/GBZCQXYSSUK5ELUXKWQBBNCSIAOBHPGG36THG35QJLSBLF3BBVGKEMGJ).
 
 [Configuración, puertos y pruebas con Docker](deploy/docker/README.md).
 
@@ -178,7 +190,7 @@ se sustituye por el Reader del sensor.
 
 | Variable | Dónde | Uso |
 | --- | --- | --- |
-| `STELLAR_SECRET_KEY` | `deploy/docker/.env` (no se versiona) | Clave secreta (`S…`) de la cuenta que firma el `claim()` y paga sus comisiones. Sin ella el Publisher prepara los lotes pero no cobra. |
+| `STELLAR_SECRET_KEY` | `deploy/docker/.env` (no se versiona) | Clave secreta (`S…`) de la cuenta que firma el `claim()` y paga sus comisiones. Por defecto, la cuenta de demostración `phonendo` (solo testnet); un `.env` la sustituye. |
 | `STELLAR_SOURCE` | `deploy/docker/.env` o entorno | Alias de esa cuenta dentro del contenedor; por defecto el de `compose.yml`. |
 | `API_TOKEN_MANAGER`, `API_TOKEN_VERIFIER`, `API_TOKEN_STORAGE` | `compose.yml`, `deploy/env/dev.env` (generado desde `dev.env.example`) | Tokens entre servicios. Los de la demo son de demostración: cámbialos en otro despliegue. |
 | `READER_PORT`, `MANAGER_PORT`, `VERIFIER_PORT`, `STORAGE_PORT`, `PUBLISHER_PORT` | entorno | Puertos publicados por Docker (7101 a 7105 por defecto). |

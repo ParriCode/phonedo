@@ -1,10 +1,10 @@
 {
   "contracts": {
-    "d407a24e37fa4588a32063fa097dcee83ce2f4ce954c857a62deec5d521a8e45": "CBWFKQUIOSRN5TS5YWKAZPG53VM4SSBWT2WRHNQZCP67PSDSDX3KOJAK"
+    "b61934e5c6ed5167def5e311bfbfd0f8088f34260f3d0160055be21ab08d031e": "CDUDM26CRM5OGGIQGZPBDUR4O27IK5HN3ZBAZXTR65JAWFDLM3CTPTTO"
   },
   "devices": {
     "simulated-cold-chain": {
-      "contractId": "CAIVTGTXAQ4NMXXQTRZOF4V3JLS6GG2QEHSOYJW2FFOOIZBSISUPD63Y",
+      "contractId": "CCFO326BTSY5EAUPT5E74C44GVVQRX4HYB6TQQ7YSK647WDW2FM7DXH2",
       "policy": {
         "minValue": 2,
         "maxValue": 8,
@@ -32,7 +32,7 @@
   },
   "circuitsPath": "../../circuits",
   "stellar": {
-    "source": "jose",
+    "source": "phonendo",
     "network": "testnet"
   }
 }

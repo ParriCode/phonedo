@@ -65,3 +65,14 @@ apps/reader/examples/wearos/.android/
 apps/reader/examples/wearos/.gradle/
 apps/reader/examples/wearos/.devenv/
 apps/reader/examples/wearos/app/.cxx/
+
+# Artefactos de la demo (SOLO TESTNET): circuits/build se versiona a propósito,
+# menos las intermedias y las salidas de prueba. Ver deploy/demo/README.md.
+!circuits/build/
+circuits/build/*.ptau
+circuits/build/*.r1cs
+circuits/build/proof.json
+circuits/build/public.json
+circuits/build/soroban_proof.json
+circuits/build/soroban_args.json
+circuits/build/verifier_dev_key.json

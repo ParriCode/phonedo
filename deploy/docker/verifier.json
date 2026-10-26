@@ -10,5 +10,5 @@
   "stream": {
     "enabled": true
   },
-  "keyPath": "/circuits/build/verifier_dev_key.json"
+  "keyPath": "/run/demo/verifier_key.json"
 }

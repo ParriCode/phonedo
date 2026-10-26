@@ -21,7 +21,8 @@ services:
       MANAGER_PASSWORD: demo-shared-secret
     volumes:
       - ./verifier.json:/app/verifier/config.json:ro
-      - ../../circuits:/circuits:ro
+      # SOLO TESTNET: clave de demostración versionada (ver deploy/demo/README.md)
+      - ../demo/verifier_demo_key.json:/run/demo/verifier_key.json:ro
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5000/', timeout=2)"]
       interval: 3s
@@ -66,8 +67,10 @@ services:
     environment:
       API_TOKEN_MANAGER: demo-manager
       PHONENDO_VERBOSE: "true"
-      STELLAR_SECRET_KEY: ${STELLAR_SECRET_KEY:-}
-      STELLAR_SOURCE: ${STELLAR_SOURCE:-jose}
+      # SOLO TESTNET / CLAVES DE DEMOSTRACIÓN: cuenta `phonendo`, pública a propósito.
+      # Un deploy/docker/.env con STELLAR_SECRET_KEY y STELLAR_SOURCE la sustituye.
+      STELLAR_SECRET_KEY: ${STELLAR_SECRET_KEY:-SBMAE3TROCP5C5PV2XK2P26TDASPINDIVNXORVGEM2KSQ3G4EOQFHJ7H}
+      STELLAR_SOURCE: ${STELLAR_SOURCE:-phonendo}
     volumes:
       - ./publisher.json:/app/publisher/config.json:ro
       - ../../circuits:/circuits
