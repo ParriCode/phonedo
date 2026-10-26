@@ -32,7 +32,7 @@ Dejar las claves ordenadas y poder ir a producción sin secretos en git, sin cla
 `~/.phonendo/keys.json`, permisos 0600, fuera del repo. Una entrada por clave: `id`, `rol`, `red` (`testnet|mainnet`), `publica`, `privada`. El panel rechaza inyectar una clave de `testnet` en un servicio `mainnet`.
 
 ## Tareas
-- [ ] **T1 Higiene del repositorio.** `dev.env` → `dev.env.example` y generado con tokens aleatorios si falta; `secrets.properties` → `.example`; dejar de versionar keystore, `local.properties`, `.gradle/`, `.devenv/`, `app/.cxx/`; ampliar `.gitignore` (`*.keystore`, `*.jks`, `*.pem`, `*.key`, `signing_key*.json`, claves del almacén). Check: `git ls-files` sin secretos ni basura de build; `generate_configs.sh` sigue funcionando desde cero.
+- [x] **T1 Higiene del repositorio** (commit `14b76c4`, ruta inline). `dev.env` → `dev.env.example` y generado con tokens aleatorios si falta; `secrets.properties` → `.example`; dejar de versionar keystore, `local.properties`, `.gradle/`, `.devenv/`, `app/.cxx/`; ampliar `.gitignore` (`*.keystore`, `*.jks`, `*.pem`, `*.key`, `signing_key*.json`, claves del almacén). Check: `git ls-files` sin secretos ni basura de build; `generate_configs.sh` sigue funcionando desde cero.
 - [ ] **T2 Almacén de claves.** `tools/keys.py` (genera, lista, exporta públicas; Ed25519 para verifier y par Stellar para publisher y deployer) con tests. Check: tests del script; el archivo se crea con 0600; nunca imprime privadas.
 - [ ] **T3 Verifier sin clave temporal en producción.** Con `PHONENDO_ENV=production` el verifier falla al arrancar si falta la clave; en desarrollo mantiene el aviso. Test RED/GREEN en `tests/app_tests/test_verifier_keys.py`.
 - [ ] **T4 Inyección desde el panel.** El backend (`web_docker.py`, `web_runtime.py`) lee el almacén, monta la clave del verifier y la identidad del publisher como archivos de solo lectura, sin `-e`; deja de montar todo `~/.config/stellar`; endpoint que lista solo claves públicas; el selector del panel elige por `id`. Ampliar la redacción a variables de entorno y valores.
@@ -54,4 +54,5 @@ Dejar las claves ordenadas y poder ir a producción sin secretos en git, sin cla
 
 ## Progreso
 - Mirror Engram `odd/gestion-claves/tasks`: **pendiente** (herramientas de memoria no disponibles en esta sesión).
-- Siguiente paso: T1.
+- T1 hecho: `bash -n` correcto; la generación de tokens aleatorios probada aparte (48 car., 0600, mismas variables). No se ejecutó `generate_configs.sh` entero para no tocar tus `config.env`. Tiene `signing_key.json` y `tools/web_docker.py` sin tocar todavía.
+- Siguiente paso: T2 (almacén de claves), pendiente de la decisión 1.
