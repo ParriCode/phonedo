@@ -51,7 +51,7 @@ export function OperatorView() {
   const { selected, selectedEdge, select, selectEdge } = useNetwork();
   const { openDialog } = useDeployDialog();
   // Tras cada acción confirmada el inspector se vuelve a montar con los valores reales.
-  const { epoch, containers, dockerAction, imageAction, connectionAction, inventoryError } = useOperator();
+  const { logs, epoch, containers, dockerAction, imageAction, connectionAction, inventoryError } = useOperator();
   const view = useSystemView();
   useEffect(() => {
     const showLogs = () => setPage('logs');
@@ -83,7 +83,7 @@ export function OperatorView() {
         <ServiceCanvas
           model={view.model} views={nodeViews(view, opText)} edgeStates={view.edges}
           selectedId={selected} selectedEdgeId={selectedEdge} onSelect={select} onSelectEdge={selectEdge}
-          onAdd={() => openDialog('reader')} onDeploy={openDialog} onDockerAction={dockerAction} onImageAction={imageAction} onConnect={connect} containers={containers} inventoryError={inventoryError} summary={<HealthSummary view={view} />}
+          onAdd={() => openDialog('reader')} onDeploy={openDialog} onDockerAction={dockerAction} onImageAction={imageAction} onConnect={connect} containers={containers} inventoryError={inventoryError} summary={<HealthSummary view={view} />} logs={logs}
           storageKey="phonendo.canvas.local.v1" text={opText} label={label}
           edgeLabel={(item, state) => `${names[item.sourceId]} → ${names[item.targetId]} · ${transportLabel(item.transport)} · ${edgeLabel(state, opText)}`}
           sidebar={sidebar}

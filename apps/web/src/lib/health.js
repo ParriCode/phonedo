@@ -1,5 +1,5 @@
 // Reglas puras de presentación del estado y los logs del operador.
-export const LOG_LEVELS = ['success', 'warning', 'error', 'critical'];
+export const LOG_LEVELS = ['info', 'success', 'warning', 'error', 'critical'];
 
 const CRITICAL = /private_key|seed|secret_leak|compromised|fatal|panic/i;
 const ERROR = /failed|failure|error|exception|invalid|denied|unauthori[sz]ed/i;

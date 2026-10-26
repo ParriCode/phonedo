@@ -79,7 +79,7 @@ export function OperatorLogs({ view, onShowMap = () => {} }) {
       <div className="logs__levels" role="group" aria-label={opText('Filtrar por nivel', 'Filter by level')}>
         <button type="button" className="level-filter" aria-pressed={logFilter.level === 'all'} onClick={() => setLogFilter({ level: 'all' })}>{opText('Todos', 'All')} <b>{scoped.length}</b></button>
         {LOG_LEVELS.map((level) => (
-          <button key={level} type="button" className={`level-filter level--${level}`} data-level={level} aria-pressed={logFilter.level === level} disabled={!counts[level]}
+          <button key={level} type="button" className={`level-filter level--${level}`} data-level={level} aria-pressed={logFilter.level === level}
             onClick={() => setLogFilter({ level: logFilter.level === level ? 'all' : level })}><i />{levelLabel(level, opText)} <b>{counts[level]}</b></button>
         ))}
         {filteredNode ? <button type="button" className="filter-chip" onClick={() => setLogFilter({ node: 'all' })}>{filteredNode.name} <Icon name="x" className="icon tiny" /></button> : null}
