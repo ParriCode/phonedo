@@ -146,7 +146,7 @@ phonedo/
 ├── contracts/            # Soroban contract `adherence` (Rust): claim() verifies signature + proof and pays
 ├── deploy/
 │   ├── docker/           # compose.yml and per-service JSON config
-│   └── env/              # dev.env for local runs
+│   └── env/              # dev.env.example (template); dev.env is generated and gitignored
 ├── docs/                 # PlantUML diagrams (.plantuml + .png/.svg) and overview.md
 ├── tests/                # app_tests/, integration/, docker/, arduino_uno_test/
 └── tools/                # dev, build, test and lab scripts (lab.sh = UI lab)

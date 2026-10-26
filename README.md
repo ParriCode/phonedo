@@ -143,7 +143,8 @@ docker compose -f deploy/docker/compose.yml up --build -d --wait
 
 Requisitos: Python 3.11 o superior, soporte para entornos virtuales y `pip`.
 
-Configura `deploy/env/dev.env` con los puertos y secretos, y las listas de
+`deploy/env/dev.env` no se versiona: si falta, `generate_configs.sh` lo crea desde
+`deploy/env/dev.env.example` con tokens aleatorios. Edítalo para cambiar puertos o secretos, y configura las listas de
 conexiones en `apps/reader/config.json`, `apps/manager/config.json`, `apps/verifier/config.json` y
 `apps/storage/config.json`. Después genera sus configuraciones y arranca el entorno:
 
@@ -179,7 +180,7 @@ se sustituye por el Reader del sensor.
 | --- | --- | --- |
 | `STELLAR_SECRET_KEY` | `deploy/docker/.env` (no se versiona) | Clave secreta (`S…`) de la cuenta que firma el `claim()` y paga sus comisiones. Sin ella el Publisher prepara los lotes pero no cobra. |
 | `STELLAR_SOURCE` | `deploy/docker/.env` o entorno | Alias de esa cuenta dentro del contenedor; por defecto el de `compose.yml`. |
-| `API_TOKEN_MANAGER`, `API_TOKEN_VERIFIER`, `API_TOKEN_STORAGE` | `compose.yml`, `deploy/env/dev.env` | Tokens entre servicios. Los de la demo son de demostración: cámbialos en otro despliegue. |
+| `API_TOKEN_MANAGER`, `API_TOKEN_VERIFIER`, `API_TOKEN_STORAGE` | `compose.yml`, `deploy/env/dev.env` (generado desde `dev.env.example`) | Tokens entre servicios. Los de la demo son de demostración: cámbialos en otro despliegue. |
 | `READER_PORT`, `MANAGER_PORT`, `VERIFIER_PORT`, `STORAGE_PORT`, `PUBLISHER_PORT` | entorno | Puertos publicados por Docker (7101 a 7105 por defecto). |
 | `WEB_PORT`, `PUBLISHER_CONFIG_PATH` | entorno | Puerto del panel local (8080) y JSON del Publisher que usa. |
 
