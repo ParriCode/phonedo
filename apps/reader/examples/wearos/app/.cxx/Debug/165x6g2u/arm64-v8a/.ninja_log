@@ -1,0 +1,11 @@
+# ninja log v5
+1	997	1792950512089398524	CMakeFiles/phonendo_reader.dir/home/cesar/Projects/phonedo/apps/reader/cpp/core/src/device.cpp.o	aecc692defa3d2f
+2	1055	1792950512151397596	CMakeFiles/phonendo_reader.dir/home/cesar/Projects/phonedo/apps/reader/cpp/server/src/serialization.cpp.o	4eb7415000279e9b
+0	1167	1792950512260395965	CMakeFiles/phonendo_reader.dir/home/cesar/Projects/phonedo/apps/reader/cpp/core/src/core.cpp.o	26a15019d75c9d89
+1	1252	1792950512341394753	CMakeFiles/phonendo_reader.dir/wear_reader.cpp.o	6d29a7eef755c566
+1	1256	1792950512352394588	CMakeFiles/phonendo_reader.dir/home/cesar/Projects/phonedo/apps/reader/cpp/core/src/sensor.cpp.o	c9ef76691407a4
+2	1340	1792950512398393900	CMakeFiles/phonendo_reader.dir/home/cesar/Projects/phonedo/apps/reader/cpp/server/src/reader_stream.cpp.o	bd9eb44f7a669438
+1	1400	1792950512493392478	CMakeFiles/phonendo_reader.dir/home/cesar/Projects/phonedo/apps/reader/cpp/core/src/observation.cpp.o	4847c3bd755a6abc
+3	1513	1792950512606390787	CMakeFiles/phonendo_reader.dir/reader_jni.cpp.o	692264356f9e8f8d
+2	1546	1792950512637390323	CMakeFiles/phonendo_reader.dir/home/cesar/Projects/phonedo/apps/reader/cpp/server/src/reader_service.cpp.o	779ee40a6587bc85
+1546	1588	1792950512689389545	/home/cesar/Projects/phonedo/apps/reader/examples/wearos/app/build/intermediates/cxx/Debug/165x6g2u/obj/arm64-v8a/libphonendo_reader.so	426ed6c8459d8616

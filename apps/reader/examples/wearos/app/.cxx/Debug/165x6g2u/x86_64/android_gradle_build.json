@@ -1,0 +1,38 @@
+{
+  "buildFiles": [
+    "/home/cesar/Projects/phonedo/apps/reader/examples/wearos/app/src/main/cpp/CMakeLists.txt"
+  ],
+  "cleanCommandsComponents": [
+    [
+      "/nix/store/s8h9vm6i1k3vd2nwd88i543s2sg9gwrv-androidsdk/libexec/android-sdk/cmake/3.22.1/bin/ninja",
+      "-C",
+      "/home/cesar/Projects/phonedo/apps/reader/examples/wearos/app/.cxx/Debug/165x6g2u/x86_64",
+      "clean"
+    ]
+  ],
+  "buildTargetsCommandComponents": [
+    "/nix/store/s8h9vm6i1k3vd2nwd88i543s2sg9gwrv-androidsdk/libexec/android-sdk/cmake/3.22.1/bin/ninja",
+    "-C",
+    "/home/cesar/Projects/phonedo/apps/reader/examples/wearos/app/.cxx/Debug/165x6g2u/x86_64",
+    "{LIST_OF_TARGETS_TO_BUILD}"
+  ],
+  "libraries": {
+    "phonendo_reader::@6890427a1f51a3e7e1df": {
+      "toolchain": "toolchain",
+      "abi": "x86_64",
+      "artifactName": "phonendo_reader",
+      "output": "/home/cesar/Projects/phonedo/apps/reader/examples/wearos/app/build/intermediates/cxx/Debug/165x6g2u/obj/x86_64/libphonendo_reader.so",
+      "runtimeFiles": []
+    }
+  },
+  "toolchains": {
+    "toolchain": {
+      "cCompilerExecutable": "/nix/store/s8h9vm6i1k3vd2nwd88i543s2sg9gwrv-androidsdk/libexec/android-sdk/ndk-bundle/toolchains/llvm/prebuilt/linux-x86_64/bin/clang.lld",
+      "cppCompilerExecutable": "/nix/store/s8h9vm6i1k3vd2nwd88i543s2sg9gwrv-androidsdk/libexec/android-sdk/ndk-bundle/toolchains/llvm/prebuilt/linux-x86_64/bin/clang++.lld"
+    }
+  },
+  "cFileExtensions": [],
+  "cppFileExtensions": [
+    "cpp"
+  ]
+}

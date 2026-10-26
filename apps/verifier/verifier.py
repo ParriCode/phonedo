@@ -8,6 +8,7 @@ from pathlib import Path
 from uuid import UUID
 
 from flask import Flask, g, request, jsonify
+from waitress import serve
 from dotenv import load_dotenv
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
@@ -396,7 +397,9 @@ atexit.register(manager_subscriptions.close)
 
 if __name__ == "__main__":
     Logger.info("service_starting", port=os.getenv("PORT_VERIFIER", 5000))
-    app.run(
+    serve(
+        app,
         host=verifier_config.get('server', {}).get('host', '0.0.0.0'),
-        port=int(os.getenv('PORT_VERIFIER', verifier_config.get('server', {}).get('port', 5000)))
+        port=int(os.getenv('PORT_VERIFIER', verifier_config.get('server', {}).get('port', 5000))),
+        threads=64, send_bytes=1,
     )

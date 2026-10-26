@@ -6,6 +6,7 @@ import math
 import atexit
 from dotenv import load_dotenv
 from flask import Flask
+from waitress import serve
 ROOT_DIR = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from manager_support.logger import Logger
@@ -57,7 +58,7 @@ atexit.register(core.close)
 if __name__ == "__main__":
     stop_subscriptions = manager_client.start_subscriptions(core)
     try:
-        app.run(host=manager_config.host, port=manager_config.port)
+        serve(app, host=manager_config.host, port=manager_config.port, threads=64, send_bytes=1)
     finally:
         stop_subscriptions()
         core.close()

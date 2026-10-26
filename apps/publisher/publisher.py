@@ -8,6 +8,7 @@ import time
 from pathlib import Path
 
 from flask import Flask, jsonify
+from waitress import serve
 from dotenv import load_dotenv
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
@@ -139,7 +140,7 @@ atexit.register(manager_subscriptions.close)
 
 def start():
     Logger.info("service_starting", port=publisher_config.port)
-    app.run(host=publisher_config.host, port=publisher_config.port)
+    serve(app, host=publisher_config.host, port=publisher_config.port, threads=64, send_bytes=1)
 
 
 if __name__ == "__main__":
