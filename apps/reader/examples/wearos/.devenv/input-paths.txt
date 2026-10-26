@@ -1,9 +1,0 @@
-/home/cesar/Projects/phonedo/apps/reader/examples/wearos/.devenv/bootstrap/bootstrapLib.nix
-/home/cesar/Projects/phonedo/apps/reader/examples/wearos/.devenv/bootstrap/default.nix
-/home/cesar/Projects/phonedo/apps/reader/examples/wearos/.devenv/bootstrap/resolve-lock.nix
-/home/cesar/Projects/phonedo/apps/reader/examples/wearos/devenv.local.nix
-/home/cesar/Projects/phonedo/apps/reader/examples/wearos/devenv.lock
-/home/cesar/Projects/phonedo/apps/reader/examples/wearos/devenv.nix
-/home/cesar/Projects/phonedo/apps/reader/examples/wearos/devenv.yaml
-/home/cesar/.config/nixpkgs/overlays
-/home/cesar/.config/nixpkgs/overlays.nix

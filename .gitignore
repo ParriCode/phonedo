@@ -49,3 +49,12 @@ MANIFEST-*
 .vscode/
 
 target/
+
+# Ejemplo Wear OS: cachés de devenv/Gradle, compilación nativa y archivos locales
+.devenv/
+.gradle/
+.cxx/
+local.properties
+*.keystore
+*.keystore.lock
+apps/reader/examples/wearos/tests/native/out/

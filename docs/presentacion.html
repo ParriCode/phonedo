@@ -334,7 +334,7 @@ footer { border-top: 1px solid var(--line); padding-top: 24px; color: var(--mute
 
         <rect class="d-box" x="540" y="272" width="130" height="60" rx="8"/>
         <text class="d-title" x="605" y="298" text-anchor="middle">Panel</text>
-        <text class="d-sub" x="605" y="316" text-anchor="middle">Axum + Leptos</text>
+        <text class="d-sub" x="605" y="316" text-anchor="middle">React + Vite</text>
 
         <rect class="d-box-c" x="760" y="150" width="170" height="60" rx="8"/>
         <text class="d-title" x="845" y="176" text-anchor="middle">Contrato adherence</text>
@@ -586,40 +586,14 @@ message = commitment + session_id.to_bytes(32, <span class="cm">'big'</span>) + 
   <h2>Observar la red y separar lo que ve cada uno</h2>
   <div class="grid-2">
     <div class="card">
-      <h3>Backend · <code>apps/control/backend</code></h3>
-      <p>Rust con Axum, SQLite para el inventario y SSE para el navegador. Consulta cada servicio y Docker cada pocos segundos, una sola vez para todas las pestañas. Arranca, para y reinicia contenedores etiquetados, con historial de operaciones. Lee los cobros de los eventos <code>SessionPaid</code> del contrato.</p>
+      <h3>Consola del operador · <code>apps/web</code></h3>
+      <p>React + Vite. Mapa vivo de los servicios: estado de cada nodo, conexiones HTTP y Stream, errores visibles al momento e inspector contextual. Arranca, para y despliega contenedores Docker a través de <code>tools/web_runtime.py</code>, una API local limitada a loopback.</p>
     </div>
     <div class="card">
-      <h3>Frontend · <code>apps/control/frontend</code></h3>
-      <p>Leptos compilado a WebAssembly. Mapa interactivo de servicios con transporte y estado de cada conexión, detalle por nodo, lecturas y logs. Hoy funciona con escenarios de ejemplo; la conexión con la API del backend es el siguiente paso.</p>
+      <h3>Paneles de pagos · <code>apps/web</code></h3>
+      <p>Paciente, cadena de frío y empresa. Leen los cobros de los eventos <code>SessionPaid</code> del contrato directamente del RPC de testnet; ninguno recibe lecturas de salud.</p>
     </div>
   </div>
-  <div class="table-wrap">
-    <table>
-      <thead><tr><th>Rol</th><th>Sesiones y pagos</th><th>Lecturas, logs y detalle</th><th>Acciones sobre contenedores</th></tr></thead>
-      <tbody>
-        <tr><td>Aseguradora</td><td>Sí</td><td><span class="private">No · 403</span></td><td>No</td></tr>
-        <tr><td>Paciente</td><td>Sí</td><td>Sí</td><td>No</td></tr>
-        <tr><td>Administración</td><td>Sí</td><td>Sí</td><td>Sí, con token</td></tr>
-      </tbody>
-    </table>
-  </div>
-  <details>
-    <summary>Respuesta real de GET /api/sessions con el token de la aseguradora</summary>
-<pre><code>{
-  "source": "stellar", "network": "testnet",
-  "contractId": "CAPZ2O7LPTRGJ2Q7TTHMCHOKRZ4T7KU5I4E74M2U3YUTC3XONIQDOP2D",
-  "items": [{
-    "sessionId": 20261025001, "status": "confirmed",
-    "patient": "GBBO4ZD2YNV3ZBUIBIQAH3VK73Y2RHTSMURUR5LYEK5JMXACK24YN3BC",
-    "amount": "5", "asset": "XLM", "ledger": 5381362,
-    "txHash": "891b2fe1504a9d9c0a34146828e9caac9527a41e3d467eaecf5a994c145c0aa1",
-    "explorerUrl": "https://stellar.expert/explorer/testnet/tx/891b2fe1…"
-  }]
-}
-<span class="cm">// La misma aseguradora pidiendo lecturas:</span>
-{ "code": "role_forbidden", "message": "La aseguradora no tiene acceso a lecturas, logs ni detalle de servicios" }</code></pre>
-  </details>
 </section>
 
 <!-- Demo -->
@@ -656,8 +630,7 @@ docker compose -f deploy/docker/compose.yml logs -f publisher   <span class="cm"
     <li><span><strong>Contrato:</strong> paga una sesión válida una sola vez y rechaza una prueba de otra pauta, una prueba de otra sesión, una firma para otra paciente y una prueba manipulada.</span></li>
     <li><span><strong>Circuito:</strong> <code>inputs/session.json</code> genera prueba y <code>session_fail.json</code>, con lecturas fuera de rango, no puede generarla.</span></li>
     <li><span><strong>Servicios Python:</strong> unas 80 pruebas de componentes e integración con procesos reales, firmas ed25519, streams SSE y LevelDB temporal; la pila Docker se prueba con los cinco servicios.</span></li>
-    <li><span><strong>Backend del panel:</strong> 35 pruebas de API (timeouts, JSON inválido, Docker caído, roles, eventos reales de testnet) y 9 de integración contra la pila Docker real, incluida la recuperación del pipeline tras parar el Verifier.</span></li>
-    <li><span><strong>Frontend:</strong> pruebas Rust de la topología, estados y límites, y pruebas de la geometría del grafo con Node.</span></li>
+    <li><span><strong>Web:</strong> pruebas de la lógica del lienzo con Node y de los paneles y la consola con Vitest: estados, conexiones, logs, pagos del RPC y despliegue de contenedores.</span></li>
   </ul>
 </section>
 
