@@ -199,6 +199,21 @@ describe('consola del operador', () => {
     expect(screen.getByText('5 servicios')).toBeTruthy();
   });
 
+  it('cambia entre el mapa y los logs sin desplazar la página', () => {
+    mockFetch({ local: () => [] });
+    const { container } = renderOperator();
+    const map = container.querySelector('.operator-page--map');
+    const logs = container.querySelector('.operator-page--logs');
+    expect(map.hidden).toBe(false);
+    expect(logs.hidden).toBe(true);
+    fireEvent.click(screen.getByRole('button', { name: 'Logs' }));
+    expect(map.hidden).toBe(true);
+    expect(logs.hidden).toBe(false);
+    fireEvent.click(screen.getByRole('button', { name: 'Mapa' }));
+    expect(map.hidden).toBe(false);
+    expect(logs.hidden).toBe(true);
+  });
+
   it('seleccionar un contenedor muestra su inspector sin guardar nodos falsos', async () => {
     mockFetch({ local: () => [] });
     const { container } = renderOperator();

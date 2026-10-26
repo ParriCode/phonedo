@@ -294,7 +294,7 @@ export function OperatorProvider({ children }) {
     // Lleva la lista de actividad a los logs de un servicio.
     focusLogs: (nodeId, level = 'all') => {
       setLogFilter((value) => ({ ...value, node: nodeId, level, query: '' }));
-      document.getElementById('activity')?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
+      window.dispatchEvent(new CustomEvent('phonendo:show-logs'));
     },
     clearLogs: () => setLogs([]),
     setToken: (id, value) => tokens.current.set(id, value),

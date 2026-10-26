@@ -19,6 +19,12 @@ function renderPanel(view, defaultLang = 'en', nav = []) {
 }
 
 describe('paneles de pagos', () => {
+  it('el logo vuelve a la portada', () => {
+    mockFetch();
+    const { container } = renderPanel(<CompanyView />);
+    expect(container.querySelector('.brand').getAttribute('href')).toBe('index.html');
+  });
+
   it('la empresa ve los pagos en directo con su transacción', async () => {
     mockFetch();
     const { container } = renderPanel(<CompanyView />);

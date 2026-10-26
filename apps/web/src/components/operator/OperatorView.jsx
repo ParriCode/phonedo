@@ -1,8 +1,10 @@
+import { useEffect, useState } from 'react';
 import { portLabel } from '../../lib/health.js';
 import { useI18n } from '../../providers/I18nProvider.jsx';
 import { useNetwork } from '../../providers/NetworkProvider.jsx';
 import { useOperator } from '../../providers/OperatorProvider.jsx';
 import { ServiceCanvas } from '../canvas/ServiceCanvas.jsx';
+import { Icon } from '../Icon.jsx';
 import { useDeployDialog } from './DeployDialog.jsx';
 import { EdgeInspector, NodeInspector, StellarInspector, SystemSummary } from './Inspector.jsx';
 import { OperatorLogs } from './OperatorLogs.jsx';
@@ -44,12 +46,18 @@ function HealthSummary({ view }) {
 
 /** Consola del operador: mapa vivo del sistema, detalle contextual y actividad. */
 export function OperatorView() {
+  const [page, setPage] = useState('map');
   const { t, opText } = useI18n();
   const { selected, selectedEdge, select, selectEdge } = useNetwork();
   const { openDialog } = useDeployDialog();
   // Tras cada acción confirmada el inspector se vuelve a montar con los valores reales.
   const { epoch, containers, dockerAction, imageAction, connectionAction, inventoryError } = useOperator();
   const view = useSystemView();
+  useEffect(() => {
+    const showLogs = () => setPage('logs');
+    window.addEventListener('phonendo:show-logs', showLogs);
+    return () => window.removeEventListener('phonendo:show-logs', showLogs);
+  }, []);
   const label = (kind) => (kind === 'stellar' ? 'Stellar' : t(`kind.${kind}`));
   const names = Object.fromEntries(view.model.nodes.map((node) => [node.id, node.name]));
   const connect = (sourceId, targetId, transport) => {
@@ -67,15 +75,21 @@ export function OperatorView() {
 
   return (
     <section className="page-body operator-body"><div className="wrap-wide">
-      <ServiceCanvas
-        model={view.model} views={nodeViews(view, opText)} edgeStates={view.edges}
-        selectedId={selected} selectedEdgeId={selectedEdge} onSelect={select} onSelectEdge={selectEdge}
-        onAdd={() => openDialog('reader')} onDeploy={openDialog} onDockerAction={dockerAction} onImageAction={imageAction} onConnect={connect} containers={containers} inventoryError={inventoryError} summary={<HealthSummary view={view} />}
-        storageKey="phonendo.canvas.local.v1" text={opText} label={label}
-        edgeLabel={(item, state) => `${names[item.sourceId]} → ${names[item.targetId]} · ${transportLabel(item.transport)} · ${edgeLabel(state, opText)}`}
-        sidebar={sidebar}
-      />
-      <OperatorLogs view={view} />
+      <nav className="operator-switcher" aria-label={opText('Vistas del operador', 'Operator views')}>
+        <button type="button" aria-pressed={page === 'map'} onClick={() => setPage('map')}><Icon name="hub" /><span>{opText('Mapa', 'Map')}</span></button>
+        <button type="button" aria-pressed={page === 'logs'} onClick={() => setPage('logs')}><Icon name="menu" /><span>Logs</span></button>
+      </nav>
+      <div className="operator-page operator-page--map" hidden={page !== 'map'}>
+        <ServiceCanvas
+          model={view.model} views={nodeViews(view, opText)} edgeStates={view.edges}
+          selectedId={selected} selectedEdgeId={selectedEdge} onSelect={select} onSelectEdge={selectEdge}
+          onAdd={() => openDialog('reader')} onDeploy={openDialog} onDockerAction={dockerAction} onImageAction={imageAction} onConnect={connect} containers={containers} inventoryError={inventoryError} summary={<HealthSummary view={view} />}
+          storageKey="phonendo.canvas.local.v1" text={opText} label={label}
+          edgeLabel={(item, state) => `${names[item.sourceId]} → ${names[item.targetId]} · ${transportLabel(item.transport)} · ${edgeLabel(state, opText)}`}
+          sidebar={sidebar}
+        />
+      </div>
+      <div className="operator-page operator-page--logs" hidden={page !== 'logs'}><OperatorLogs view={view} onShowMap={() => setPage('map')} /></div>
     </div></section>
   );
 }
