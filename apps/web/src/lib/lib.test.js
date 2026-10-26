@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { CONFIG } from '../config.js';
 import { paidEvent, PATIENT } from '../test/fakes.js';
 import { configFor, configName, connectionsFromSnapshots, dockerDefaultConfig, linkDockerNode } from './serviceConfig.js';
-import { cursorLedger, fetchPayments, groupByUseCase, mergePayments, parseEvent, sortedTotals, stats } from './stellar.js';
+import { contractFilters, cursorLedger, fetchPayments, groupByUseCase, mergePayments, parseEvent, sortedTotals, stats } from './stellar.js';
 import { short } from './format.js';
 
 describe('stellar', () => {
@@ -21,6 +21,12 @@ describe('stellar', () => {
     expect(summary.sessions).toBe(3);
     expect(summary.patients).toBe(2);
     expect(sortedTotals(summary.totals)).toEqual([['USDC', 7.5], ['XLM', 5]]);
+  });
+
+  it('reparte los contratos en filtros de 5 como exige el RPC', () => {
+    const contracts = Array.from({ length: 8 }, (_, i) => ({ id: `C${i}` }));
+    expect(contractFilters(contracts).map((filter) => filter.contractIds.length)).toEqual([5, 3]);
+    expect(contractFilters().flatMap((filter) => filter.contractIds)).toEqual(CONFIG.contracts.map((c) => c.id));
   });
 
   it('agrupa los pagos por caso de uso y descarta contratos desconocidos', () => {

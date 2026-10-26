@@ -48,8 +48,15 @@ export function cursorLedger(cursor) {
  * Pagos nuevos desde `cursor` (o desde el ledger más antiguo que guarda el RPC).
  * Cada página cubre como mucho ~10 000 ledgers, así que se avanza hasta el último.
  */
+// El RPC acepta como mucho 5 contratos por filtro (y 5 filtros por consulta).
+export function contractFilters(contracts = CONFIG.contracts) {
+  const filters = [];
+  for (let i = 0; i < contracts.length; i += 5) filters.push({ type: 'contract', contractIds: contracts.slice(i, i + 5).map((c) => c.id) });
+  return filters;
+}
+
 export async function fetchPayments(cursor = null) {
-  const filters = [{ type: 'contract', contractIds: CONFIG.contracts.map((c) => c.id) }];
+  const filters = contractFilters();
   let params;
   if (cursor) params = { filters, pagination: { limit: 200, cursor }, xdrFormat: 'json' };
   else {

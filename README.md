@@ -326,6 +326,14 @@ on any static host (GitHub Pages, Netlify, Vercel).
 
 **Demo video:** https://youtu.be/nX8ho0uSeZE
 
+| Patient (rehabilitation) | Company (payer) |
+| :---: | :---: |
+| ![Patient panel: rehab rewards paid on Stellar testnet](docs/screenshots/patient.png) | ![Company panel: every payment, proven](docs/screenshots/company.png) |
+| **Cold chain (carrier)** | **Home** |
+| ![Cold-chain panel: payments per shipment](docs/screenshots/coldchain.png) | ![Home page with both use cases](docs/screenshots/index.png) |
+
+Screenshots of the live panels reading `session_paid` events from Stellar testnet.
+
 | Page | Audience | What it shows |
 | --- | --- | --- |
 | [`index.html`](apps/web/index.html) | Everyone | Home page linking to the other pages. Each page is independent and can be deployed separately. |
