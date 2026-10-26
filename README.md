@@ -79,7 +79,7 @@ cobros pagaron 5 unidades; ahora cada sesión paga 0,1 USDC para poder repetir l
 
 | Qué | Dato |
 | --- | --- |
-| **Demo preconfigurada** (`docker compose up`): contrato de rehabilitación, paga 0,1 XLM por sesión | [`CDUDM26CRM5OGGIQGZPBDUR4O27IK5HN3ZBAZXTR65JAWFDLM3CTPTTO`](https://stellar.expert/explorer/testnet/contract/CDUDM26CRM5OGGIQGZPBDUR4O27IK5HN3ZBAZXTR65JAWFDLM3CTPTTO) |
+| **Demo preconfigurada** (`./phonendo`): contrato de rehabilitación, paga 0,1 XLM por sesión | [`CDUDM26CRM5OGGIQGZPBDUR4O27IK5HN3ZBAZXTR65JAWFDLM3CTPTTO`](https://stellar.expert/explorer/testnet/contract/CDUDM26CRM5OGGIQGZPBDUR4O27IK5HN3ZBAZXTR65JAWFDLM3CTPTTO) |
 | **Demo preconfigurada**: contrato de cadena de frío (2–8 °C), paga 0,1 XLM por sesión | [`CCFO326BTSY5EAUPT5E74C44GVVQRX4HYB6TQQ7YSK647WDW2FM7DXH2`](https://stellar.expert/explorer/testnet/contract/CCFO326BTSY5EAUPT5E74C44GVVQRX4HYB6TQQ7YSK647WDW2FM7DXH2) |
 | Cuenta de la demo `phonendo` (publisher, admin y despliegue; clave pública a propósito, solo testnet) | `GBZCQXYSSUK5ELUXKWQBBNCSIAOBHPGG36THG35QJLSBLF3BBVGKEMGJ` |
 | Cobro de la demo preconfigurada desde un clon limpio, rehabilitación, 0,1 XLM | [`15a1f74e…b44b`](https://stellar.expert/explorer/testnet/tx/15a1f74e5614e68ba01245c84c42e908349f5af4dbe4fc72a92f17075775b44b) |
@@ -134,75 +134,59 @@ descarta; un timeout lo deja en una cola temporal en memoria para reintentarlo.
 El Publisher solo habla con el Manager (y con Stellar) y no tiene contacto directo
 con el Verifier.
 
-## Docker
+## Inicio rápido
 
-Inicio rápido. Tras clonar, la demo cobra sola en Stellar testnet (**solo testnet, claves
-de demostración**; ver [deploy/demo](deploy/demo/README.md)):
+Solo necesitas **Docker** y **python3**. Tras clonar, un comando levanta el panel web y una
+pila de ejemplo que cobra sola en Stellar testnet (**solo testnet, claves de demostración**;
+ver [deploy/demo](deploy/demo/README.md)):
 
 ```sh
 git clone <este repositorio> && cd phonedo
-docker compose -f deploy/docker/compose.yml up --build -d --wait
-curl http://127.0.0.1:7105/info        # Publisher: sesiones pagadas y enlaces a la transacción
-curl http://127.0.0.1:7104/raw         # Storage: lecturas verificadas
-docker compose -f deploy/docker/compose.yml logs publisher | grep publisher_session_paid
+./phonendo
+```
+
+`./phonendo` prepara un entorno virtual con `aiohttp`, compila la web en un contenedor
+desechable (no hace falta Node.js en tu equipo), arranca el panel en
+http://127.0.0.1:8080/operator.html y crea los contenedores de ejemplo definidos en
+`deploy/demo/ejemplo.json`: Reader simulado, Manager, Verifier (con la clave de demostración),
+Storage y Publisher (cuenta `phonendo`). A partir de ahí **el panel web es quien los gestiona**:
+crear, parar, pausar, reanudar, borrar, ver logs y mandar órdenes al Reader. Los secretos
+llegan a los contenedores como archivos montados de solo lectura.
+
+```sh
+./phonendo            # arranca (la primera vez compila las imágenes; tarda unos minutos)
+./phonendo status     # panel y contenedores
+./phonendo stop       # para el panel y sus contenedores (conserva los datos)
+./phonendo reset      # borra contenedores, red y estado
 ```
 
 El Reader simulado emite pulso (rehabilitación) y temperatura (cadena de frío); cada caso
 termina en un `claim()` y un evento `SessionPaid` visibles en
 [Stellar Expert](https://stellar.expert/explorer/testnet/account/GBZCQXYSSUK5ELUXKWQBBNCSIAOBHPGG36THG35QJLSBLF3BBVGKEMGJ).
-
-[Configuración, puertos y pruebas con Docker](deploy/docker/README.md).
-
-## Ejecución local
-
-Requisitos: Python 3.11 o superior, soporte para entornos virtuales y `pip`.
-
-`deploy/env/dev.env` no se versiona: si falta, `generate_configs.sh` lo crea desde
-`deploy/env/dev.env.example` con tokens aleatorios. Edítalo para cambiar puertos o secretos, y configura las listas de
-conexiones en `apps/reader/config.json`, `apps/manager/config.json`, `apps/verifier/config.json` y
-`apps/storage/config.json`. Después genera sus configuraciones y arranca el entorno:
-
-```sh
-./tools/generate_configs.sh
-./tools/dev.sh
-```
-
-El generador escribe los archivos `config.env` de los servicios. El Reader del
-entorno local utiliza el ejemplo Linux con observaciones simuladas.
+Para comprobarlo, abre los logs del Publisher en el panel y busca `publisher_session_paid`.
 
 ## Cobro de una sesión
 
-Requiere Node.js, `circom` 2.2, Rust, Stellar CLI y una cuenta de testnet configurada
-en la CLI. Los pasos del contrato están en [contracts](contracts/README.md) y los del
-circuito en [circuits](circuits/README.md).
+La demo ya trae contratos desplegados, claves y circuito listos. Para usar tus propias claves
+y contratos necesitas Node.js, `circom` 2.2, Rust, Stellar CLI y una cuenta de testnet; los
+pasos están en [contracts](contracts/README.md), [circuits](circuits/README.md) y
+[deploy/demo](deploy/demo/README.md). Después, edita `deploy/demo/publisher.json` y
+`deploy/demo/cuenta_phonendo.toml`, o crea los servicios a mano desde el panel.
 
-```sh
-cd circuits && npm install && npm run setup     # una vez, tarda unos minutos
-node scripts/sign.js <cuenta G de la paciente>  # crea la clave de desarrollo del Verifier
-cd .. && ./tools/generate_configs.sh            # la copia a apps/verifier/signing_key.json
-docker compose -f deploy/docker/compose.yml up --build -d --wait
-```
-
-El contrato debe desplegarse con la clave pública que imprime `sign.js` y con la misma
-política que `apps/publisher/config.json`. El Reader simulado de Docker emite pulso de
-95 a 120 y luego temperatura de 2 a 8 °C (`"simulation": "demo"` en `deploy/docker/reader.json`), cada caso con su contrato y su política. Con un sensor real
-se sustituye por el Reader del sensor.
+El Reader simulado emite pulso de 95 a 120 y luego temperatura de 2 a 8 °C
+(`"simulation": "demo"` en `deploy/demo/reader.json`), cada caso con su contrato y su
+política. Con un sensor real se sustituye por el Reader del sensor.
 
 ## Variables de entorno
 
 | Variable | Dónde | Uso |
 | --- | --- | --- |
-| `STELLAR_SECRET_KEY` | `deploy/docker/.env` (no se versiona) | Clave secreta (`S…`) de la cuenta que firma el `claim()` y paga sus comisiones. Por defecto, la cuenta de demostración `phonendo` (solo testnet); un `.env` la sustituye. |
-| `STELLAR_SOURCE` | `deploy/docker/.env` o entorno | Alias de esa cuenta dentro del contenedor; por defecto el de `compose.yml`. |
-| `API_TOKEN_MANAGER`, `API_TOKEN_VERIFIER`, `API_TOKEN_STORAGE` | `compose.yml`, `deploy/env/dev.env` (generado desde `dev.env.example`) | Tokens entre servicios. Los de la demo son de demostración: cámbialos en otro despliegue. |
-| `READER_PORT`, `MANAGER_PORT`, `VERIFIER_PORT`, `STORAGE_PORT`, `PUBLISHER_PORT` | entorno | Puertos publicados por Docker (7101 a 7105 por defecto). |
-| `WEB_PORT`, `PUBLISHER_CONFIG_PATH` | entorno | Puerto del panel local (8080) y JSON del Publisher que usa. |
+| `WEB_PORT` | entorno de `./phonendo` | Puerto del panel local (8080 por defecto). |
+| `PHONENDO_WEB_NO_BROWSER=1` | entorno de `./phonendo` | No abre el navegador al arrancar. |
+| `PUBLISHER_CONFIG_PATH` | entorno del panel | JSON del Publisher del que el panel toma el contrato que abre en el explorador. |
 
-El archivo `.env` se crea así (más detalles en [Docker](deploy/docker/README.md)):
-
-```sh
-echo "STELLAR_SECRET_KEY=$(stellar keys show <alias>)" > deploy/docker/.env
-```
+Los tokens entre servicios los genera el panel al azar la primera vez y los inyecta; las
+claves (Verifier y cuenta Stellar del Publisher) se montan como archivos de solo lectura.
 
 ## Seguridad y límites
 
@@ -218,9 +202,9 @@ echo "STELLAR_SECRET_KEY=$(stellar keys show <alias>)" > deploy/docker/.env
 - El Publisher guarda los lotes en memoria: si se detiene, pierde el lote en curso y
   no reintenta los cobros.
 - El contrato está en testnet y no está auditado.
-- Las claves, los `config.env` y los datos locales no se versionan: se generan con
-  `tools/generate_configs.sh`. La clave RSA antigua del Verifier sigue en el historial
-  de git y no debe reutilizarse.
+- Las claves propias y los datos locales (`.run/`) no se versionan. Las claves de
+  demostración sí, a propósito, y solo valen en testnet. La clave RSA antigua del
+  Verifier sigue en el historial de git y no debe reutilizarse.
 
 ## Qué se construyó en el evento
 
@@ -242,13 +226,6 @@ echo "STELLAR_SECRET_KEY=$(stellar keys show <alias>)" > deploy/docker/.env
 4. Comprobar en el circuito el tiempo entre lecturas, para que una sesión dure lo debido.
 5. Registro de consentimiento: el paciente concede o retira el acceso a su dato y el
    contrato lo comprueba antes de que Storage lo entregue.
-
-## Laboratorio con interfaz
-
-Para gestionar contenedores Docker, ver sus puertos y crear dispositivos, sensores
-y observaciones manuales o periódicas: `./tools/lab.sh`. Permite parar, pausar y
-reanudar servicios.
-Consulta [las instrucciones del laboratorio](tools/LABORATORIO.md).
 
 ## Información y logs
 
@@ -275,7 +252,7 @@ para desplegarse por separado):
 
 - [`operator.html`](apps/web/operator.html): consola del operador. Mapa de Readers,
   Managers, Verifiers, Storages y Publishers por organización, comprobación de si
-  responden y descarga de su configuración JSON (mismo formato que `deploy/docker/*.json`).
+  responden y descarga de su configuración JSON (mismo formato que `deploy/demo/*.json`).
   Su barra superior tiene el botón «Empresas».
 - [`patient.html`](apps/web/patient.html): rehabilitación cardíaca. Pagos recibidos por
   una cuenta Stellar, con un electrocardiograma de fondo que reacciona a cada clic.
@@ -285,37 +262,25 @@ para desplegarse por separado):
   todos los casos de uso. Total pagado, desglose por caso de uso con su regla de pago
   y los pagos verificados con su transacción. Se abre desde el botón «Empresas».
 
-Arranque local sin Docker:
-
-```sh
-./tools/web.sh
-```
-
-`tools/web.sh` es un script de Bash: en Windows ejecútalo con WSL. Los paneles de pagos
-no lo necesitan y funcionan también con `npm run dev` o `npm run build` en `apps/web`.
+El operador se sirve con `./phonendo` (arriba). Los paneles de pagos no lo necesitan y
+funcionan también con `npm run dev` o `npm run build` en `apps/web`.
 
 El operador ofrece un canvas libre con drag & drop, zoom/pan, Auto layout y
 Fit view. La arquitectura de la web (providers y consumers de React) está en
 [apps/web](apps/web/README.md).
 
-Abre dos pestañas automáticamente cuando el servidor responde: el operador en
+Al arrancar, `./phonendo` abre dos pestañas cuando el servidor responde: el operador en
 `http://127.0.0.1:8080/operator.html` y Stellar Expert en testnet con el primer contrato de
-`apps/publisher/config.json`, o el explorador general si no hay configurados.
-`Ctrl+C` detiene el servidor. Instala Python 3 y el abridor de navegador si faltan
-(Debian/Ubuntu). Prepara `.venv` e instala `aiohttp` si falta. Si hay `npm`, compila antes
-la web en `apps/web/dist`.
-Puedes cambiar el puerto con `WEB_PORT=8081 ./tools/web.sh` y elegir otro JSON
-con `PUBLISHER_CONFIG_PATH=deploy/docker/publisher.json ./tools/web.sh`.
-
+`deploy/demo/publisher.json`. `./phonendo stop` detiene el panel.
 
 Los pagos se leen en el navegador desde los eventos `session_paid` del RPC público de
 testnet. Si el RPC no responde, la web lo indica y muestra las transacciones ya
 confirmadas. La red editada en la consola se guarda solo en ese navegador.
 
-El operador servido por `tools/web.sh` permite crear Readers Python reales,
+El operador servido por `./phonendo` permite crear Readers Python reales,
 añadir dispositivos y sensores, emitir pulsos individuales o 32 lecturas y cambiar
-HTTP push, SSE, tokens y Managers en directo. Los Readers viven en memoria y se
-detienen al cerrar el script; los secretos no se guardan en el navegador. La API
+HTTP push, SSE, tokens y Managers en directo. Los Readers viven en contenedores Docker
+y siguen al cerrar el navegador; los secretos no se guardan en el navegador. La API
 de control escucha solo en loopback y exige el mismo origen para las acciones.
 Servicios externos: logs consultados cada 3 segundos; la edición requiere una API
 propia y no está habilitada. SSE exige configurar la suscripción en el Manager.
@@ -334,7 +299,7 @@ Ejecuta las pruebas de los componentes y la integración con servicios reales:
 
 ```sh
 ./tools/test.sh
-./tools/test_integration.sh
+.venv/bin/python -m pytest tests/integration -v
 ```
 
 Las pruebas del Reader en C++ requieren un compilador con soporte C++17. La prueba

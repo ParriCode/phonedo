@@ -71,8 +71,9 @@ SSE refleja conexiones activas; HTTP, destinos configurados o clientes recibidos
 
 New pieces: `circuits/` (Circom + snarkjs) and a Soroban contract in Rust.
 
-`tools/web.sh` sirve el operador con `tools/web_runtime.py` (aiohttp local).
-Crea Readers reales en memoria, gestiona dispositivos/sensores y pulsos; configura
+`./phonendo` arranca el panel (`tools/web_runtime.py`, aiohttp local) y siembra la pila de
+ejemplo de `deploy/demo/ejemplo.json` con `tools/sembrar.py`; los contenedores los gestiona
+`tools/web_docker.py`. Crea Readers reales en contenedores, gestiona dispositivos/sensores y pulsos; configura
 push HTTP/SSE y tokens en vivo. Consulta logs externos mediante un puente local
 limitado a IPs privadas/loopback. Los servicios externos no se editan. La web
 (`apps/web`) es React + Vite con providers/consumers (`src/providers`): el operador
@@ -97,9 +98,8 @@ End-to-end flow:
    message (128 bytes):
    `commitment (32 B, big-endian) || sessionId (32 B, big-endian) || ed25519
    public key of the patient's G account (32 B) || verifierId (32 B)`. The key is
-   `apps/verifier/signing_key.json` (gitignored JWK, copied by
-   `tools/generate_configs.sh` from `circuits/build/verifier_dev_key.json`, the
-   key the deployed contract trusts). `circuits/scripts/sign.js` is the reference
+   the Verifier JWK; in the demo it is the versioned `deploy/demo/verifier_demo_key.json`
+   (testnet only), mounted read-only by the panel, the key the deployed contract trusts. `circuits/scripts/sign.js` is the reference
    implementation. The Publisher never signs by itself.
 4. The Publisher rejects the signature if the returned commitment differs from
    the one in its proof.
@@ -145,11 +145,11 @@ phonedo/
 ├── circuits/             # Circom circuits, inputs/ examples, scripts/ (setup, prove, soroban)
 ├── contracts/            # Soroban contract `adherence` (Rust): claim() verifies signature + proof and pays
 ├── deploy/
-│   ├── docker/           # compose.yml and per-service JSON config
-│   └── env/              # dev.env.example (template); dev.env is generated and gitignored
+│   └── demo/             # example stack seeded by ./phonendo: ejemplo.json, per-service JSON, testnet demo keys
 ├── docs/                 # PlantUML diagrams (.plantuml + .png/.svg) and overview.md
-├── tests/                # app_tests/, integration/, docker/, arduino_uno_test/
-└── tools/                # dev, build, test and lab scripts (lab.sh = UI lab)
+├── tests/                # app_tests/, integration/, arduino_uno_test/
+├── phonendo              # single entry point: panel + example stack (start|stop|status|reset)
+└── tools/                # web_runtime.py, web_docker.py, sembrar.py, test.sh
 ```
 
 Generated folders (`circuits/build/`, `node_modules/`, `target/`, `.venv/`) are
@@ -226,16 +226,15 @@ Public web demo (Vercel, project `phonendo`): https://phonendo.vercel.app. Redep
 `apps/web` with `npm run build && npx vercel deploy dist --prod`; the repo is not
 connected to Vercel. The operator console works only locally.
 
-Local stack (Docker, simulated Reader and Publisher; ports 7101-7105):
+Local stack (needs only Docker and python3; the web panel manages every container):
 
 ```sh
-docker compose -f deploy/docker/compose.yml up --build -d --wait
-curl http://127.0.0.1:7104/raw        # Verified events in Storage
-docker compose -f deploy/docker/compose.yml down
+./phonendo          # panel at http://127.0.0.1:8080/operator.html + example stack
+./phonendo stop     # ./phonendo status, ./phonendo reset
 ```
 
 Tests of the existing services: see the root `README.md`
-(`./tools/test.sh`, `./tools/test_integration.sh`, `./tools/test_docker.sh`).
+(`./tools/test.sh`, `.venv/bin/python -m pytest tests/integration`).
 
 Circuit (needs Node.js and `circom` 2.2 in PATH):
 
@@ -268,8 +267,8 @@ stellar contract invoke --id <contract_id> --source <alias> --network testnet --
   no generated artifacts. `circuits/build/`, `node_modules/`, `target/`,
   `.wasm`, `.zkey`, `.ptau` stay out of git.
 - No secrets in git: no private keys, seeds, tokens or personal paths.
-  `apps/verifier/signing_key.json` and `config.env` are gitignored and generated
-  by `tools/generate_configs.sh`; the old RSA `keys.json` (removed) was in git
+  Own keys and local state (`.run/`) are gitignored; only the testnet demo keys in
+  `deploy/demo/` are versioned on purpose; the old RSA `keys.json` (removed) was in git
   history, so it counts as leaked. Never commit files like them.
 - Match the existing style. Code comments, READMEs and user-facing messages are
   in **Spanish**; keep them short. Follow each service's current structure.
