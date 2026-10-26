@@ -1,0 +1,21 @@
+# devenv / direnv
+.devenv*
+devenv.local.nix
+devenv.local.yaml
+.direnv
+
+# AVDs e identidad de adb: devenv los pone aquí, no en $HOME.
+.android/
+
+# Gradle y CMake
+.gradle/
+.kotlin/
+build/
+app/.cxx/
+local.properties
+
+# Credenciales: se copian de secrets.example.properties.
+secrets.properties
+
+# Prueba nativa en el host
+tests/native/out/

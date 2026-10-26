@@ -114,6 +114,21 @@ pio run -d apps/reader/examples/arduino
 El ejemplo está configurado para ESP8266 ESP-12E. Las dependencias PlatformIO apuntan
 a `../../cpp/core` y `../../cpp/server`.
 
+## Wear OS
+
+[`examples/wearos`](examples/wearos/README.md) es una app para el OnePlus Watch 3
+(Wear OS 5) que mide el pulso con Health Services y lo publica como `heart-rate`
+en `bpm`. C++ (NDK + JNI) hace todo lo del Reader con `cpp/core` y `cpp/server`,
+compilados desde aquí sin copiarlos; Kotlin pone el servidor HTTP/SSE del reloj
+(mismo contrato que Python y el ESP32) y el envío a `<manager>/newEvent`. El
+entorno entero (JDK, Gradle, SDK, NDK, CMake, emulador Wear OS) lo levanta devenv:
+
+```sh
+cd apps/reader/examples/wearos
+cp secrets.example.properties secrets.properties
+devenv shell -- build
+```
+
 ## Verificación
 
 Desde la raíz, con el entorno de pruebas del [README principal](../../README.md).

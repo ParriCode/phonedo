@@ -1,0 +1,19 @@
+# yaml-language-server: $schema=https://devenv.sh/devenv.schema.json
+# Entorno del ejemplo Wear OS del Reader. Mismo nixpkgs que comiditas: el
+# devenv.lock fija la revisión, y con él el repo.json de androidenv que decide
+# qué versiones de SDK, NDK e imágenes existen.
+inputs:
+  nixpkgs:
+    url: github:cachix/devenv-nixpkgs/rolling
+
+# El SDK de Android no es libre (cmdline-tools, imágenes de sistema).
+#
+# OJO: la clave es snake_case. Un 'allowUnfree: true' se ignora en SILENCIO,
+# y entonces la evaluación revienta con
+# "package 'android-sdk-cmdline-tools' has an unfree license".
+allow_unfree: true
+
+# NO añadir el input 'android-nixpkgs': su sola presencia cambia la fuente del
+# SDK, y en esa ruta el módulo de devenv ignora por diseño systemImages,
+# systemImageTypes, abis, sources, cmake y extras, además de los pines de
+# versión. Sin imagen de sistema no hay emulador posible.
