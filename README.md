@@ -6,6 +6,8 @@ la prueba y paga automáticamente. En HackMeridian 2026 (Lisboa) usa pruebas de
 conocimiento cero (ZK) sobre Stellar: ruta Genesis, con los temas Stellar Unlocked y
 Stellar Composed.
 
+Demo en línea: https://phonendo.vercel.app
+
 ## Qué resuelve
 
 Caso principal: **adherencia a la rehabilitación cardíaca**. Una aseguradora paga a la
@@ -250,7 +252,8 @@ tiene un servidor HTTP concreto para estas consultas.
 
 [`apps/web`](apps/web/README.md) es una web React compilada con Vite (Node.js 20 o
 superior). `npm run build` genera en `apps/web/dist` páginas estáticas que se publican
-tal cual en cualquier hosting estático (GitHub Pages, Netlify, Vercel).
+tal cual en cualquier hosting estático (GitHub Pages, Netlify, Vercel). La demo
+pública está en Vercel: https://phonendo.vercel.app (la consola del operador solo funciona en local).
 
 `index.html` es la portada y lleva a las demás páginas, cada una independiente (pensadas
 para desplegarse por separado):

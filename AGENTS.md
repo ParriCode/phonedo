@@ -222,6 +222,10 @@ development Verifier key from `circuits/build/verifier_dev_key.json`. A new
 
 ## Commands
 
+Public web demo (Vercel, project `phonendo`): https://phonendo.vercel.app. Redeploy from
+`apps/web` with `npm run build && npx vercel deploy dist --prod`; the repo is not
+connected to Vercel. The operator console works only locally.
+
 Local stack (Docker, simulated Reader and Publisher; ports 7101-7105):
 
 ```sh
