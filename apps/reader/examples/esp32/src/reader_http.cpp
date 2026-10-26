@@ -47,6 +47,8 @@ bool ReaderHttp::authorized() {
 }
 
 void ReaderHttp::sendJson(int status, const std::string& body) {
+    // CORS abierto: permite que un panel HTML en el navegador lea el Reader.
+    server.sendHeader("Access-Control-Allow-Origin", "*");
     server.send(status, "application/json", body.c_str());
 }
 
@@ -63,6 +65,14 @@ void ReaderHttp::handleDevices() {
 }
 
 void ReaderHttp::handleOther() {
+    // Preflight del navegador (lo dispara la cabecera Authorization); no lleva token.
+    if (server.method() == HTTP_OPTIONS) {
+        server.sendHeader("Access-Control-Allow-Origin", "*");
+        server.sendHeader("Access-Control-Allow-Headers", "Authorization");
+        server.sendHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
+        server.send(204);
+        return;
+    }
     if (!authorized()) return;
     const std::string uri = server.uri().c_str();
     const std::string prefix = "/devices/";
@@ -97,6 +107,7 @@ void ReaderHttp::handleStream() {
     WiFiClient client = server.client();
     client.print("HTTP/1.1 200 OK\r\n"
                  "Content-Type: text/event-stream\r\n"
+                 "Access-Control-Allow-Origin: *\r\n"
                  "Cache-Control: no-cache\r\n"
                  "X-Accel-Buffering: no\r\n"
                  "Connection: keep-alive\r\n\r\n");

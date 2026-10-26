@@ -9,6 +9,8 @@ import shutil
 import subprocess
 from pathlib import Path
 
+from aiohttp import ClientError
+
 ROOT = Path(__file__).resolve().parents[1]
 PORTS = {'reader': 3002, 'manager': 3003, 'verifier': 5000, 'storage': 5000, 'publisher': 3005}
 MASK = '••••••'
@@ -313,7 +315,7 @@ class DockerController:
                 for _ in range(40):
                     try:
                         return await self.snapshot(identifier, require_ready=True)
-                    except (ValueError, OSError, asyncio.TimeoutError):
+                    except (ValueError, OSError, ClientError, asyncio.TimeoutError):
                         await asyncio.sleep(.5)
                 result = await self.snapshot(identifier)
                 result['error'] = 'El contenedor se creó pero no responde todavía; consulta sus logs'
@@ -355,7 +357,7 @@ class DockerController:
             try:
                 result.update(await self.reader_request(record))
                 result['url'] = record['url']
-            except (ValueError, OSError, asyncio.TimeoutError):
+            except (ValueError, OSError, ClientError, asyncio.TimeoutError):
                 if require_ready:
                     raise ValueError('Esperando al Reader')
                 result['error'] = 'Reader arrancando o sin respuesta; consulta los logs Docker'
