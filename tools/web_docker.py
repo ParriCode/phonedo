@@ -5,6 +5,7 @@ import json
 import os
 import re
 import secrets
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -12,15 +13,70 @@ ROOT = Path(__file__).resolve().parents[1]
 PORTS = {'reader': 3002, 'manager': 3003, 'verifier': 5000, 'storage': 5000, 'publisher': 3005}
 MASK = '••••••'
 NETWORK = 'phonendo-web'
+SECRET_WORDS = ('token', 'password', 'secret', 'seed', 'private')
+# Las claves de demostración viven versionadas aquí; nada fuera de esta carpeta se monta en un contenedor.
+DEMO_DIR = ROOT / 'deploy/demo'
 
 
 def redact(value):
     if isinstance(value, dict):
-        return {key: MASK if any(word in key.lower() for word in ('token', 'password', 'secret', 'seed')) and item
+        return {key: MASK if any(word in key.lower() for word in SECRET_WORDS) and item
                 else redact(item) for key, item in value.items()}
     if isinstance(value, list):
         return [redact(item) for item in value]
     return value
+
+
+def demo_file(relative):
+    """Archivo de deploy/demo/ que puede montarse como secreto de solo lectura."""
+    path = (ROOT / str(relative)).resolve()
+    if not path.is_relative_to(DEMO_DIR) or not path.is_file():
+        raise ValueError('Solo se pueden montar archivos de deploy/demo/')
+    return path
+
+
+def _config_secrets(value):
+    found = []
+    if isinstance(value, dict):
+        for key, item in value.items():
+            if any(word in key.lower() for word in SECRET_WORDS) and isinstance(item, str):
+                found.append(item)
+            else:
+                found.extend(_config_secrets(item))
+    elif isinstance(value, list):
+        for item in value:
+            found.extend(_config_secrets(item))
+    return found
+
+
+def _file_secrets(path):
+    """Valores secretos de un archivo montado: TOML `clave = "valor"` o JWK con `d`."""
+    try:
+        text = Path(path).read_text()
+    except OSError:
+        return []
+    try:
+        data = json.loads(text)
+        return [data['d']] if isinstance(data, dict) and isinstance(data.get('d'), str) else []
+    except ValueError:
+        return re.findall(r'=\s*"([^"]+)"', text)
+
+
+def secret_values(record):
+    """Todo valor que no debe verse en logs ni respuestas: variables secretas, tokens y archivos montados."""
+    values = [value for key, value in record['environment'].items()
+              if any(word in key.lower() for word in SECRET_WORDS) or key.lower().endswith('key')]
+    values += [record['control']] + _config_secrets(record['config'])
+    for path in record.get('secretFiles', []):
+        values += _file_secrets(path)
+    return [value for value in values if value]
+
+
+def mask_text(text, values):
+    # Los valores largos primero: un secreto contenido en otro no debe dejar restos.
+    for value in sorted(set(filter(None, values)), key=len, reverse=True):
+        text = text.replace(value, '[oculto]')
+    return text
 
 
 def restore(value, previous):
@@ -130,7 +186,9 @@ class DockerController:
             if not isinstance(config, dict):
                 raise ValueError('La configuración debe ser un objeto JSON')
             config.setdefault('server', {}).update(host='0.0.0.0', port=internal)
-            if kind == 'reader':
+            # Un Reader con `simulation` es el Reader Linux de ejemplo (lecturas automáticas), no el controlado en directo.
+            simulated = kind == 'reader' and 'simulation' in config
+            if kind == 'reader' and not simulated:
                 config['server']['enabled'] = True
                 config.setdefault('readerId', alias)
                 config['webSettings'] = config.get('webSettings') or {
@@ -140,10 +198,23 @@ class DockerController:
                     'managers': config.get('services', {}).get('managers', [])}
             if kind == 'manager':
                 config.setdefault('managerId', alias)
-            if kind == 'verifier':
+            # Secretos: siempre archivos montados de solo lectura, nunca variables de entorno.
+            secret_mounts = []
+            if body.get('keyFile'):
+                if kind != 'verifier':
+                    raise ValueError('keyFile solo aplica al Verifier')
+                secret_mounts.append((demo_file(body['keyFile']), '/run/secrets/verifier_key.json'))
+                config['keyPath'] = '/run/secrets/verifier_key.json'
+            elif kind == 'verifier':
                 config['keyPath'] = '/data/signing-key.json'
             if kind == 'publisher':
                 config['circuitsPath'] = '/circuits'
+                if body.get('identityFile'):
+                    source = body.get('stellarSource') or config.get('stellar', {}).get('source', 'phonendo')
+                    if not re.fullmatch(r'[a-zA-Z0-9_-]{1,40}', source):
+                        raise ValueError('Alias de Stellar inválido')
+                    secret_mounts.append((demo_file(body['identityFile']),
+                                          f'/root/.config/stellar/identity/{source}.toml'))
             required = {'reader': ('API_TOKEN_MANAGER',),
                         'manager': tuple(self.credentials),
                         'verifier': ('API_TOKEN_VERIFIER', 'MANAGER_PASSWORD'),
@@ -152,7 +223,13 @@ class DockerController:
             for key, value in environment.items():
                 if not re.fullmatch(r'[A-Z][A-Z0-9_]*', key) or not isinstance(value, str):
                     raise ValueError('Las variables de entorno deben tener nombre válido y valor de texto')
-            if kind == 'reader':
+            if simulated:
+                config.setdefault('readerId', alias)
+                config['server']['enabled'] = True
+                for target in config.get('services', {}).get('managers', []):
+                    if not target.get('token'):
+                        target['token'] = environment['API_TOKEN_MANAGER']
+            elif kind == 'reader':
                 if config['readerId'] != config['webSettings']['readerId']:
                     raise ValueError('readerId y webSettings.readerId deben coincidir')
                 if any(item['kind'] == 'reader' and item['config'].get('readerId') == config['readerId'] for item in self.records.values()):
@@ -182,7 +259,8 @@ class DockerController:
             control = secrets.token_hex(32)
             record = {'id': identifier, 'kind': kind, 'name': alias, 'container': f'phonendo-web-{identifier}',
                       'image': image, 'containerPort': internal, 'config': config,
-                      'environment': environment, 'control': control, 'stellarIdentity': bool(body.get('stellarIdentity'))}
+                      'environment': environment, 'control': control, 'simulated': simulated,
+                      'secretFiles': [str(path) for path, _ in secret_mounts]}
             save_json(folder / 'config/config.json', config)
             args = ['run', '-d', '--name', record['container'], '--network', NETWORK, '--network-alias', alias,
                     '--label', 'phonendo.web.managed=true', '--label', 'phonendo.web.id=' + identifier,
@@ -195,23 +273,26 @@ class DockerController:
                     '-e', 'PHONENDO_LOGS_DIR=/data/logs', '-e', 'PHONENDO_DB_PATH=/data/phonendo']
             for key, value in environment.items():
                 args.extend(['-e', key + '=' + value])
-            if kind == 'reader':
+            for path, target in secret_mounts:
+                args.extend(['--mount', f'type=bind,src={path},dst={target},readonly'])
+            if kind == 'reader' and simulated:
+                args.extend(['-e', 'READER_CONFIG_PATH=/phonendo-config/config.json'])
+            elif kind == 'reader':
                 args.extend(['--mount', f'type=bind,src={ROOT / "tools/web_runtime.py"},dst=/opt/phonendo/tools/web_runtime.py,readonly',
                              '-e', 'PHONENDO_READER_ROOT=/app/reader', '-e', 'PHONENDO_WEB_READER_MODE=1',
                              '-e', 'PHONENDO_WEB_READER_ID=' + identifier, '-e', 'WEB_CONTROL_TOKEN=' + control])
             if kind == 'publisher':
-                (ROOT / 'circuits/build').mkdir(exist_ok=True)
+                # Los scripts van de solo lectura y node_modules sale de la imagen. El publisher escribe
+                # pruebas en build/: trabaja sobre una copia por instancia para no ensuciar el repositorio
+                # con archivos de root ni tocar la ceremonia versionada.
+                work = folder / 'circuits-build'
+                shutil.copytree(ROOT / 'circuits/build', work, ignore=shutil.ignore_patterns('*.ptau', '*.r1cs', 'proof*.json', 'public.json', 'soroban_args.json'))
                 args.extend(['--mount', f'type=bind,src={ROOT / "circuits/scripts"},dst=/circuits/scripts,readonly',
-                             '--mount', f'type=bind,src={ROOT / "circuits/build"},dst=/circuits/build'])
-                if record['stellarIdentity']:
-                    identity = Path(os.getenv('XDG_CONFIG_HOME', str(Path.home() / '.config'))) / 'stellar'
-                    if not identity.is_dir():
-                        raise ValueError('No existe la configuración local de Stellar')
-                    args.extend(['--mount', f'type=bind,src={identity},dst=/root/.config/stellar,readonly'])
+                             '--mount', f'type=bind,src={work},dst=/circuits/build'])
             args.append(image)
-            if kind == 'reader':
+            if kind == 'reader' and not simulated:
                 args.extend(['python', '/opt/phonendo/tools/web_runtime.py'])
-            if kind == 'verifier':
+            if kind == 'verifier' and not body.get('keyFile'):
                 # Clave persistente dentro del volumen de esta instancia, nunca en la imagen.
                 code = ("import base64,json,runpy; from pathlib import Path; "
                         "from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey; "
@@ -270,7 +351,7 @@ class DockerController:
                   'dockerUrl': record['dockerUrl'], 'state': info['State']['Status'],
                   'serviceConfig': redact(record['config']), 'environment': {key: MASK for key in record['environment']},
                   'devices': [], 'events': []}
-        if result['state'] == 'running' and record['kind'] == 'reader':
+        if result['state'] == 'running' and record['kind'] == 'reader' and not record.get('simulated'):
             try:
                 result.update(await self.reader_request(record))
                 result['url'] = record['url']
@@ -281,7 +362,8 @@ class DockerController:
         elif require_ready:
             if result['state'] != 'running':
                 raise ValueError('El contenedor está detenido')
-            async with self.client.get(record['url'] + '/', allow_redirects=False) as response:
+            probe = '/health' if record.get('simulated') else '/'
+            async with self.client.get(record['url'] + probe, allow_redirects=False) as response:
                 if response.status != 200:
                     raise ValueError('Servicio sin respuesta')
         return result
@@ -290,21 +372,7 @@ class DockerController:
         record = self.record(identifier)
         await self.inspect(record)
         output = await self.run('logs', '--tail', '150', record['container'])
-        def secret_values(value):
-            result = []
-            if isinstance(value, dict):
-                for key, item in value.items():
-                    if any(word in key.lower() for word in ('token', 'password', 'secret', 'seed')) and isinstance(item, str):
-                        result.append(item)
-                    else:
-                        result.extend(secret_values(item))
-            elif isinstance(value, list):
-                for item in value:
-                    result.extend(secret_values(item))
-            return result
-        for value in list(record['environment'].values()) + [record['control']] + secret_values(record['config']):
-            if value:
-                output = output.replace(value, '[oculto]')
+        output = mask_text(output, secret_values(record))
         return output[-100000:].splitlines()
 
     async def action(self, identifier, body):
@@ -323,10 +391,10 @@ class DockerController:
             elif action == 'config':
                 config = restore(body['config'], record['config'])
                 config.setdefault('server', {}).update(host='0.0.0.0', port=record['containerPort'])
-                if record['kind'] == 'reader':
+                if record['kind'] == 'reader' and not record.get('simulated'):
                     raise ValueError('Usa los controles en directo del Reader')
                 if record['kind'] == 'verifier':
-                    config['keyPath'] = '/data/signing-key.json'
+                    config['keyPath'] = record['config'].get('keyPath', '/data/signing-key.json')
                 if record['kind'] == 'publisher':
                     config['circuitsPath'] = '/circuits'
                 record['config'] = config

@@ -51,7 +51,6 @@ MANIFEST-*
 target/
 
 # Secretos y claves: nunca al repositorio (ver odd/tasks/gestion-claves.md)
-deploy/env/dev.env
 signing_key*.json
 *.keystore
 *.keystore.lock

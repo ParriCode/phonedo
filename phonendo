@@ -1,0 +1,113 @@
+#!/usr/bin/env bash
+# Punto de entrada único de Phonendo: arranca el panel web y siembra una pila de ejemplo.
+# El panel (tools/web_runtime.py) es quien crea, para, pausa y borra los contenedores;
+# este script solo prepara lo mínimo en tu equipo (Docker y python3) y lo pone en marcha.
+# Las definiciones del ejemplo están en deploy/demo/ejemplo.json (SOLO TESTNET).
+set -euo pipefail
+
+RAIZ="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+RUN="$RAIZ/.run"
+PUERTO="${WEB_PORT:-8080}"
+URL="http://127.0.0.1:$PUERTO"
+PYTHON="$RAIZ/.venv/bin/python"
+ETIQUETA='label=phonendo.web.managed=true'
+
+aviso() { echo "phonendo: $*" >&2; }
+fallo() { aviso "$*"; exit 1; }
+
+panel_responde() { "$PYTHON" -c "import urllib.request as u; u.urlopen('$URL/', timeout=2)" >/dev/null 2>&1; }
+contenedores() { docker ps -aq --filter "$ETIQUETA"; }
+
+comprobar_requisitos() {
+    command -v docker >/dev/null || fallo 'falta Docker (Engine o Desktop).'
+    docker info >/dev/null 2>&1 || fallo 'Docker no responde: arráncalo y comprueba que tu usuario puede usarlo.'
+    command -v python3 >/dev/null || fallo 'falta python3.'
+}
+
+preparar_python() {
+    if [[ ! -x "$PYTHON" ]]; then
+        python3 -m venv "$RAIZ/.venv" || fallo 'no se pudo crear el entorno virtual (en Debian/Ubuntu: apt install python3-venv).'
+    fi
+    "$PYTHON" -c 'import aiohttp' >/dev/null 2>&1 || "$PYTHON" -m pip install -q 'aiohttp>=3.9,<4'
+}
+
+# La web es React + Vite. Se compila en un contenedor desechable: no hace falta Node en tu equipo.
+preparar_web() {
+    [[ -f "$RAIZ/apps/web/dist/operator.html" ]] && return
+    echo 'Compilando la web en un contenedor node:20 (solo la primera vez)...'
+    docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp -v "$RAIZ/apps/web:/web" -w /web \
+        node:20-bookworm-slim sh -c 'npm ci --no-audit --no-fund && npm run build' >/dev/null \
+        || fallo 'no se pudo compilar la web.'
+}
+
+iniciar() {
+    comprobar_requisitos
+    preparar_python
+    preparar_web
+    mkdir -p "$RUN"
+    if panel_responde; then
+        echo "El panel ya está en marcha en $URL"
+    else
+        echo 'Arrancando el panel...'
+        (cd "$RAIZ" && setsid "$PYTHON" tools/web_runtime.py >"$RUN/panel.log" 2>&1 & echo $! >"$RUN/panel.pid")
+        for _ in $(seq 1 50); do panel_responde && break; sleep 0.2; done
+        panel_responde || fallo "el panel no arrancó; mira $RUN/panel.log"
+    fi
+    echo 'Sembrando la pila de ejemplo (Reader, Manager, Verifier, Storage y Publisher)...'
+    "$PYTHON" "$RAIZ/tools/sembrar.py" "$URL" "$RAIZ/deploy/demo/ejemplo.json"
+    echo
+    echo "Listo. Panel: $URL/operator.html"
+    echo 'El Reader simulado emite pulso y cadena de frío y el Publisher cobra en Stellar testnet.'
+    echo 'Para: ./phonendo stop · estado: ./phonendo status · empezar de cero: ./phonendo reset'
+}
+
+parar() {
+    if [[ -f "$RUN/panel.pid" ]]; then
+        kill "$(cat "$RUN/panel.pid")" 2>/dev/null || true
+        rm -f "$RUN/panel.pid"
+    fi
+    if command -v docker >/dev/null && [[ -n "$(contenedores 2>/dev/null)" ]]; then
+        # shellcheck disable=SC2046
+        docker stop --time 5 $(docker ps -q --filter "$ETIQUETA") >/dev/null 2>&1 || true
+    fi
+    echo 'Panel y contenedores parados (sus datos se conservan; ./phonendo los reanuda).'
+}
+
+estado() {
+    if [[ -x "$PYTHON" ]] && panel_responde; then echo "Panel: en marcha en $URL/operator.html"; else echo 'Panel: parado'; fi
+    docker ps -a --filter "$ETIQUETA" --format 'Contenedor {{.Names}}: {{.Status}}' 2>/dev/null || true
+}
+
+reiniciar_todo() {
+    parar
+    if command -v docker >/dev/null; then
+        # shellcheck disable=SC2046
+        [[ -z "$(contenedores)" ]] || docker rm -f $(contenedores) >/dev/null
+        docker network rm phonendo-web >/dev/null 2>&1 || true
+    fi
+    # Los contenedores escriben como root en sus carpetas de datos: si no podemos borrarlas, lo hace Docker.
+    rm -rf "$RUN/web-docker" 2>/dev/null || docker run --rm -v "$RUN:/r" --entrypoint rm \
+        phonendo-web-storage:local -rf /r/web-docker >/dev/null 2>&1 || aviso "borra a mano $RUN/web-docker (sudo rm -rf)"
+    echo 'Contenedores, red y estado eliminados. Las imágenes Docker se conservan.'
+}
+
+ayuda() {
+    cat <<AYUDA
+Uso: ./phonendo [orden]
+  (sin orden)  arranca el panel web, siembra la pila de ejemplo y te dice dónde abrirlo
+  stop         para el panel y sus contenedores (conserva los datos)
+  status       muestra si el panel y los contenedores están en marcha
+  reset        borra los contenedores, la red y el estado creados por phonendo
+  help         esta ayuda
+Variables: WEB_PORT (8080 por defecto) · PHONENDO_WEB_NO_BROWSER=1 no abre el navegador.
+AYUDA
+}
+
+case "${1:-start}" in
+    start) iniciar ;;
+    stop) parar ;;
+    status) estado ;;
+    reset) reiniciar_todo ;;
+    help|-h|--help) ayuda ;;
+    *) ayuda >&2; exit 2 ;;
+esac

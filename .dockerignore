@@ -6,3 +6,7 @@
 contracts/target
 logs
 apps/*/config.env
+.run
+apps/web
+apps/reader
+docs

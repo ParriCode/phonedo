@@ -3,7 +3,7 @@
 # Deja la demo lista para cobrar en Stellar testnet: fondea la cuenta `phonendo`
 # con Friendbot, despliega un contrato `adherence` para rehabilitación y otro para
 # cadena de frío, los fondea con XLM nativo y escribe sus ids en
-# deploy/docker/publisher.json. Es lo que se ejecutó para versionar la demo; se
+# deploy/demo/publisher.json. Es lo que se ejecutó para versionar la demo; se
 # repite para regenerarla con claves propias (ver deploy/demo/README.md).
 #
 # Variables opcionales:
@@ -20,10 +20,10 @@ RAIZ="$(cd "$AQUI/../.." && pwd)"
 RED=testnet
 ALIAS="${STELLAR_SOURCE:-phonendo}"
 # Cuenta de demostración, pública a propósito: solo existe en testnet y no vale nada.
-SECRETO="${STELLAR_SECRET_KEY:-SBMAE3TROCP5C5PV2XK2P26TDASPINDIVNXORVGEM2KSQ3G4EOQFHJ7H}"
+SECRETO="${STELLAR_SECRET_KEY:-$(sed -n 's/^secret_key = "\(.*\)"$/\1/p' "$AQUI/cuenta_phonendo.toml")}"
 CLAVE_VERIFIER="${VERIFIER_KEY_FILE:-$AQUI/verifier_demo_key.json}"
 FONDOS_XLM="${FONDOS_XLM:-1000}"
-PUBLISHER_JSON="$RAIZ/deploy/docker/publisher.json"
+PUBLISHER_JSON="$RAIZ/deploy/demo/publisher.json"
 WASM="$RAIZ/contracts/target/wasm32v1-none/release/adherence.wasm"
 
 # 1. Alias de la cuenta (la clave entra por stdin, no por argumentos) y Friendbot.

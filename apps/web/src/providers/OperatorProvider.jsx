@@ -166,7 +166,7 @@ export function OperatorProvider({ children }) {
         case 'deploy-container': {
           const identifier = crypto.randomUUID();
           const config = JSON.parse(data.config);
-          const body = { id: identifier, kind, name: data.name, image: data.image, port: Number(data.port), containerPort: Number(data.containerPort), build: data.build === 'on', config, environment: JSON.parse(data.environment), stellarIdentity: data.stellarIdentity === 'on' };
+          const body = { id: identifier, kind, name: data.name, image: data.image, port: Number(data.port), containerPort: Number(data.containerPort), build: data.build === 'on', config, environment: JSON.parse(data.environment) };
           const snapshot = await dockerOperation(await requestLocal('containers', body), onProgress);
           const created = { id: identifier, kind, name: data.name, org: 'lab', url: snapshot.url, managers: [], template: 'pulse', managed: true };
           addNode(created);

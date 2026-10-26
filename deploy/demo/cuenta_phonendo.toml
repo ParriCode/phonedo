@@ -1,0 +1,4 @@
+# SOLO TESTNET / CLAVE DE DEMOSTRACIÓN: cuenta `phonendo`, pública a propósito.
+# Es una identidad de la CLI de Stellar; ./phonendo la monta en el Publisher como
+# archivo de solo lectura (/root/.config/stellar/identity/phonendo.toml).
+secret_key = "SBMAE3TROCP5C5PV2XK2P26TDASPINDIVNXORVGEM2KSQ3G4EOQFHJ7H"

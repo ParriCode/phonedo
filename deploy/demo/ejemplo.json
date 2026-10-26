@@ -1,0 +1,12 @@
+{
+  "descripcion": "Pila de ejemplo que ./phonendo siembra la primera vez (SOLO TESTNET). Cada servicio sigue el cuerpo de POST /api/local/containers; `configFile` es un JSON de esta carpeta. Orden = orden de arranque: el Reader emite al terminar de levantarse el resto.",
+  "servicios": [
+    {"id": "demo-storage", "kind": "storage", "name": "storage", "configFile": "storage.json", "build": true},
+    {"id": "demo-verifier", "kind": "verifier", "name": "verifier", "configFile": "verifier.json", "build": true,
+     "keyFile": "deploy/demo/verifier_demo_key.json"},
+    {"id": "demo-manager", "kind": "manager", "name": "manager", "configFile": "manager.json", "build": true},
+    {"id": "demo-publisher", "kind": "publisher", "name": "publisher", "configFile": "publisher.json", "build": true,
+     "identityFile": "deploy/demo/cuenta_phonendo.toml", "stellarSource": "phonendo"},
+    {"id": "demo-reader", "kind": "reader", "name": "reader", "configFile": "reader.json", "build": true}
+  ]
+}

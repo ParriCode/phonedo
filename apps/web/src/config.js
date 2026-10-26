@@ -32,7 +32,7 @@ export const TEMPLATES = { pulse: 'pulse', temperature: 'thermo' };
 export const ORGS = ['hospital', 'insurer', 'lab'];
 export const STORE_KEY = 'phonendo.network.v2';
 
-// Despliegue local de deploy/docker/compose.yml.
+// Despliegue local de ejemplo (./phonendo siembra deploy/demo/ejemplo.json).
 export const DEMO_NETWORK = [
   { id: 'reader-1', kind: 'reader', name: 'reader-docker', org: 'hospital', url: 'http://localhost:7101', template: 'pulse', managers: ['manager-1'] },
   { id: 'manager-1', kind: 'manager', name: 'manager', org: 'hospital', url: 'http://localhost:7102', managers: [] },

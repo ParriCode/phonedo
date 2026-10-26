@@ -363,7 +363,7 @@ async def launch(app):
     if os.getenv('PHONENDO_WEB_NO_BROWSER') == '1':
         return
     port = int(os.getenv('WEB_PORT', '8080'))
-    config = json.loads(Path(os.getenv('PUBLISHER_CONFIG_PATH', str(ROOT / 'apps/publisher/config.json'))).read_text())
+    config = json.loads(Path(os.getenv('PUBLISHER_CONFIG_PATH', str(ROOT / 'deploy/demo/publisher.json'))).read_text())
     contracts = sorted(value for value in config.get('contracts', {}).values()
                        if isinstance(value, str) and re.fullmatch(r'C[A-Z2-7]{55}', value))
     explorer = 'https://stellar.expert/explorer/testnet' + ('/contract/' + contracts[0] if contracts else '')

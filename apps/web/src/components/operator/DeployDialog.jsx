@@ -42,7 +42,6 @@ function DeployForm({ draft, onKind, onClose }) {
       <label className="op-field"><span>config.json</span><textarea name="config" rows="13" spellCheck={false} required defaultValue={JSON.stringify(config, null, 2)} /></label>
       <p className="op-caption">{opText('Dentro de Docker usa la dirección Docker de cada servicio. Para servicios del equipo: host.docker.internal. Los tokens comunes del panel se inyectan automáticamente.', 'Inside Docker use each service Docker address. For host services use host.docker.internal. Shared panel tokens are injected automatically.')}</p>
       <details><summary>{opText('Variables de entorno y tokens', 'Environment variables & tokens')}</summary><label className="op-field"><span>JSON · API_TOKEN_MANAGER / API_TOKEN_VERIFIER / MANAGER_PASSWORD…</span><textarea name="environment" rows="5" spellCheck={false} defaultValue="{}" /></label></details>
-      {kind === 'publisher' ? <label className="check-line"><input type="checkbox" name="stellarIdentity" />{opText('Montar mi configuración local de Stellar (solo lectura)', 'Mount my local Stellar configuration (read-only)')}</label> : null}
       <p className="op-caption" id="op-deploy-progress" role="status">{progress}</p><p className="form-error" id="op-dialog-error" role="alert">{error}</p></div><div className="dialog-foot"><button className="btn btn-line" type="button" data-op="close-dialog" onClick={onClose}>{t('dlg.cancel')}</button><button className="btn btn-gold" type="submit">{opText('Desplegar Docker', 'Deploy Docker')}</button></div></form>
   );
 }

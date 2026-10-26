@@ -10,7 +10,7 @@
     "managers": [
       {
         "url": "http://manager:3003",
-        "token": "demo-manager"
+        "token": ""
       }
     ]
   },

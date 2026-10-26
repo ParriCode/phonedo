@@ -9,6 +9,5 @@
   },
   "stream": {
     "enabled": true
-  },
-  "keyPath": "/run/demo/verifier_key.json"
+  }
 }
