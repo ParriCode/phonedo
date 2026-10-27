@@ -444,3 +444,13 @@ the services down when it finishes.
 - Web: [apps/web](apps/web/README.md)
 - Deployment: [Docker](deploy/docker/README.md)
 - Diagrams: [editable PlantUML sources](docs/diagramas.md)
+
+---
+
+## 📖 Reference
+
+Phonendo on Stellar builds on the original Phonendo platform from the Universidad de Jaén:
+
+> F. Moya, F. J. Quesada, L. Martínez and F. J. Estrella. *Phonendo: a platform for
+> publishing wearable data on distributed ledger technologies*. Wireless Networks
+> 30(7), 6507–6521 (2024). [doi:10.1007/s11276-023-03458-7](https://doi.org/10.1007/s11276-023-03458-7)
